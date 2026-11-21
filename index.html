@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>idle.beer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="counter">
+          <div class="counter-main">
+            <div class="pints" id="pints">0</div>
+            <div class="pints-label" id="pints-label">pints</div>
+          </div>
+          <div class="pps"><b id="pps">0</b> per second</div>
+          <div class="mats" id="mats" hidden>🟫 <b id="mats-count">0</b> Beer Mats · <span id="mats-bonus"></span></div>
+        </div>
+        <div class="buffs" id="buffs" aria-live="polite"></div>
+        <div class="topbar-actions">
+          <button type="button" id="open-last-orders" class="last-orders-button with-badge" aria-label="Last Orders" hidden>
+            🔔<span class="lo-text"> Last Orders</span><span class="badge" id="last-orders-badge" hidden></span>
+          </button>
+          <button type="button" id="open-achievements" class="icon-button with-badge" aria-label="Achievements" title="Achievements">
+            🏆<span class="badge" id="achievement-badge" hidden></span>
+          </button>
+          <button type="button" id="open-stats" class="icon-button" aria-label="Stats" title="Stats">📊</button>
+          <button type="button" id="open-settings" class="icon-button" aria-label="Settings" title="Settings">⚙️</button>
+          <button type="button" id="sound-toggle" class="icon-button" aria-pressed="true" aria-label="Sound">🔊</button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <main class="stage" id="stage" tabindex="0" aria-label="Your pint. Hold to drink, or hold Space.">
+          <div class="scene-box">
+            <div class="scene" id="scene"></div>
+            <div class="location-name" id="location-name"></div>
+            <div class="streak" id="streak" hidden>
+              <span class="streak-label"></span>
+              <span class="streak-bar"><i></i></span>
+            </div>
+            <div class="popups" id="popups"></div>
+            <div class="free-rounds" id="free-rounds"></div>
+            <div class="hint" id="hint">Click and hold to drink</div>
+          </div>
+        </main>
+
+        <aside class="store" id="store" aria-label="Shop">
+          <section class="store-section" aria-label="Beer">
+            <div class="section-head">
+              <h2>Next round</h2>
+              <span class="beer-now"></span>
+            </div>
+            <button type="button" class="beer-card">
+              <span class="beer-icon" aria-hidden="true">🍺</span>
+              <span class="beer-main">
+                <span class="beer-name"></span>
+                <span class="beer-desc"></span>
+              </span>
+              <span class="beer-cost"></span>
+            </button>
+          </section>
+
+          <section class="store-section" aria-label="Upgrades">
+            <div class="section-head">
+              <h2>Upgrades</h2>
+              <span class="upgrade-count"></span>
+            </div>
+            <div class="upgrade-grid"></div>
+            <div class="upgrade-detail" aria-live="polite"></div>
+          </section>
+
+          <section class="store-section drinkers-section" aria-label="Drinkers">
+            <div class="section-head store-head">
+              <h2>Drinkers</h2>
+              <div class="buy-modes" role="group" aria-label="How many to buy"></div>
+            </div>
+            <div class="store-list"></div>
+          </section>
+        </aside>
+      </div>
+
+      <div class="toasts" id="toasts" aria-live="polite"></div>
+
+      <dialog class="panel-dialog" id="achievements-dialog" aria-labelledby="achievements-title">
+        <header class="dialog-head">
+          <h2 id="achievements-title">Achievements</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+        </header>
+        <p class="dialog-sub" id="achievements-summary"></p>
+        <div class="achievement-detail" id="achievement-detail"></div>
+        <div class="achievement-grid" id="achievement-grid"></div>
+      </dialog>
+
+      <dialog class="panel-dialog wide" id="last-orders-dialog" aria-labelledby="last-orders-title">
+        <header class="dialog-head">
+          <h2 id="last-orders-title">🔔 Last Orders</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+        </header>
+        <section class="bell">
+          <p class="setting-note">
+            Ring the bell to close up for the night. Your pints, drinkers, upgrades and beers go, and you start
+            again at The Red Lion. In return you bank <b>Beer Mats</b>. Every unspent mat makes everything drink
+            more, and mats buy permanent Landlord's Licences. Achievements and stats are kept.
+          </p>
+          <div class="bell-row">
+            <div class="bell-numbers">
+              <div>Ring now for <b class="big" id="mats-on-reset">0</b> Beer Mats</div>
+              <div class="setting-note" id="next-mat"></div>
+            </div>
+            <button type="button" id="ring-bell" class="ring-bell">🔔 Ring the bell</button>
+          </div>
+        </section>
+        <section class="licence">
+          <div class="section-head">
+            <h2>Landlord's Licence</h2>
+            <span class="setting-note" id="licence-summary"></span>
+          </div>
+          <div class="licence-grid" id="licence-grid"></div>
+          <div class="auto-toggles" id="auto-toggles"></div>
+        </section>
+      </dialog>
+
+      <dialog class="panel-dialog" id="stats-dialog" aria-labelledby="stats-title">
+        <header class="dialog-head">
+          <h2 id="stats-title">Stats</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+        </header>
+        <dl class="stats-list" id="stats-list"></dl>
+      </dialog>
+
+      <dialog class="panel-dialog" id="settings-dialog" aria-labelledby="settings-title">
+        <header class="dialog-head">
+          <h2 id="settings-title">Settings</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+        </header>
+        <div class="settings">
+          <label class="setting">
+            <span>Numbers</span>
+            <select id="number-format">
+              <option value="short">Names (1.234 million)</option>
+              <option value="scientific">Scientific (1.23e6)</option>
+              <option value="engineering">Engineering (1.23e6, steps of 3)</option>
+            </select>
+          </label>
+          <label class="setting">
+            <span>Sound</span>
+            <input type="checkbox" id="sound-setting" />
+          </label>
+
+          <h3>Save</h3>
+          <p class="setting-note">Your game saves itself every 30 seconds in this browser. Export a copy to move it or keep a backup.</p>
+          <div class="setting-buttons">
+            <button type="button" id="export-save">Export save</button>
+            <button type="button" id="import-save">Import save</button>
+          </div>
+          <textarea id="save-text" rows="4" spellcheck="false" placeholder="Paste a save here, then press Import save." aria-label="Save text"></textarea>
+          <p class="setting-note" id="save-message" aria-live="polite"></p>
+
+          <h3>Danger zone</h3>
+          <button type="button" id="hard-reset" class="danger">Hard reset (wipe everything)</button>
+        </div>
+      </dialog>
+
+      <footer class="statusbar">
+        <span>Pints per drink: <b id="per-drink">1</b></span>
+        <span>Drinks: <b id="drinks">0</b></span>
+        <span>Lifetime: <b id="lifetime">0</b></span>
+        <span>Best streak: <b id="best-streak">0</b></span>
+      </footer>
+
+      <div class="debug" id="debug" hidden>
+        <b>Debug</b>
+        <button type="button" data-debug="1e6">1e6</button>
+        <button type="button" data-debug="1e36">1e36</button>
+        <button type="button" data-debug="1e303">1e303</button>
+        <button type="button" data-debug="1e1000">1e1000</button>
+        <button type="button" data-debug="1e100000">1e100000</button>
+        <button type="button" data-debug="1e1e10">e1e10</button>
+        <button type="button" data-debug="x1000">per drink ×1000</button>
+        <button type="button" data-debug="drinkers">+10 of each drinker</button>
+        <button type="button" data-debug="away">Simulate 2h away</button>
+        <button type="button" data-debug="beer">Cycle beer</button>
+        <button type="button" data-debug="freeround">Free Round now</button>
+        <button type="button" data-debug="location">Next location</button>
+        <button type="button" data-debug="reset">Hard reset</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
