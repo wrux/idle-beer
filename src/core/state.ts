@@ -6,6 +6,7 @@ import type { AutoBuy } from '../data/licence';
 export const SAVE_VERSION = 2;
 
 export type BuyMode = 1 | 10 | 100 | 'max';
+export type ArtStyle = 'classic' | 'painted';
 
 export interface GameState {
   version: number;
@@ -17,6 +18,8 @@ export interface GameState {
   handPints: Decimal;
   /** Pints finished by hand. Stays small enough for a plain number. */
   drinks: number;
+  /** Pints he finished on his own while you weren't holding. */
+  autoDrinks: number;
   /** How full the glass in your hand is, 0..1, so a refresh mid-pint keeps it. */
   glassFill: number;
   /** Drinkers owned, by drinker id. A plain number: even Max-buying at 1e(9e15) stays below 1e17. */
@@ -59,6 +62,8 @@ export interface GameState {
     sound: boolean;
     /** Auto-buyer switches (they only run once the Licence node is bought). */
     auto: Record<AutoBuy, boolean>;
+    /** Scene art: the original vector style, or the painted prototype. */
+    art: ArtStyle;
   };
   startedAt: number;
   lastSaved: number;
@@ -71,6 +76,7 @@ export function newGame(now = Date.now()): GameState {
     lifetimePints: D(0),
     handPints: D(0),
     drinks: 0,
+    autoDrinks: 0,
     glassFill: 1,
     drinkers: {},
     upgrades: new Set(),
@@ -88,7 +94,7 @@ export function newGame(now = Date.now()): GameState {
     kegs: D(0),
     runStartedAt: now,
     debugPerDrinkMult: D(1),
-    settings: { numberFormat: 'short', buyMode: 1, sound: true, auto: { upgrades: true, drinkers: true, beer: true } },
+    settings: { numberFormat: 'short', buyMode: 1, sound: true, auto: { upgrades: true, drinkers: true, beer: true }, art: 'classic' },
     startedAt: now,
     lastSaved: now,
   };

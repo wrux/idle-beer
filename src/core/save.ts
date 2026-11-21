@@ -70,6 +70,7 @@ export function deserialize(text: string, now = Date.now()): GameState {
   s.lifetimePints = toDecimal(raw.lifetimePints);
   s.handPints = toDecimal(raw.handPints);
   s.drinks = Number.isFinite(raw.drinks) ? raw.drinks : 0;
+  s.autoDrinks = Number.isFinite(raw.autoDrinks) && raw.autoDrinks > 0 ? raw.autoDrinks : 0;
   s.glassFill = Number.isFinite(raw.glassFill) ? Math.min(1, Math.max(0, raw.glassFill)) : 1;
   s.debugPerDrinkMult = toDecimal(raw.debugPerDrinkMult, 1);
   // Only keep drinkers we still know about, with sane counts. Saves from before Phase 2 have none.
@@ -88,6 +89,7 @@ export function deserialize(text: string, now = Date.now()): GameState {
   }
   if ([1, 10, 100, 'max'].includes(raw.settings?.buyMode)) s.settings.buyMode = raw.settings.buyMode;
   if (typeof raw.settings?.sound === 'boolean') s.settings.sound = raw.settings.sound;
+  if (raw.settings?.art === 'classic' || raw.settings?.art === 'painted') s.settings.art = raw.settings.art;
   if (Array.isArray(raw.buffs)) {
     for (const b of raw.buffs) {
       if (b && b.kind in BUFFS && Number.isFinite(b.remaining) && b.remaining > 0) {

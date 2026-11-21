@@ -4,7 +4,7 @@ import {
 } from '../core/economy';
 import { format, pintsWord, type NumberFormat } from '../core/format';
 import { D } from '../core/num';
-import type { GameState } from '../core/state';
+import type { ArtStyle, GameState } from '../core/state';
 import { ACHIEVEMENTS, type Achievement } from '../data/achievements';
 import { DRINKERS } from '../data/drinkers';
 import { LOCATIONS, locationIndex } from '../data/locations';
@@ -135,6 +135,7 @@ export class StatsPanel {
       ['Pints per second', format(totalPps(s), f)],
       ['Pints per drink', format(pintsPerDrink(s), f)],
       ['Drunk by hand', `${format(s.handPints.floor(), f)} ${pintsWord(s.handPints.floor())} in ${n(s.drinks)} drink${s.drinks === 1 ? '' : 's'}`],
+      ['Drunk on his own', `${n(s.autoDrinks)} pint${s.autoDrinks === 1 ? '' : 's'}`],
       ['Time per pint', `${drinkTime(s).toFixed(2)}s`],
       ['Best chug streak', n(s.bestStreak)],
       ['Free Rounds claimed', n(s.freeRounds)],
@@ -162,6 +163,7 @@ export class StatsPanel {
 export interface SettingsEvents {
   onFormatChange(f: NumberFormat): void;
   onSoundChange(on: boolean): void;
+  onArtChange(art: ArtStyle): void;
   exportSave(): string;
   importSave(text: string): string | null;
   hardReset(): void;
@@ -170,6 +172,7 @@ export interface SettingsEvents {
 export class SettingsPanel {
   private format = $<HTMLSelectElement>('number-format');
   private sound = $<HTMLInputElement>('sound-setting');
+  private art = $<HTMLSelectElement>('art-setting');
   private text = $<HTMLTextAreaElement>('save-text');
   private message = $('save-message');
 
@@ -180,6 +183,7 @@ export class SettingsPanel {
     });
     this.format.addEventListener('change', () => events.onFormatChange(this.format.value as NumberFormat));
     this.sound.addEventListener('change', () => events.onSoundChange(this.sound.checked));
+    this.art.addEventListener('change', () => events.onArtChange(this.art.value as ArtStyle));
 
     $('export-save').addEventListener('click', async () => {
       const save = events.exportSave();
@@ -213,5 +217,6 @@ export class SettingsPanel {
     const s = this.getState();
     this.format.value = s.settings.numberFormat;
     this.sound.checked = s.settings.sound;
+    this.art.value = s.settings.art;
   }
 }

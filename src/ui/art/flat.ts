@@ -1,12 +1,12 @@
 /** Flat vector art style: crisp SVG shapes, gradients and soft shading. */
 import type { BeerLook, GlassShape } from '../../data/beers';
-import type { Drinker } from '../../data/drinkers';
+import { DRINKERS } from '../../data/drinkers';
 import type { Location } from '../../data/locations';
 import { figureMarkup } from './crowd';
 import { windowView } from './views';
 import {
   BAR_TOP, GLASS, HEAD, INNER_BOT, INNER_TOP, NECK, SCENE_H, SCENE_W, SHOULDER,
-  depthBelowSurface, halfWidth, toWorld, type Pose, type Renderer,
+  DEFAULT_LAYOUT, depthBelowSurface, halfWidth, pickCrowd, toWorld, type Pose, type Renderer,
 } from '../scene';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -61,6 +61,7 @@ const BUBBLES = [
 
 export class FlatRenderer implements Renderer {
   readonly root: SVGSVGElement;
+  readonly layout = DEFAULT_LAYOUT;
   private glassG: SVGGElement;
   private headG: SVGGElement;
   private liquid: SVGPolygonElement;
@@ -246,7 +247,13 @@ export class FlatRenderer implements Renderer {
   }
 
   /** Characters behind the bar, one per entry (left to right). */
-  setCrowd(drinkers: Drinker[]): void {
+  private crowdKey = '';
+
+  setCrowd(owned: (id: string) => number): void {
+    const drinkers = pickCrowd(DRINKERS, owned);
+    const key = drinkers.map((d) => d.id).join();
+    if (key === this.crowdKey) return;
+    this.crowdKey = key;
     this.crowd.replaceChildren();
     this.crowdSlots = drinkers.slice(0, CROWD_SLOTS.length).map((d, i) => {
       const g = document.createElementNS(NS, 'g');

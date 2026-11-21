@@ -9,7 +9,7 @@ import { newGame, owned } from '../src/core/state';
 import { newStreak, registerFinish, streakMult, streakRemaining } from '../src/core/streak';
 import { DRINKERS, DRINKER_BY_ID } from '../src/data/drinkers';
 import { LOCATIONS, locationIndex } from '../src/data/locations';
-import { pickCrowd } from '../src/ui/scene';
+import { CROWD_CAPACITY, CROWD_ROWS, crowdPlan, crowdSize, pickCrowd } from '../src/ui/scene';
 
 describe('chug streak', () => {
   it('builds while pints come back to back, capped at +50%', () => {
@@ -147,5 +147,50 @@ describe('crowd', () => {
   it('is stable for the same drinkers', () => {
     const own = (id: string) => ({ regular: 12, student: 3, darts: 1 } as Record<string, number>)[id] ?? 0;
     expect(pickCrowd(DRINKERS, own)).toEqual(pickCrowd(DRINKERS, own));
+  });
+});
+
+describe('crowd plan (painted)', () => {
+  const plan = (counts: Record<string, number>) => crowdPlan(DRINKERS, (id) => counts[id] ?? 0);
+
+  it('the pub fills up on a log scale, up to capacity', () => {
+    expect(crowdSize(0)).toBe(0);
+    expect(crowdSize(1)).toBe(1);
+    expect(crowdSize(10)).toBe(3);
+    expect(crowdSize(1000)).toBe(9);
+    expect(crowdSize(1e6)).toBe(18);
+    expect(crowdSize(1e12)).toBe(CROWD_CAPACITY);
+    expect(crowdSize(1e300)).toBe(CROWD_CAPACITY);
+  });
+
+  it('never shows more figures than drinkers', () => {
+    for (let n = 1; n <= 6; n++) expect(plan({ regular: n }).length).toBeLessThanOrEqual(n);
+  });
+
+  it('every owned type gets a figure when there is room', () => {
+    const counts = { regular: 5000, student: 300, darts: 20, stag: 1 };
+    const ids = new Set(plan(counts).map((f) => f.id));
+    expect([...ids].sort()).toEqual(['darts', 'regular', 'stag', 'student']);
+  });
+
+  it('a huge type dominates without hiding the others', () => {
+    const figures = plan({ regular: 1e9, student: 10 });
+    const regulars = figures.filter((f) => f.id === 'regular').length;
+    expect(regulars).toBeGreaterThan(15);
+    expect(figures.some((f) => f.id === 'student')).toBe(true);
+  });
+
+  it('with millions of every type, the newest types get priority and the rows fill front to back', () => {
+    const counts = Object.fromEntries(DRINKERS.map((d) => [d.id, 1e9]));
+    const figures = plan(counts);
+    expect(figures).toHaveLength(CROWD_CAPACITY);
+    expect(figures.some((f) => f.id === 'multiverse')).toBe(true);
+    expect(figures.filter((f) => f.row === 0)).toHaveLength(CROWD_ROWS[0].length);
+    expect(new Set(figures.map((f) => `${f.row}:${f.x}`)).size).toBe(figures.length); // no two in one spot
+  });
+
+  it('is stable for the same drinkers', () => {
+    const counts = { regular: 12, student: 3, darts: 1 };
+    expect(plan(counts)).toEqual(plan(counts));
   });
 });

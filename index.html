@@ -42,6 +42,7 @@
           <div class="scene-box">
             <div class="scene" id="scene"></div>
             <div class="location-name" id="location-name"></div>
+            <div class="crowd-count" id="crowd-count" hidden></div>
             <div class="streak" id="streak" hidden>
               <span class="streak-label"></span>
               <span class="streak-bar"><i></i></span>
@@ -148,6 +149,13 @@
               <option value="short">Names (1.234 million)</option>
               <option value="scientific">Scientific (1.23e6)</option>
               <option value="engineering">Engineering (1.23e6, steps of 3)</option>
+            </select>
+          </label>
+          <label class="setting">
+            <span>Scene art</span>
+            <select id="art-setting">
+              <option value="classic">Classic (vector)</option>
+              <option value="painted">Painted (prototype)</option>
             </select>
           </label>
           <label class="setting">

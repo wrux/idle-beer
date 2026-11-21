@@ -2,3 +2,7 @@ node_modules
 dist
 .wrangler
 .DS_Store
+
+# Full-size AI source paintings (52 MB). The originals live in the "idle.beer art"
+# Figma file; only needed to re-run `npm run art`.
+art/source/

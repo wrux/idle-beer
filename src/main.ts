@@ -13,7 +13,7 @@ import { format, pintsWord, type NumberFormat } from './core/format';
 import { startLoop } from './core/loop';
 import { big, D, Decimal } from './core/num';
 import { deserialize, loadGame, saveGame, serialize, wipeSave } from './core/save';
-import { newGame, owned } from './core/state';
+import { newGame, owned, type ArtStyle } from './core/state';
 import { drinkCycle, newStreak, registerFinish, streakMult, streakRemaining } from './core/streak';
 import {
   checkAchievements, grantAchievement, type Achievement, type GrantedAchievement,
@@ -25,7 +25,7 @@ import { FlatRenderer } from './ui/art/flat';
 import { FreeRoundView } from './ui/freeRound';
 import { bonusText, LastOrdersPanel } from './ui/lastOrders';
 import { AchievementsPanel, SettingsPanel, StatsPanel } from './ui/panels';
-import { computePose, pickCrowd, popupAnchor, type Renderer } from './ui/scene';
+import { computePose, popupAnchor, type Renderer } from './ui/scene';
 import { Sound } from './ui/sound';
 import { StoreView } from './ui/store';
 
@@ -104,10 +104,10 @@ creditAway((Date.now() - state.lastSaved) / 1000);
 
 // ---------- scene ----------
 
-const renderer: Renderer = new FlatRenderer(currentBeer(state).look);
+let renderer: Renderer = new FlatRenderer(currentBeer(state).look);
 const pose = () => {
   const look = currentBeer(state).look;
-  return computePose(drink, look.glass, look.foamScale);
+  return computePose(drink, look.glass, look.foamScale, renderer.layout);
 };
 $('scene').appendChild(renderer.root);
 
@@ -137,18 +137,28 @@ function checkLocation() {
   toast(`🍻 You've moved on to <b>${LOCATIONS[i].name}</b>. Everyone drinks ${Math.round(LOCATION_BONUS * 100 * i)}% more here.`);
 }
 
-// Crowd behind the bar: only rebuilt when it would actually look different.
-let crowdKey = '';
-function updateCrowd() {
-  const key = DRINKERS.map((d) => {
-    const n = owned(state, d.id);
-    return n >= 100 ? 3 : n >= 10 ? 2 : n > 0 ? 1 : 0;
-  }).join('');
-  if (key === crowdKey) return;
-  crowdKey = key;
-  renderer.setCrowd(pickCrowd(DRINKERS, (id) => owned(state, id)));
+
+/** Swap the scene's art style. The painted one (and PixiJS) only loads when chosen. */
+async function useArt(art: ArtStyle) {
+  const next: Renderer = art === 'painted'
+    ? new (await import('./ui/art/painted')).PaintedRenderer(currentBeer(state).look)
+    : new FlatRenderer(currentBeer(state).look);
+  renderer.destroy();
+  renderer = next;
+  $('scene').appendChild(renderer.root);
+  renderer.setBeer(currentBeer(state).look, state.beer);
+  showLocation();
+  updateCrowd();
 }
-updateCrowd();
+
+/** Who's in the pub, plus a headcount so the crowd's real size is always clear. */
+const crowdCountEl = $('crowd-count');
+function updateCrowd() {
+  renderer.setCrowd((id) => owned(state, id));
+  const total = DRINKERS.reduce((sum, d) => sum + owned(state, d.id), 0);
+  crowdCountEl.hidden = total === 0;
+  if (total > 0) setText(crowdCountEl, `👥 ${format(D(total), state.settings.numberFormat)} in the pub`);
+}
 
 // ---------- settings ----------
 
@@ -182,6 +192,10 @@ const settings = new SettingsPanel(() => state, {
     grant('name-your-poison');
   },
   onSoundChange: setSound,
+  onArtChange: (art) => {
+    state.settings.art = art;
+    void useArt(art);
+  },
   exportSave: () => {
     saveGame(state);
     return serialize(state);
@@ -339,7 +353,7 @@ const store = new StoreView($('store'), () => state, {
   },
   onBeerChanged: () => {
     sound.play('beer');
-    renderer.setBeer(currentBeer(state).look);
+    renderer.setBeer(currentBeer(state).look, state.beer);
   },
 });
 let lastStoreUpdate = 0;
@@ -374,7 +388,7 @@ const lastOrdersPanel = new LastOrdersPanel(() => state, {
     drink.refilling = false;
     drink.committed = false;
     streak.count = 0;
-    renderer.setBeer(currentBeer(state).look);
+    renderer.setBeer(currentBeer(state).look, state.beer);
     updateCrowd();
     checkLocation();
     store.update();
@@ -395,7 +409,7 @@ function autoBuy() {
   if (!m.auto.size) return;
   let bought = false;
   if (m.auto.has('beer') && state.settings.auto.beer && buyNextRound(state)) {
-    renderer.setBeer(currentBeer(state).look);
+    renderer.setBeer(currentBeer(state).look, state.beer);
     bought = true;
   }
   if (m.auto.has('upgrades') && state.settings.auto.upgrades) {
@@ -424,10 +438,23 @@ let lastAutoBuy = 0;
 
 // ---------- loop ----------
 
+/** Debug: hold the drinking pose still (for checking animation frames). */
+let frozenPose: { lift: number; fill: number } | null = null;
+
 let gulpTimer = 0;
 let wasPouring = false;
 
 function finishPint() {
+  if (drink.lastFinishAuto) {
+    // He finished this one on his own: full pints, but no streak and not "by hand".
+    const amount = pintsPerDrink(state);
+    earn(state, amount);
+    state.autoDrinks++;
+    const a = popupAnchor(pose());
+    popup(`+${format(amount, state.settings.numberFormat)}`, a.x, a.y, 'quiet');
+    sound.play('clink');
+    return;
+  }
   const m = mods(state);
   const mult = registerFinish(streak, clock, cycleSeconds(), {
     extraSlack: m.streakSlack, maxSteps: m.streakMaxSteps ?? undefined,
@@ -460,7 +487,9 @@ startLoop((elapsed, now) => {
   const holding = pointerHeld || keyHeld || pressQueued;
   pressQueued = false;
   stage.classList.toggle('holding', holding);
-  const params = { drinkTime: drinkTime(state), refillTime: refillTime(state), downInOne: hasDownInOne(state) };
+  const params = {
+    drinkTime: drinkTime(state), refillTime: refillTime(state), downInOne: hasDownInOne(state), auto: true,
+  };
   let left = Math.min(elapsed, 1);
   while (left > 0) {
     const dt = Math.min(DRINK_STEP, left);
@@ -469,6 +498,7 @@ startLoop((elapsed, now) => {
   }
   // A pint that's being poured counts as full, so a refresh never costs you a drink.
   state.glassFill = drink.refilling ? 1 : drink.fill;
+  if (frozenPose) Object.assign(drink, frozenPose, { refilling: false });
 
   // Sounds that follow the glass.
   const p = pose();
@@ -499,12 +529,16 @@ startLoop((elapsed, now) => {
     store.update();
     renderBuffs();
     checkLocation();
+    updateCrowd();
     announce(checkAchievements(state, { pps: totalPps(state), now: new Date() }));
     achievementsPanel.update();
     lastOrdersPanel.update();
     statsPanel.update();
   }
 });
+
+updateCrowd();
+if (state.settings.art === 'painted') void useArt('painted');
 
 // ---------- saving ----------
 
@@ -542,7 +576,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     if (value === 'beer') {
       state.beer = (state.beer + 1) % (BEERS.length + 6); // includes a few generated beers
       invalidate();
-      renderer.setBeer(currentBeer(state).look);
+      renderer.setBeer(currentBeer(state).look, state.beer);
       return;
     }
     if (value === 'away') {
@@ -567,6 +601,10 @@ if (new URLSearchParams(location.search).has('debug')) {
 // Handy for poking at things from the console while prototyping.
 (window as unknown as { game: unknown }).game = {
   get state() { return state; }, drink, save, streak, freeRound, store, achievementsPanel, lastOrdersPanel,
+  /** Hold the pose at a lift (0 = on the bar, 1 = at the lips) and fill; pass nothing to release. */
+  freezePose(lift?: number, fill = 0.7) {
+    frozenPose = lift === undefined ? null : { lift, fill };
+  },
   /** Average milliseconds for one frame's work (scene, HUD) and one store/panel refresh. */
   bench(n = 200) {
     let t0 = performance.now();

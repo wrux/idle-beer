@@ -7,6 +7,10 @@
  *      ◄─────────────────────────── full again ─────────────────────────┘
  *
  * Releasing early never loses progress: the glass just goes back down part-drunk.
+ *
+ * Left alone, he drinks on his own too, just much more slowly: every few seconds he lifts
+ * the glass for a slow sip of about a quarter of the pint, then puts it back down. Holding
+ * (or Down in One) takes over straight away.
  */
 
 export interface DrinkState {
@@ -18,21 +22,40 @@ export interface DrinkState {
   refilling: boolean;
   /** With Down in One: a click commits to finishing the pint even if you let go. */
   committed: boolean;
+  /** How much of the pint is left in his current sip on his own (0 = not sipping). */
+  autoSip: number;
+  /** Seconds until he takes his next sip on his own. */
+  autoWait: number;
+  /** Whether the last pint he finished was drunk on his own. */
+  lastFinishAuto: boolean;
 }
 
 export interface DrinkParams {
   drinkTime: number;
   refillTime: number;
   downInOne?: boolean;
+  /** Let him sip on his own when you're not holding. */
+  auto?: boolean;
 }
 
 const LIFT_TIME = 0.25; // seconds from bar to lips
 const LOWER_TIME = 0.3;
 const DRINK_FROM_LIFT = 0.85; // you can only drink once the glass is nearly at your mouth
 
+/** Sipping on his own: this many times slower than when you hold… */
+export const AUTO_SLOWDOWN = 4;
+/** …a quarter of a pint per sip… */
+export const AUTO_SIP = 0.25;
+/** …with this long between sips. */
+export const AUTO_PAUSE = 2.5;
+
 export function newDrinkState(fill = 1): DrinkState {
-  return { lift: 0, fill, refilling: fill <= 0, committed: false };
+  return { lift: 0, fill, refilling: fill <= 0, committed: false, autoSip: 0, autoWait: AUTO_PAUSE, lastFinishAuto: false };
 }
+
+/** Seconds per pint when he's left to drink on his own (for pacing maths). */
+export const autoCycleSeconds = (drinkTime: number, refillTime: number): number =>
+  (LIFT_TIME * DRINK_FROM_LIFT + AUTO_SIP * drinkTime * AUTO_SLOWDOWN + LOWER_TIME + AUTO_PAUSE) / AUTO_SIP + refillTime;
 
 /** Advance by dt seconds. Returns how many pints were finished this step (0 or 1). */
 export function stepDrink(s: DrinkState, dt: number, holding: boolean, p: DrinkParams): number {
@@ -46,7 +69,22 @@ export function stepDrink(s: DrinkState, dt: number, holding: boolean, p: DrinkP
   }
 
   if (holding && p.downInOne) s.committed = true;
-  if (!holding && !s.committed) {
+  const manual = holding || s.committed;
+
+  if (manual) {
+    // You're in charge: drop any sip he was taking, and wait a bit before he starts again.
+    s.autoSip = 0;
+    s.autoWait = AUTO_PAUSE;
+  } else if (p.auto && s.autoSip <= 0) {
+    s.autoWait -= dt;
+    if (s.autoWait <= 0) {
+      s.autoSip = Math.min(AUTO_SIP, s.fill);
+      s.autoWait = AUTO_PAUSE;
+    }
+  }
+  const auto = !manual && !!p.auto && s.autoSip > 0;
+
+  if (!manual && !auto) {
     s.lift = Math.max(0, s.lift - dt / LOWER_TIME);
     return 0;
   }
@@ -54,12 +92,16 @@ export function stepDrink(s: DrinkState, dt: number, holding: boolean, p: DrinkP
   s.lift = Math.min(1, s.lift + dt / LIFT_TIME);
   if (s.lift < DRINK_FROM_LIFT) return 0;
 
-  s.fill -= dt / p.drinkTime;
-  if (s.fill > 0) return 0;
+  const drunk = dt / (p.drinkTime * (auto ? AUTO_SLOWDOWN : 1));
+  s.fill -= drunk;
+  if (auto) s.autoSip -= drunk;
+  if (s.fill > 1e-9) return 0;
 
   s.fill = 0;
   s.refilling = true;
   s.committed = false;
+  s.autoSip = 0;
+  s.lastFinishAuto = auto;
   return 1;
 }
 

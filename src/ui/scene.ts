@@ -50,7 +50,8 @@ export function halfWidth(ly: number, shape: GlassShape = 'nonic'): number {
 }
 
 /** The rim point that touches your lips; the glass pivots around it. */
-export const lipLocal = (shape: GlassShape): Pt => ({ x: -halfWidth(TOP, shape), y: TOP });
+type HalfWidth = (ly: number, shape: GlassShape) => number;
+export const lipLocal = (shape: GlassShape, hw: HalfWidth = halfWidth): Pt => ({ x: -hw(TOP, shape), y: TOP });
 
 // Character (a regular in a flat cap, facing right)
 export const HEAD = { x: 150, y: 106, r: 26 };
@@ -58,19 +59,38 @@ export const NECK: Pt = { x: 150, y: 134 };
 export const SHOULDER: Pt = { x: 148, y: 150 };
 export const UPPER_ARM = 46;
 export const FOREARM = 46;
-const MOUTH: Pt = { x: 175, y: 116 };
 const HEAD_TILT_MAX = 0.22; // radians, head tips back as you drink
 
-/** Glass standing on the bar: centre x 245, base on the bar top. */
-const GLASS_REST_X = 245;
+/**
+ * Per-art-style layout: how big the glass is, where it stands on the bar, and where his mouth
+ * is. The flat style uses the defaults; the painted style has a smaller pint closer to him.
+ */
+export interface PoseLayout {
+  glassScale: number;
+  /** x of the glass's centre when it's standing on the bar. */
+  restX: number;
+  /** y of the bar surface the glass stands on. */
+  barTop: number;
+  mouth: Pt;
+  /** Whether the mouth moves as the head tips back (flat style), or stays put (painted). */
+  mouthTipsBack: boolean;
+  /** Glass outline override (painted glasses measure their own shape). */
+  halfWidth?: (ly: number, shape: GlassShape) => number;
+}
+
+export const DEFAULT_LAYOUT: PoseLayout = {
+  glassScale: 1, restX: 245, barTop: BAR_TOP, mouth: { x: 175, y: 116 }, mouthTipsBack: true,
+};
 /** Where on the glass the hand holds it (local coords): the widest part of the body. */
-function gripLocal(shape: GlassShape): Pt {
+function gripLocal(shape: GlassShape, hw: HalfWidth = halfWidth): Pt {
   const y = shape === 'nonic' || shape === 'tankard' ? 4 : 0;
-  return { x: -halfWidth(y, shape) - 1, y };
+  return { x: -hw(y, shape) - 1, y };
 }
 
 export interface Pose {
   shape: GlassShape;
+  /** Glass size multiplier (local glass units × scale = world units). */
+  scale: number;
   /** Glass-local point the glass pivots around (the rim at your lips). */
   lipLocal: Pt;
   lip: Pt;
@@ -102,7 +122,7 @@ function rotateAround(p: Pt, c: Pt, angle: number): Pt {
 export function toWorld(pose: Pose, lx: number, ly: number): Pt {
   const a = -pose.tilt;
   const cos = Math.cos(a), sin = Math.sin(a);
-  const dx = lx - pose.lipLocal.x, dy = ly - pose.lipLocal.y;
+  const dx = (lx - pose.lipLocal.x) * pose.scale, dy = (ly - pose.lipLocal.y) * pose.scale;
   return { x: pose.lip.x + dx * cos - dy * sin, y: pose.lip.y + dx * sin + dy * cos };
 }
 
@@ -110,7 +130,7 @@ export function toWorld(pose: Pose, lx: number, ly: number): Pt {
 export function toLocal(pose: Pose, wx: number, wy: number): Pt {
   const a = pose.tilt;
   const cos = Math.cos(a), sin = Math.sin(a);
-  const dx = wx - pose.lip.x, dy = wy - pose.lip.y;
+  const dx = (wx - pose.lip.x) / pose.scale, dy = (wy - pose.lip.y) / pose.scale;
   return { x: pose.lipLocal.x + dx * cos - dy * sin, y: pose.lipLocal.y + dx * sin + dy * cos };
 }
 
@@ -131,18 +151,23 @@ function solveElbow(s: Pt, h: Pt): Pt {
   return e1.y > e2.y ? e1 : e2;
 }
 
-export function computePose(ds: DrinkState, shape: GlassShape = 'nonic', foamScale = 1): Pose {
+export function computePose(
+  ds: DrinkState, shape: GlassShape = 'nonic', foamScale = 1, layout: PoseLayout = DEFAULT_LAYOUT,
+): Pose {
   const e = easeLift(ds.lift);
-  const lipL = lipLocal(shape);
-  const restLip = { x: GLASS_REST_X + lipL.x, y: BAR_TOP - GLASS.H };
+  const s = layout.glassScale;
+  const hw: HalfWidth = layout.halfWidth ?? halfWidth;
+  const lipL = lipLocal(shape, hw);
+  const restLip = { x: layout.restX + lipL.x * s, y: layout.barTop - GLASS.H * s };
   const tilt = tiltFor(ds);
   const headTilt = HEAD_TILT_MAX * e;
   // The mouth moves as the head tips back, so aim for where it will be.
-  const mouth = rotateAround(MOUTH, NECK, -HEAD_TILT_MAX);
+  const mouth = layout.mouthTipsBack ? rotateAround(layout.mouth, NECK, -HEAD_TILT_MAX) : layout.mouth;
   const lip = { x: lerp(restLip.x, mouth.x, e), y: lerp(restLip.y, mouth.y, e) };
 
   const pose: Pose = {
     shape,
+    scale: s,
     lipLocal: lipL,
     lip,
     tilt,
@@ -157,7 +182,7 @@ export function computePose(ds: DrinkState, shape: GlassShape = 'nonic', foamSca
     refilling: ds.refilling,
     sipping: ds.lift >= 0.85 && !ds.refilling && ds.fill > 0,
   };
-  const grip = gripLocal(shape);
+  const grip = gripLocal(shape, hw);
   pose.hand = toWorld(pose, grip.x, grip.y);
   pose.elbow = solveElbow(SHOULDER, pose.hand);
   return pose;
@@ -180,12 +205,17 @@ export function popupAnchor(pose: Pose): Pt {
 
 export interface Renderer {
   readonly root: HTMLElement | SVGElement;
+  /** Glass size and placement for this art style. */
+  readonly layout: PoseLayout;
   /** Swap the beer in the glass (colour, head, glass shape, effects). */
-  setBeer(look: BeerLook): void;
+  setBeer(look: BeerLook, index?: number): void;
   /** Move the pub (sign, walls, window view). */
   setLocation(loc: Location): void;
-  /** Who's standing behind the bar. */
-  setCrowd(drinkers: Drinker[]): void;
+  /**
+   * Who's in the pub: how many of each drinker type you own. Called often; each art style
+   * works out its own line-up and only rebuilds when it would look different.
+   */
+  setCrowd(owned: (id: string) => number): void;
   render(pose: Pose, t: number): void;
   destroy(): void;
 }
@@ -209,4 +239,71 @@ export function pickCrowd(drinkers: readonly Drinker[], owned: (id: string) => n
     return h >>> 0;
   };
   return picked.map((d, i) => ({ d, k: key(d, i) })).sort((a, b) => a.k - b.k).map((x) => x.d);
+}
+
+// ---------- crowd plan (painted style) ----------
+
+export interface CrowdFigure {
+  id: string;
+  /** 0 = front row at the bar, 1 = middle, 2 = back. */
+  row: 0 | 1 | 2;
+  x: number;
+}
+
+/** Spots in each row, front to back. The front row stays clear of the regular, the pint and the tap. */
+export const CROWD_ROWS: number[][] = [
+  [26, 84, 288, 378],
+  [10, 58, 108, 158, 214, 266, 318, 374],
+  [0, 40, 80, 122, 164, 206, 248, 290, 332, 374, 400],
+];
+export const CROWD_CAPACITY = CROWD_ROWS.reduce((n, r) => n + r.length, 0);
+
+/** How many figures to show for this many drinkers: the pub fills up on a log scale. */
+export const crowdSize = (total: number): number =>
+  total <= 0 ? 0 : Math.min(CROWD_CAPACITY, Math.max(1, Math.round(3 * Math.log10(total + 1))), Math.ceil(total));
+
+/**
+ * Who stands where. Every owned type gets at least one figure (newest types first if there
+ * isn't room), the rest are shared out by sqrt(count) so a huge type dominates without
+ * hiding the others. Figures are dealt round-robin so the front row shows the variety.
+ */
+export function crowdPlan(drinkers: readonly Drinker[], owned: (id: string) => number): CrowdFigure[] {
+  const present = drinkers.map((d, tier) => ({ id: d.id, n: owned(d.id), tier })).filter((t) => t.n > 0);
+  const total = present.reduce((sum, t) => sum + t.n, 0);
+  const size = crowdSize(total);
+  if (!size) return [];
+
+  // Newest first when there isn't room for every type.
+  const types = [...present].sort((a, b) => b.tier - a.tier).slice(0, size);
+  const weights = types.map((t) => Math.sqrt(t.n) * (1 + t.tier * 0.1));
+  const wsum = weights.reduce((a, b) => a + b, 0);
+  const counts = types.map(() => 1);
+  let left = size - types.length;
+  const shares = weights.map((w) => (w / wsum) * left);
+  types.forEach((_, i) => (counts[i] += Math.floor(shares[i])));
+  left = size - counts.reduce((a, b) => a + b, 0);
+  shares
+    .map((sh, i) => ({ i, rem: sh - Math.floor(sh) }))
+    .sort((a, b) => b.rem - a.rem)
+    .slice(0, left)
+    .forEach(({ i }) => counts[i]++);
+
+  // Deal round-robin, most numerous type first.
+  const order = types.map((t, i) => ({ id: t.id, count: counts[i] })).sort((a, b) => b.count - a.count);
+  const dealt: string[] = [];
+  for (let round = 0; dealt.length < size; round++) {
+    for (const o of order) if (round < o.count) dealt.push(o.id);
+  }
+
+  const figures: CrowdFigure[] = [];
+  let k = 0;
+  for (const [row, spots] of CROWD_ROWS.entries()) {
+    // Fill each row from a stable shuffled order so it looks natural, not left-to-right.
+    const shuffled = spots.map((x, i) => ({ x, key: Math.sin(i * 12.9898 + row * 78.233) })).sort((a, b) => a.key - b.key);
+    for (const spot of shuffled) {
+      if (k >= dealt.length) return figures;
+      figures.push({ id: dealt[k++], row: row as 0 | 1 | 2, x: spot.x });
+    }
+  }
+  return figures;
 }

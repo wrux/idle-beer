@@ -15,6 +15,7 @@ import {
   availableUpgrades, buyDrinker, buyNextRound, buyUpgrade, costOf, drinkTime, earn, invalidate,
   nextRound, pintsPerDrink, refillTime, storeVisibility, totalPps,
 } from '../src/core/economy';
+import { autoCycleSeconds } from '../src/core/drinking';
 import { format } from '../src/core/format';
 import { D, Decimal } from '../src/core/num';
 import { buyLicence, lastOrders, licenceStatus, matsOnReset } from '../src/core/prestige';
@@ -31,7 +32,9 @@ const MAX_RUN_SECONDS = 12 * 60 * 60;
 
 // Physical drink cycle: lift to the lips, drain, put down, pour.
 const cycleTime = (s: GameState) => 0.25 * 0.85 + drinkTime(s) + 0.3 + refillTime(s);
-const handRate = (s: GameState) => pintsPerDrink(s).div(cycleTime(s)).mul(activity);
+// Holding for `activity` of the time; the rest of the time he sips slowly on his own.
+const handRate = (s: GameState) =>
+  pintsPerDrink(s).mul(activity / cycleTime(s) + (1 - activity) / autoCycleSeconds(drinkTime(s), refillTime(s)));
 const income = (s: GameState) => totalPps(s).add(handRate(s));
 
 function clone(s: GameState): GameState {
