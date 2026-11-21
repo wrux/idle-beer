@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   availableUpgrades, buyNextRound, buyPub, buyUpgrade, costOf, currentBeer, drinkTime, globalMult, hasDownInOne,
-  invalidate, nextRound, offlineGain, pintsPerDrink, priceOf, pubBonus, pubStatuses, refillTime, selectPub, totalPps,
+  invalidate, nextRound, offlineGain, pintsPerDrink, priceOf, pubBonus, pubCooldownLeft, pubStatuses, refillTime, selectPub, selectPub as move, totalPps,
 } from '../src/core/economy';
 import { mods } from '../src/core/licenceState';
+import { PUB_COOLDOWN_SECONDS } from '../src/core/pubs';
 import { lastOrders } from '../src/core/prestige';
 import { D } from '../src/core/num';
 import { deserialize, serialize } from '../src/core/save';
@@ -161,15 +162,40 @@ describe('pubs', () => {
     s.lifetimePints = D(1e5);
     s.pints = D(1e5);
     expect(pubStatuses(s).slice(0, 4)).toEqual(['here', 'forSale', 'forSale', 'mystery']);
-    expect(buyPub(s, 'highstreet')).toBe(true);
+    expect(buyPub(s, 'highstreet', 0)).toBe(true);
     expect(s.pints.toNumber()).toBe(0);
     expect(s.pub).toBe('highstreet');
     expect(totalPps(s).toNumber()).toBeCloseTo(1.04); // third pub along: +4%
-    expect(buyPub(s, 'garden')).toBe(false); // can't afford it now
+    expect(buyPub(s, 'garden', 0)).toBe(false); // can't afford it now
 
-    expect(selectPub(s, 'redlion')).toBe(true);
+    const later = PUB_COOLDOWN_SECONDS * 1000;
+    expect(selectPub(s, 'redlion', later)).toBe(true);
     expect(totalPps(s).toNumber()).toBeCloseTo(1);
-    expect(selectPub(s, 'moon')).toBe(false); // not open
+    expect(selectPub(s, 'moon', later * 3)).toBe(false); // not open
+  });
+
+  it('make you stay put for a while after moving, so perks cannot be cherry-picked', () => {
+    const s = newGame();
+    s.pubs = new Set(['redlion', 'garden', 'highstreet']);
+    expect(pubCooldownLeft(s, 0)).toBe(0);
+    expect(selectPub(s, 'garden', 0)).toBe(true);
+    expect(pubCooldownLeft(s, 1000)).toBe(PUB_COOLDOWN_SECONDS - 1);
+    expect(selectPub(s, 'redlion', 60_000)).toBe(false);
+    expect(s.pub).toBe('garden');
+    expect(selectPub(s, 'redlion', PUB_COOLDOWN_SECONDS * 1000)).toBe(true);
+
+    // Opening a new pub is always allowed, and counts as a move.
+    s.lifetimePints = D(1e8);
+    s.pints = D(1e8);
+    const t = PUB_COOLDOWN_SECONDS * 1000 + 5000;
+    expect(buyPub(s, 'superpub', t)).toBe(true);
+    expect(selectPub(s, 'garden', t + 1000)).toBe(false);
+
+    // Last Orders clears it, and a saved cooldown survives a reload.
+    const back = deserialize(serialize(s), t);
+    expect(pubCooldownLeft(back, t)).toBe(PUB_COOLDOWN_SECONDS);
+    lastOrders(s);
+    expect(pubCooldownLeft(s, t)).toBe(0);
   });
 
   it('each have a perk that only applies while you are there', () => {
@@ -177,6 +203,11 @@ describe('pubs', () => {
     const regular = DRINKER_BY_ID.get('regular')!;
     expect(mods(s).streakSlack).toBe(1); // The Red Lion
     s.pubs = new Set(LOCATIONS.map((l) => l.id));
+    /** Move without waiting out the cooldown. */
+    const selectPub = (state: GameState, id: string) => {
+      state.pubReadyAt = 0;
+      return move(state, id);
+    };
 
     selectPub(s, 'highstreet');
     expect(mods(s).streakSlack).toBe(0);

@@ -5,6 +5,7 @@ import { LICENCE_BY_ID } from '../data/licence';
 import { LOCATIONS, LOCATION_BY_ID, locationIndex } from '../data/locations';
 import { UPGRADE_BY_ID } from '../data/upgrades';
 import { Decimal, toDecimal } from './num';
+import { PUB_COOLDOWN_SECONDS } from './pubs';
 import { newGame, SAVE_VERSION, type GameState } from './state';
 
 const KEY = 'idleBeer.save';
@@ -93,6 +94,8 @@ export function deserialize(text: string, now = Date.now()): GameState {
   if (Number.isInteger(raw.beer) && raw.beer > 0) s.beer = raw.beer;
   if (Array.isArray(raw.pubs)) for (const id of raw.pubs) if (LOCATION_BY_ID.has(id)) s.pubs.add(id);
   if (typeof raw.pub === 'string' && s.pubs.has(raw.pub)) s.pub = raw.pub;
+  // Never longer than a full cooldown from now, whatever the clock has done since.
+  if (Number.isFinite(raw.pubReadyAt) && raw.pubReadyAt > 0) s.pubReadyAt = Math.min(raw.pubReadyAt, now + PUB_COOLDOWN_SECONDS * 1000);
   // Older saves had "Brew Again" levels after Singularity Stout (beer 12); they become the beers after it.
   if (Number.isInteger(raw.brewAgain) && raw.brewAgain > 0) s.beer = Math.max(s.beer, BEERS_BEFORE_BREW - 1) + raw.brewAgain;
   if (['short', 'scientific', 'engineering'].includes(raw.settings?.numberFormat)) {

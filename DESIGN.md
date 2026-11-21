@@ -212,6 +212,9 @@ own, so the newest is usually best for output but an older one can suit what you
 | The Galaxy Arms | 1e31 | Drinkers cost 15% less |
 | The Multiverse Tavern | 1e40 | Everything drinks a further 50% more |
 
+Moving (or opening a pub, which moves you there) starts a **5 minute cooldown** before you can move
+again, so a perk can't be picked up for a few seconds and dropped. Opening a pub is always allowed.
+
 Perks are data (`effects` in `data/locations.ts`) and reuse the Licence's effect kinds, so
 `mods(state)` already includes the pub you are in. Pubs close again at Last Orders. Save format
 version 3 added `pubs` and `pub`; older saves keep every pub their lifetime pints had reached.

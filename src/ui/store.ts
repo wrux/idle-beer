@@ -4,16 +4,17 @@
  */
 import {
   availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach,
-  nextRound, priceOf, pubBonus, pubStatuses, quantityFor, selectPub, storeVisibility,
+  nextRound, priceOf, pubBonus, pubCooldownLeft, pubStatuses, quantityFor, selectPub, storeVisibility,
 } from '../core/economy';
 import { format } from '../core/format';
-import { D } from '../core/num';
+import { D, type Decimal } from '../core/num';
 import { owned, type BuyMode, type GameState } from '../core/state';
 import { beerAt } from '../data/beers';
 import { DRINKERS } from '../data/drinkers';
 import { LOCATIONS } from '../data/locations';
 import type { Upgrade } from '../data/upgrades';
 import { beerIcon, drinkerPortrait, pubThumb } from './art/icons';
+import { icon } from './glyphs';
 
 const MODES: BuyMode[] = [1, 10, 100, 'max'];
 const modeLabel = (m: BuyMode) => (m === 'max' ? 'Max' : `×${m}`);
@@ -31,6 +32,23 @@ function textSetter() {
     last.set(el, text);
     el.textContent = text;
   };
+}
+
+/** How far towards affording something you are, as a CSS variable the row fills itself with. */
+function setProgress(el: HTMLElement, have: Decimal, cost: Decimal) {
+  const p = cost.lte(0) ? 1 : Math.min(1, Math.max(0, have.div(cost).toNumber()));
+  const v = (Math.round(p * 200) / 200).toString();
+  if (el.dataset.p !== v) {
+    el.dataset.p = v;
+    el.style.setProperty('--p', v);
+  }
+}
+
+/** A quick flash on something you've just bought. */
+function flash(el: HTMLElement) {
+  el.classList.remove('bought');
+  void el.offsetWidth;
+  el.classList.add('bought');
 }
 
 const multText = (m: number) => `×${m % 1 === 0 ? m : m.toFixed(1)}`;
@@ -133,7 +151,10 @@ export class StoreView {
         <span class="d-owned"></span>`;
       el.addEventListener('click', () => {
         const state = this.getState();
-        if (buyDrinker(state, d.id, state.settings.buyMode) > 0) this.events.onBought();
+        if (buyDrinker(state, d.id, state.settings.buyMode) > 0) {
+          this.events.onBought();
+          flash(el);
+        }
         this.update();
       });
       list.appendChild(el);
@@ -224,6 +245,7 @@ export class StoreView {
     this.beerCard.disabled = false;
     this.beerCard.classList.remove('mystery');
     this.beerCard.classList.toggle('affordable', affordable);
+    setProgress(this.beerCard, state.pints, offer.cost);
     this.set(this.beerName, offer.beer.name);
     this.set(this.beerDesc, `${multText(offer.mult)} everything. ${offer.beer.flavour}`);
     this.set(this.beerCost, format(offer.cost, f));
@@ -244,6 +266,7 @@ export class StoreView {
       if (affordable) ready++;
       const row = this.upgradeRows.get(u.id)!;
       row.el.classList.toggle('affordable', affordable);
+      setProgress(row.el, state.pints, u.cost);
       this.set(row.cost, format(u.cost, f));
     }
     // The badge counts what you can buy right now, so it's worth a look when it lights up.
@@ -274,7 +297,7 @@ export class StoreView {
         </span>`;
       const r = (s: string) => b.querySelector<HTMLElement>(s)!;
       if (u.effect.kind === 'drinker') r('.u-icon').appendChild(drinkerPortrait(u.effect.drinker, 40));
-      else r('.u-icon').textContent = u.icon;
+      else r('.u-icon').appendChild(icon(u.icon));
       if (u.badge) r('.u-badge').textContent = u.badge;
       r('.u-name').textContent = u.name;
       r('.u-desc').textContent = u.desc;
@@ -294,6 +317,9 @@ export class StoreView {
     const state = this.getState();
     const f = state.settings.numberFormat;
     const status = pubStatuses(state);
+    // After a move you have to stay put for a while before moving again.
+    const wait = Math.ceil(pubCooldownLeft(state));
+    const waitText = `Move in ${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, '0')}`;
     let ready = 0;
     LOCATIONS.forEach((l, i) => {
       const row = this.pubRows[i];
@@ -304,8 +330,10 @@ export class StoreView {
       if (st === 'hidden') return;
       const mystery = st === 'mystery';
       const affordable = st === 'forSale' && state.pints.gte(l.threshold);
-      row.el.className = `pub ${st}${affordable || st === 'open' ? ' affordable' : ''}`;
-      row.el.disabled = mystery || st === 'here';
+      const settling = st === 'open' && wait > 0;
+      row.el.className = `pub ${st}${affordable || (st === 'open' && !settling) ? ' affordable' : ''}${settling ? ' settling' : ''}`;
+      row.el.disabled = mystery || st === 'here' || settling;
+      setProgress(row.el, state.pints, st === 'forSale' ? l.threshold : D(0));
       if (!mystery && !row.drawn) {
         row.drawn = true;
         row.thumb.replaceChildren(pubThumb(l.id));
@@ -314,10 +342,10 @@ export class StoreView {
       this.set(row.name, mystery ? '???' : l.name);
       this.set(row.perk, mystery ? `Word gets round at ${format(l.threshold.mul(0.1), f)} lifetime pints.` : l.perk);
       this.set(row.bonus, mystery || !bonus ? '' : `+${bonus}% everything`);
-      this.set(row.action, st === 'here' ? "You're here" : st === 'open' ? 'Move here' : mystery ? '' : format(l.threshold, f));
+      this.set(row.action, st === 'here' ? "You're here" : st === 'open' ? (settling ? waitText : 'Move here') : mystery ? '' : format(l.threshold, f));
       row.el.setAttribute(
         'aria-label',
-        mystery ? 'Unknown pub' : `${l.name}. ${l.perk} ${st === 'here' ? 'You are here.' : st === 'open' ? 'Move here.' : `Open for ${format(l.threshold, f)} pints.`}`,
+        mystery ? 'Unknown pub' : `${l.name}. ${l.perk} ${st === 'here' ? 'You are here.' : st === 'open' ? (settling ? `${waitText}.` : 'Move here.') : `Open for ${format(l.threshold, f)} pints.`}`,
       );
     });
     this.set(this.pubCount, ready ? String(ready) : '');
@@ -347,6 +375,7 @@ export class StoreView {
       row.el.classList.toggle('discounted', drinkerDiscount(state) < 1);
       row.el.classList.toggle('affordable', affordable && !mystery);
       row.el.disabled = mystery;
+      setProgress(row.el, state.pints, cost);
 
       this.set(row.name, mystery ? '???' : d.name);
       this.set(row.flavour, mystery ? 'Keep drinking to find out who turns up.' : d.flavour);

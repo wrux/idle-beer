@@ -523,7 +523,7 @@ export class Figure {
       hy = pup.hy;
       tilt = pup.tilt;
     }
-    let ox = -w - 1.5, oy = -3, prop: Special | null = null;
+    let ox = -w - 2.4, oy = 1.6, prop: Special | null = null;
     const up = (x: number, y: number, a: number) => {
       ox = lerp(ox, x, a);
       oy = lerp(oy, y, a);
@@ -612,18 +612,32 @@ export class Figure {
     torso();
     ctx.clip();
     if (L.jacket) {
-      // Shirt showing between the lapels.
-      poly(ctx, [-6.5, -49, 8, -49, 6.5, 70, -2, 70], k(L.shirt));
-    }
-    this.pattern(ctx, L, w + belly, t);
-    if (L.jacket) {
-      // Lapels: a slim one each side of the V, the near one catching the light.
-      blobPath(ctx, [-7, -49.5, -2.4, -41, 2.6, -26, -1, -22.5, -6.4, -31, -10.5, -45], 0.35);
+      // A buttoned jacket: the shirt (and tie, or a jumper) only shows in the V between the lapels.
+      const vee = () => poly(ctx, [-7, -50, 8.6, -50, 3.2, -17]);
+      vee();
+      ctx.fillStyle = k(L.shirt);
+      ctx.fill();
+      ctx.save();
+      vee();
+      ctx.clip();
+      this.pattern(ctx, L, w + belly, t);
+      ctx.restore();
+      // The front edge where one side crosses over the other, and its buttons.
+      curve(ctx, [3.2, -17, 4.6, 10, 4.2, 70], eCloth, 0.9);
+      for (const y of [-9, 5, 19]) {
+        ctx.beginPath();
+        ctx.arc(0.4, y, 1.5, 0, TAU);
+        this.ink(ctx, clothSh, eCloth, 0.6);
+      }
+      // Notched lapels lying flat along the V: the near one catches the light.
+      poly(ctx, [-7.4, -50.4, 3.2, -17, -2.6, -22.4, -9.4, -34.6, -6.6, -38.4, -11.6, -44.6]);
       this.ink(ctx, clothHi, eCloth, 0.8);
-      blobPath(ctx, [8.4, -49.5, 5.4, -41, 3, -26, 6, -22.5, 9.6, -31, 12, -45], 0.35);
+      poly(ctx, [9, -50.4, 3.2, -17, 6.8, -22.4, 11.2, -34.6, 9, -38, 12.4, -44.6]);
       this.ink(ctx, clothSh, eCloth, 0.8);
-      line(ctx, 2.8, -26, 3.8, 70, eCloth, 0.8);
-      circle(ctx, 5.6, -12, 1.1, eCloth);
+      // Breast pocket.
+      line(ctx, -13.4, -22.6, -6.4, -23.6, eCloth, 0.9);
+    } else {
+      this.pattern(ctx, L, w + belly, t);
     }
     // Shade under the chin and down the far side; a little light on the near shoulder.
     ellipse(ctx, 1.5, -46.5, 9.5, 4.2, alpha('#190a26', 0.2));
@@ -1261,18 +1275,21 @@ export class Figure {
         poly(ctx, [-5, -49, 5, -49, 0, -40], k('#f4f4f4'));
         break;
       case 'tie':
-        poly(ctx, [-7, -49, 0, -41, -3.4, -37], k('#ffffff'));
-        poly(ctx, [7, -49, 0, -41, 3.4, -37], k('#e6e2da'));
-        poly(ctx, [-2.4, -41.5, 2.4, -41.5, 1.6, -38, -1.6, -38], p1);
-        poly(ctx, [-1.7, -38, 1.7, -38, 3.2, -8, 0, -3, -3.2, -8], p1);
-        if (L.patternColour2) rect(ctx, w - 12, -30, 7, 4.4, p2, 1); // name badge
+      case 'cardigan': {
+        // A proper tie: a blade hanging down the middle of the V, a knot at the throat, and the
+        // shirt's collar points folded over either side of it.
+        const tie = L.patternColour ?? '#8c2d22', eTie = this.edge(tie), eShirt = this.edge(mix(L.shirt, '#8a7a66', 0.5));
+        poly(ctx, [-0.9, -42, 2.7, -42, 6.4, -24.5, 3.2, -15.5, 0, -24.5]);
+        this.ink(ctx, p1, eTie, 0.8);
+        poly(ctx, [2.7, -42, 6.4, -24.5, 3.2, -15.5, 2.2, -30], alpha(k(shade(tie, 0.35)), 0.5));
+        poly(ctx, [-1.9, -46.4, 3.7, -46.4, 2.8, -41.6, -1, -41.6]);
+        this.ink(ctx, k(shade(tie, 0.14)), eTie, 0.8);
+        poly(ctx, [-7.4, -50.4, 0.6, -46.6, -3.4, -40.4]);
+        this.ink(ctx, k(tint(L.shirt, 0.5)), eShirt, 0.8);
+        poly(ctx, [9, -50.4, 1.2, -46.6, 5.2, -40.4]);
+        this.ink(ctx, k(shade(L.shirt, 0.06)), eShirt, 0.8);
         break;
-      case 'cardigan':
-        poly(ctx, [-7, -49, 0, -41, -3.4, -37], k('#ffffff'));
-        poly(ctx, [7, -49, 0, -41, 3.4, -37], k('#e6e2da'));
-        poly(ctx, [-1.7, -39, 1.7, -39, 2.6, -24, 0, -21, -2.6, -24], p1);
-        for (let i = 0; i < 4; i++) circle(ctx, 0, -14 + i * 11, 1.2, k('#2a1c14'));
-        break;
+      }
       case 'lanyard':
       case 'print':
         circle(ctx, 0, -18, 9, p1);

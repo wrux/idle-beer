@@ -9,6 +9,7 @@ import { ACHIEVEMENTS, type Achievement } from '../data/achievements';
 import { DRINKERS } from '../data/drinkers';
 import { LOCATION_BY_ID } from '../data/locations';
 import { UPGRADES } from '../data/upgrades';
+import { icon } from './glyphs';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -81,7 +82,9 @@ export class AchievementsPanel {
     this.detail.innerHTML = '';
     const name = document.createElement('div');
     name.className = 'ad-name';
-    name.textContent = `${secret ? '❓' : a.icon} ${secret ? 'Secret achievement' : a.name}${has ? ' ✓' : ''}`;
+    const label = document.createElement('span');
+    label.textContent = `${secret ? 'Secret achievement' : a.name}${has ? ' ✓' : ''}`;
+    name.append(icon(secret ? '❓' : a.icon, 26), label);
     const desc = document.createElement('div');
     desc.className = 'ad-desc';
     desc.textContent = secret ? 'Keep playing. Some things are best discovered.' : a.desc;
@@ -104,8 +107,11 @@ export class AchievementsPanel {
     for (const a of ACHIEVEMENTS) {
       const t = this.tiles.get(a.id)!;
       const has = s.achievements.has(a.id);
-      const icon = has || !a.hidden ? a.icon : '❓';
-      if (t.textContent !== icon) t.textContent = icon;
+      const shown = has || !a.hidden ? a.icon : '❓';
+      if (t.dataset.icon !== shown) {
+        t.dataset.icon = shown;
+        t.replaceChildren(icon(shown, 34));
+      }
       t.classList.toggle('unlocked', has);
       t.setAttribute('aria-label', has || !a.hidden ? `${a.name}${has ? ' (unlocked)' : ''}` : 'Secret achievement');
     }

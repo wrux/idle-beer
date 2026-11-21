@@ -64,6 +64,7 @@
           <div class="popups" id="popups"></div>
           <div class="free-rounds" id="free-rounds"></div>
           <div class="hint" id="hint">Click and hold to drink</div>
+          <div class="toasts" id="toasts" aria-live="polite"></div>
 
           <div class="hud-bottom">
             <div class="hud-tags">
@@ -115,13 +116,18 @@
           </section>
 
           <section class="tab-panel" data-panel="pubs" aria-label="Pubs" hidden>
-            <div class="panel-head"><span class="panel-note">Open a pub, then drink wherever suits. Only the pub you're in counts.</span></div>
+            <div class="panel-head"><span class="panel-note">Open a pub, then drink wherever suits. Only the pub you're in counts, and once you move you stay put for 5 minutes.</span></div>
             <div class="pub-list"></div>
           </section>
+          <footer class="credits">
+            <span>Made by</span>
+            <a href="https://wrux.com" target="_blank" rel="noopener">wrux.com</a>
+            <span aria-hidden="true">·</span>
+            <a href="https://www.instagram.com/etocallum" target="_blank" rel="noopener">@etocallum</a>
+          </footer>
         </aside>
       </div>
 
-      <div class="toasts" id="toasts" aria-live="polite"></div>
 
       <dialog class="panel-dialog" id="achievements-dialog" aria-labelledby="achievements-title">
         <header class="dialog-head">
@@ -197,6 +203,12 @@
           </div>
           <textarea id="save-text" rows="4" spellcheck="false" placeholder="Paste a save here, then press Import save." aria-label="Save text"></textarea>
           <p class="setting-note" id="save-message" aria-live="polite"></p>
+
+          <h3>Credits</h3>
+          <p class="setting-note">
+            idle.beer is made by <a href="https://wrux.com" target="_blank" rel="noopener">wrux.com</a>.
+            Say hello on Instagram: <a href="https://www.instagram.com/etocallum" target="_blank" rel="noopener">@etocallum</a>.
+          </p>
 
           <h3>Danger zone</h3>
           <button type="button" id="hard-reset" class="danger">Hard reset (wipe everything)</button>

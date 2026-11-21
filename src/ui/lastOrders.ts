@@ -1,4 +1,5 @@
 /** The Last Orders dialog: ring the bell for Beer Mats, and spend them on the Landlord's Licence. */
+import { icon } from './glyphs';
 import { format } from '../core/format';
 import { mods } from '../core/licenceState';
 import { Decimal } from '../core/num';
@@ -62,7 +63,9 @@ export class LastOrdersPanel {
       col.className = 'licence-branch';
       const head = document.createElement('div');
       head.className = 'licence-branch-name';
-      head.textContent = `${b.icon} ${b.name}`;
+      const label = document.createElement('span');
+      label.textContent = b.name;
+      head.append(icon(b.icon), label);
       col.appendChild(head);
       for (const node of LICENCE.filter((n) => n.branch === b.id)) {
         const el = document.createElement('button');
@@ -131,7 +134,7 @@ export class LastOrdersPanel {
       el.classList.toggle('affordable', affordable);
       el.disabled = status !== 'available';
       const cost = el.querySelector<HTMLElement>('.ln-cost')!;
-      const text = status === 'owned' ? '✓ Owned' : `🟫 ${format(node.cost, f)}`;
+      const text = status === 'owned' ? '✓ Owned' : `${format(node.cost, f)} ${node.cost.eq(1) ? 'mat' : 'mats'}`;
       if (cost.textContent !== text) cost.textContent = text;
     }
 

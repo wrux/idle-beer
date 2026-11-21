@@ -4,6 +4,7 @@ import { LOCATIONS, LOCATION_BONUS, LOCATION_BY_ID, type Location } from '../dat
 import { UPGRADES, UPGRADE_BY_ID, type Upgrade } from '../data/upgrades';
 import { DOWN_IT_MULT, HAPPY_HOUR_MULT, hasBuff, QUIZ_DISCOUNT } from './events';
 import { mods } from './licenceState';
+import { PUB_COOLDOWN_SECONDS } from './pubs';
 import { D, Decimal } from './num';
 import { owned, type BuyMode, type GameState } from './state';
 
@@ -294,20 +295,26 @@ export function pubsForSale(state: GameState): Location[] {
   return LOCATIONS.filter((_, i) => status[i] === 'forSale');
 }
 
-/** Open a pub and move there. */
-export function buyPub(state: GameState, id: string): boolean {
+/** Seconds until you can move pub again (0 = you can move now). */
+export const pubCooldownLeft = (state: GameState, now = Date.now()): number =>
+  Math.max(0, Math.min(PUB_COOLDOWN_SECONDS, (state.pubReadyAt - now) / 1000));
+
+/** Open a pub and move there. Opening is always allowed; it starts the cooldown on moving again. */
+export function buyPub(state: GameState, id: string, now = Date.now()): boolean {
   const l = LOCATION_BY_ID.get(id);
   if (!l || state.pubs.has(id) || !state.lifetimePints.gte(l.threshold.mul(0.1)) || !spend(state, l.threshold)) return false;
   state.pubs.add(id);
   state.pub = id;
+  state.pubReadyAt = now + PUB_COOLDOWN_SECONDS * 1000;
   invalidate();
   return true;
 }
 
-/** Move to a pub you've already opened. */
-export function selectPub(state: GameState, id: string): boolean {
-  if (!state.pubs.has(id) || state.pub === id) return false;
+/** Move to a pub you've already opened, if you've been where you are long enough. */
+export function selectPub(state: GameState, id: string, now = Date.now()): boolean {
+  if (!state.pubs.has(id) || state.pub === id || pubCooldownLeft(state, now) > 0) return false;
   state.pub = id;
+  state.pubReadyAt = now + PUB_COOLDOWN_SECONDS * 1000;
   invalidate();
   return true;
 }

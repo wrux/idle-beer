@@ -64,6 +64,7 @@ export function lastOrders(s: GameState, now = Date.now()): Decimal {
   s.beer = Math.min(keptBeer, s.beer);
   s.pubs = fresh.pubs;
   s.pub = fresh.pub;
+  s.pubReadyAt = 0;
   s.buffs = [];
   s.glassFill = 1;
   s.runStartedAt = now;

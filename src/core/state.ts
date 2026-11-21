@@ -31,6 +31,8 @@ export interface GameState {
   pubs: Set<string>;
   /** The pub you're drinking in. */
   pub: string;
+  /** When you can next move pub (ms since the epoch; 0 = now). Moving or opening a pub sets it. */
+  pubReadyAt: number;
   /** Timed rewards from Free Rounds. */
   buffs: Buff[];
   /** Golden pints clicked. */
@@ -84,6 +86,7 @@ export function newGame(now = Date.now()): GameState {
     beer: 0,
     pubs: new Set(['redlion']),
     pub: 'redlion',
+    pubReadyAt: 0,
     buffs: [],
     freeRounds: 0,
     bestStreak: 0,

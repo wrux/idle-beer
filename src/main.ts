@@ -26,6 +26,7 @@ import { FreeRoundView } from './ui/freeRound';
 import { bonusText, LastOrdersPanel } from './ui/lastOrders';
 import { AchievementsPanel, SettingsPanel, StatsPanel } from './ui/panels';
 import { computePose, popupAnchor, type Renderer } from './ui/scene';
+import { icon } from './ui/glyphs';
 import { Sound } from './ui/sound';
 import { StoreView } from './ui/store';
 
@@ -49,10 +50,15 @@ sound.enabled = state.settings.sound;
 // ---------- toasts ----------
 
 const toastsEl = $('toasts');
-function toast(html: string, ms = 6000) {
+function toast(emoji: string, html: string, ms = 6000) {
+  // Keep the stack short: a burst of achievements shouldn't bury the pub.
+  while (toastsEl.childElementCount >= 4) toastsEl.firstElementChild?.remove();
   const el = document.createElement('div');
   el.className = 'toast';
-  el.innerHTML = html;
+  const body = document.createElement('div');
+  body.className = 'toast-body';
+  body.innerHTML = html;
+  el.append(icon(emoji), body);
   const close = () => {
     el.classList.add('leaving');
     setTimeout(() => el.remove(), 300);
@@ -79,8 +85,8 @@ function announce(list: (Achievement | null)[]) {
   if (!fresh.length) return;
   invalidate(); // Reputation depends on the achievement count
   sound.play('beer');
-  for (const a of fresh.slice(0, 3)) toast(`🏆 <b>${a.name}</b> · ${a.desc}`, 5000);
-  if (fresh.length > 3) toast(`🏆 …and ${fresh.length - 3} more achievements.`, 5000);
+  for (const a of fresh.slice(0, 3)) toast('🏆', `<strong>${a.name}</strong>${a.desc}`, 5000);
+  if (fresh.length > 3) toast('🏆', `<strong>…and ${fresh.length - 3} more achievements</strong>`, 5000);
 }
 const grant = (id: GrantedAchievement) => announce([grantAchievement(state, id)]);
 
@@ -95,6 +101,7 @@ function creditAway(seconds: number) {
   const shown = gain.pints.floor();
   const capped = gain.seconds < seconds ? ` (they stop after ${duration(gain.seconds)} without you)` : '';
   toast(
+    '🌙',
     `While you were away for ${duration(seconds)}, your drinkers sank ` +
       `<b>${format(shown, state.settings.numberFormat)}</b> ${pintsWord(shown)}${capped}.`,
   );
@@ -126,7 +133,7 @@ function showLocation(announce = false) {
   renderer.cheer(2);
   sound.play('beer');
   const bonus = Math.round((pubBonus(loc.id) - 1) * 100);
-  toast(`🍻 Welcome to <b>${loc.name}</b>. ${loc.perk}${bonus ? ` Everything drinks ${bonus}% more here.` : ''}`);
+  toast('🍻', `<strong>Welcome to ${loc.name}</strong>${loc.perk}${bonus ? ` Everything drinks ${bonus}% more here.` : ''}`);
 }
 showLocation();
 
@@ -209,7 +216,7 @@ let pressQueued = false;
 stage.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   // Buttons laid over the scene are buttons, not a drink.
-  if ((e.target as Element).closest('button, a, .hud-panel')) return;
+  if ((e.target as Element).closest('button, a, .toast')) return;
   pointerHeld = true;
   pressQueued = true;
   stage.setPointerCapture(e.pointerId);
@@ -318,7 +325,9 @@ function renderBuffs() {
     chip.className = `buff buff-${b.kind}`;
     chip.title = info.desc;
     const secs = Math.ceil(b.remaining);
-    chip.textContent = `${info.icon} ${info.name} ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+    const label = document.createElement('span');
+    label.textContent = `${info.name} ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+    chip.append(icon(info.icon), label);
     return chip;
   }));
 }
@@ -351,14 +360,14 @@ const freeRound = new FreeRoundView($('free-rounds'), () => freeRoundLifetime(st
   if (outcome.kind === 'lucky') {
     earn(state, outcome.amount);
     popup(`Lucky Round! +${format(outcome.amount.floor(), state.settings.numberFormat)}`, x, y, 'big');
-    toast(`🍀 <b>Lucky Round!</b> The landlord stands you ${format(outcome.amount.floor(), state.settings.numberFormat)} pints.`, 4000);
+    toast('🍀', `<strong>Lucky Round!</strong>The landlord stands you ${format(outcome.amount.floor(), state.settings.numberFormat)} pints.`, 4000);
   } else {
     startBuff(state, outcome.buff);
     invalidate();
     const info = BUFFS[outcome.buff];
     const title = info.name.endsWith('!') ? info.name : `${info.name}!`;
-    popup(`${info.icon} ${title}`, x, y, 'big');
-    toast(`${info.icon} <b>${title}</b> ${info.desc} for ${Math.round(buffDuration(state, outcome.buff))} seconds.`, 4000);
+    popup(title, x, y, 'big');
+    toast(info.icon, `<strong>${title}</strong>${info.desc} for ${Math.round(buffDuration(state, outcome.buff))} seconds.`, 4000);
   }
 });
 
@@ -377,7 +386,7 @@ const lastOrdersPanel = new LastOrdersPanel(() => state, {
     store.update();
     save();
     sound.play('freeRound');
-    toast(`🔔 <b>Time, gentlemen, please!</b> You banked ${format(gained, state.settings.numberFormat)} Beer Mats. A fresh night at The Red Lion awaits.`, 7000);
+    toast('🔔', `<strong>Time, gentlemen, please!</strong>You banked ${format(gained, state.settings.numberFormat)} Beer Mats. A fresh night at The Red Lion awaits.`, 7000);
   },
   onLicenceBought: () => {
     sound.play('buy');
@@ -402,10 +411,11 @@ function autoBuy() {
   }
   if (m.auto.has('upgrades') && state.settings.auto.upgrades) {
     // The bar staff open new pubs too, but leave it to you where to drink.
-    const here = state.pub;
+    const here = state.pub, ready = state.pubReadyAt;
     for (const l of pubsForSale(state)) if (buyPub(state, l.id)) bought = true;
     if (state.pub !== here) {
       state.pub = here;
+      state.pubReadyAt = ready;
       invalidate();
     }
   }
@@ -456,6 +466,9 @@ function finishPint() {
   earn(state, amount);
   state.handPints = state.handPints.add(amount);
   state.drinks++;
+  hud.pints.classList.remove('bump');
+  void hud.pints.offsetWidth; // restart the animation
+  hud.pints.classList.add('bump');
   const a = renderer.project(popupAnchor(pose()));
   popup(`+${format(amount, state.settings.numberFormat)}`, a.x, a.y, streak.count >= 2 ? 'streaky' : '');
   sound.play('clink');
@@ -585,6 +598,7 @@ if (new URLSearchParams(location.search).has('debug')) {
       const next = LOCATIONS.find((l) => !state.pubs.has(l.id)) ?? LOCATIONS[(LOCATIONS.findIndex((l) => l.id === state.pub) + 1) % LOCATIONS.length];
       state.pubs.add(next.id);
       state.pub = next.id;
+      state.pubReadyAt = 0;
       invalidate();
       showLocation(true);
       return;

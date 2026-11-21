@@ -202,6 +202,20 @@ select:focus-visible,
   padding-bottom: 4px;
 }
 
+.pints.bump {
+  animation: bump 0.22s ease-out;
+}
+
+@keyframes bump {
+  35% {
+    transform: scale(1.06);
+  }
+}
+
+.pints {
+  transform-origin: left center;
+}
+
 .pints-label {
   font-family: var(--font-display);
   color: var(--text);
