@@ -10,9 +10,9 @@ import { beerAt, type BeerLook } from '../../data/beers';
 import { DRINKERS } from '../../data/drinkers';
 import type { Location } from '../../data/locations';
 import {
-  GLASS, crowdPlan, toWorld, type CrowdFigure, type Pose, type PoseLayout, type Pt, type Renderer,
+  GLASS, crowdPlan, crowdSpots, toWorld, type CrowdFigure, type Pose, type PoseLayout, type Pt, type Renderer,
 } from '../scene';
-import { BACKDROPS, type Backdrop, type BarStyle } from './backdrops';
+import { BACKDROPS, registerBackdrops, type Backdrop, type BarStyle } from './backdrops';
 import {
   TAU, alpha, approach, at, circle, clamp, curve, ellipse, glow, hash, hgrad, hsl, lerp, mix, poly, rect, rgrad,
   shade, tint, vgrad, type Ctx, type View,
@@ -21,6 +21,11 @@ import { Figure } from './figures';
 import { drawGlass, drawGlassAura } from './glass';
 import { X0, X1, SPAN } from './kit';
 import { Hero } from './player';
+import { COSMOS_BACKDROPS } from './cosmos';
+import { WORLD_BACKDROPS } from './world';
+
+registerBackdrops(WORLD_BACKDROPS);
+registerBackdrops(COSMOS_BACKDROPS);
 
 const WORLD_H = 300;
 const MIN_W = 270;
@@ -64,6 +69,9 @@ export class StageRenderer implements Renderer {
   private figures = new Map<string, Figure>();
   private order: Figure[] = [];
   private crowdKey = '';
+  private owned: (id: string) => number = () => 0;
+  /** Characters who belong to the pub you're in (two or three of each kind it has). */
+  private locals: string[] = [];
   private firstCrowd = true;
   private particles: Particle[] = [];
 
@@ -101,18 +109,43 @@ export class StageRenderer implements Renderer {
 
   setLocation(loc: Location): void {
     this.backdrop = BACKDROPS[loc.id] ?? BACKDROPS.redlion;
+    // Three of the place's own: a pub abroad is never empty, even before your lot arrive.
+    this.locals = loc.locals.length ? Array.from({ length: 3 }, (_, i) => loc.locals[i % loc.locals.length]) : [];
+    this.seatCrowd();
     this.layersDirty = true;
     this.applyTone();
   }
 
   setCrowd(owned: (id: string) => number): void {
-    const plan = crowdPlan(DRINKERS, owned);
-    const key = plan.map((f) => `${f.row}:${f.x}:${f.id}`).join('|');
+    this.owned = owned;
+    this.seatCrowd();
+  }
+
+  /** Where the pub's own locals stand: one at the bar, the others just behind. */
+  private static LOCAL_SPOTS = [1, 7, 10, 3];
+
+  /**
+   * Work out who stands where. The pub's locals take a few fixed spots (they're there whoever
+   * you bring); your drinkers fill the rest in the usual order.
+   */
+  private seatCrowd() {
+    const spots = crowdSpots();
+    const seated: CrowdFigure[] = [];
+    const taken = new Set<number>();
+    this.locals.forEach((id, i) => {
+      const at = StageRenderer.LOCAL_SPOTS[i % StageRenderer.LOCAL_SPOTS.length];
+      taken.add(at);
+      seated.push({ id, ...spots[at] });
+    });
+    const free = spots.filter((_, i) => !taken.has(i));
+    crowdPlan(DRINKERS, this.owned).slice(0, free.length).forEach((f, i) => seated.push({ id: f.id, ...free[i] }));
+
+    const key = seated.map((f) => `${f.row}:${f.x}:${f.id}`).join('|');
     if (key === this.crowdKey) return;
     this.crowdKey = key;
     const next = new Map<string, Figure>();
     let fresh = 0;
-    for (const spot of plan) {
+    for (const spot of seated) {
       const id = `${spot.row}:${spot.x}:${spot.id}`;
       let f = this.figures.get(id);
       if (!f) {

@@ -11,14 +11,14 @@ import {
   mix, poly, rect, rng, shade, smooth, tint, type Ctx,
 } from './draw';
 
-type Hair = 'bald' | 'short' | 'side' | 'long' | 'bun' | 'afro' | 'mohawk' | 'greySides' | 'curly' | 'bob' | 'quiff';
-type Hat = 'none' | 'flatcap' | 'mortarboard' | 'cone' | 'antlers' | 'scrumcap' | 'bobble' | 'bucket' | 'hanky'
-  | 'crown' | 'party' | 'helmet' | 'antennae' | 'cap';
-type Face = 'plain' | 'glasses' | 'shades' | 'cyclops' | 'three' | 'void';
+type Hair = 'bald' | 'short' | 'side' | 'long' | 'bun' | 'afro' | 'mohawk' | 'greySides' | 'curly' | 'bob' | 'quiff' | 'swept';
+type Hat = 'none' | 'horned' | 'tricorn' | 'akubra' | 'ushanka' | 'hachimaki' | 'tyrolean' | 'flatcap' | 'mortarboard' | 'cone' | 'antlers' | 'scrumcap' | 'bobble' | 'bucket' | 'hanky'
+  | 'crown' | 'party' | 'helmet' | 'antennae' | 'stalks' | 'cap';
+type Face = 'plain' | 'glasses' | 'shades' | 'patch' | 'cyclops' | 'three' | 'void' | 'grey' | 'stalks';
 type Beard = 'none' | 'moustache' | 'full' | 'stubble' | 'goatee';
-type Pattern = 'none' | 'hoops' | 'stripes' | 'flames' | 'tie' | 'lanyard' | 'sash' | 'lplate' | 'unionjack' | 'vest'
+type Pattern = 'none' | 'jumper' | 'tartan' | 'furcoat' | 'zip' | 'maosuit' | 'plaid' | 'germany' | 'lederhosen' | 'hoops' | 'stripes' | 'flames' | 'tie' | 'lanyard' | 'sash' | 'lplate' | 'unionjack' | 'vest'
   | 'hawaiian' | 'suit' | 'cardigan' | 'print' | 'stars' | 'hoodie' | 'tiedye';
-type Drink = 'pint' | 'can' | 'flute' | 'tankard' | 'tasting' | 'cocktail';
+type Drink = 'pint' | 'can' | 'flute' | 'tankard' | 'tasting' | 'cocktail' | 'shot' | 'bottle' | 'mass' | 'horn';
 type Special = 'dance' | 'dart' | 'scarf' | 'glowstick' | 'flag' | 'float' | 'camera' | 'spark' | 'warp' | 'glitch';
 
 export interface Look {
@@ -43,6 +43,15 @@ export interface Look {
   drink?: Drink;
   drinkColour?: string;
   special?: Special;
+  /** How much belly, for those known for it (otherwise it varies from person to person). */
+  belly?: number;
+  /** Woad down one side of the face. */
+  paint?: string;
+  freckles?: boolean;
+  /** A permanent glow in the cheeks. */
+  flush?: number;
+  /** A swollen skull over a small chin, as seen at Roswell. */
+  bigHead?: boolean;
   /** Lit from within (aliens' antennae, the black hole's halo). */
   glow?: string;
 }
@@ -162,6 +171,95 @@ const LOOKS: Record<string, (r: () => number) => Look> = {
     hair: 'greySides', hairColour: '#d8d3cb', hat: 'flatcap', hatColour: pick(r, ['#5d4a3a', '#3b5d8a', '#8a3b6a']),
     beard: 'moustache', pattern: 'tie', patternColour: '#8c2d22', special: 'glitch', glow: '#8cf2ff',
   }),
+  // ----- locals: the people you find in pubs abroad -----
+  aussie: (r) => ({
+    skin: pick(r, ['#e0a878', '#d99a6c', '#c98a5c']), shirt: pick(r, ['#2f7fb0', '#d9a22a', '#3f8f5a']), pattern: 'vest', shortSleeves: true,
+    // Cropped, so nothing sticks out through the hat.
+    hair: 'bald', hairColour: pick(r, ['#d9b565', '#b07c38', '#7b4b24']), hat: 'akubra',
+    hatColour: pick(r, ['#a8875a', '#8a6a44']), hatAccent: '#3a2a1c', beard: pick(r, ['stubble', 'none', 'goatee']),
+    face: r() < 0.4 ? 'shades' : 'plain', drink: 'can', drinkColour: pick(r, ['#f2c21c', '#1f7a3a']), belly: r() * 3, special: 'dance',
+  }),
+  irish: (r) => {
+    const hair = pick(r, ['#9a4a26', '#8a4222', '#a85a30']);
+    const capped = r() < 0.5;
+    return {
+      skin: pick(r, ['#f2cdb2', '#efc6aa']), shirt: pick(r, ['#efe6d2', '#2f7a4a', '#e9dcc0']), pattern: 'jumper', patternColour: '#cfc3a6',
+      hair: capped ? 'short' : pick(r, ['side', 'short', 'quiff']), hairColour: hair, hat: capped ? 'flatcap' : 'none',
+      hatColour: pick(r, ['#4a5a42', '#5d4a3a']), beard: pick(r, ['stubble', 'goatee', 'none', 'full']), freckles: true, flush: 0.15,
+      drink: 'pint', drinkColour: '#1d1310', special: 'dance',
+    };
+  },
+  scot: (r) => ({
+    skin: pick(r, ['#f2c9a8', '#ecbc98']), shirt: pick(r, ['#4a3a2c', '#3a3f34']), pattern: 'tartan',
+    patternColour: pick(r, ['#2f5a3a', '#24408e', '#8a2a2a']), patternColour2: pick(r, ['#c8323a', '#f2c94c']), build: 1.22,
+    hair: 'long', hairColour: pick(r, ['#7b4b24', '#a23d24', '#47301f']), beard: pick(r, ['stubble', 'none']), paint: '#2f62c8',
+    drink: 'tankard', special: 'dance',
+  }),
+  russian: (r) => ({
+    skin: pick(r, ['#f2cdb0', '#eabf9e']), shirt: pick(r, ['#3a4a3a', '#4a4038', '#2e3a4a']), pattern: 'furcoat', patternColour: '#8a7a6a',
+    hair: 'short', hairColour: pick(r, HAIRS.slice(0, 4)), hat: 'ushanka', hatColour: pick(r, ['#6a5a4c', '#8a8076', '#3e3a36']),
+    hatAccent: '#d8263a', beard: pick(r, ['moustache', 'stubble', 'none']), flush: 0.3, build: 1.15, drink: 'shot', drinkColour: '#e6f2f7',
+  }),
+  // A gentleman in the green suit and swept-back hair made famous by a certain Chairman.
+  uncle: (r) => ({
+    skin: pick(r, ['#f0c9a0', '#ecc296']), shirt: pick(r, ['#6f7f5a', '#66785a', '#74805c']), pattern: 'maosuit',
+    hair: 'swept', hairColour: '#17130f', belly: 3 + r() * 2, build: 1.1, flush: 0.2, drink: 'shot', drinkColour: '#f4f8fa',
+  }),
+  salaryman: (r) => ({
+    skin: pick(r, ['#f4d2b0', '#efc7a2']), shirt: '#f3f1ec', jacket: pick(r, ['#2a3040', '#33343c', '#27303a']), pattern: 'tie',
+    patternColour: pick(r, ['#c8323a', '#2f5fae', '#8a2a6a']), hair: pick(r, ['side', 'short']), hairColour: '#17130f',
+    hat: 'hachimaki', hatColour: '#f6f3ea', hatAccent: '#d8263a', face: r() < 0.5 ? 'glasses' : 'plain', flush: 0.6,
+    drink: 'tankard', special: 'dance',
+  }),
+  czech: (r) => ({
+    skin: pick(r, ['#f4cfae', '#ecbc98']), shirt: pick(r, ['#b8322c', '#2f5a8a', '#3f6a3a']), pattern: 'plaid', patternColour: '#f2ead8',
+    patternColour2: '#1c1a22', hair: pick(r, ['short', 'side', 'bald']), hairColour: pick(r, HAIRS.slice(0, 4)),
+    beard: pick(r, ['moustache', 'moustache', 'stubble']), belly: 3 + r() * 3, drink: 'tankard', drinkColour: '#e6b030',
+  }),
+  german: (r) => ({
+    skin: pick(r, ['#f4cfae', '#f7d9c0']), shirt: '#f4f2ee', pattern: 'germany', shortSleeves: true,
+    hair: pick(r, ['short', 'quiff', 'side']), hairColour: pick(r, ['#d9b565', '#b07c38', '#7b4b24']), face: r() < 0.4 ? 'glasses' : 'plain',
+    beard: pick(r, ['moustache', 'none', 'stubble']), hat: r() < 0.35 ? 'bucket' : 'none', hatColour: '#1c1c22', hatAccent: '#f2c21c',
+    belly: r() * 4, drink: 'pint', drinkColour: '#f0c040', special: 'scarf', scarf: '#1c1c22', patternColour2: '#f2c21c',
+  }),
+  bavarian: (r) => ({
+    skin: pick(r, ['#f4cfae', '#f0c4a0']), shirt: pick(r, ['#e9eef6', '#f1e9e2']), pattern: 'lederhosen', patternColour: '#6a4326',
+    patternColour2: pick(r, ['#3f7fc8', '#c8323a', '#3f8f5a']), hair: pick(r, ['short', 'greySides', 'side']),
+    hairColour: pick(r, ['#8d8d8f', '#7b4b24', '#d9b565']), hat: 'tyrolean', hatColour: pick(r, ['#2f5a3a', '#4a4a44', '#3a4a2c']),
+    hatAccent: '#f2ead8', beard: 'moustache', belly: 4 + r() * 3, flush: 0.3, build: 1.12, drink: 'mass', drinkColour: '#f0b83a', special: 'dance',
+  }),
+  viking: (r) => ({
+    skin: pick(r, ['#f4cfae', '#f0c4a0']), shirt: pick(r, ['#5a4a3a', '#4a5a4a', '#6a3a2e']), pattern: 'furcoat', patternColour: pick(r, ['#8a6a4a', '#b8a88a']),
+    hair: 'long', hairColour: pick(r, ['#d9b565', '#c2562a', '#b07c38']), hat: 'horned', hatColour: '#8a8f98', hatAccent: '#f1ead9',
+    beard: 'full', build: 1.28, belly: 2, drink: 'horn', drinkColour: '#e6b030', special: 'dance',
+  }),
+  korean: (r) => ({
+    // Straight from the office or straight off the mountain, in a hiking jacket either way.
+    skin: pick(r, ['#f4d2b0', '#efc7a2']), shirt: pick(r, ['#e8432c', '#2f8fd0', '#8a3fb0', '#2fa87a']), pattern: 'zip',
+    patternColour: pick(r, ['#1c1c22', '#f4f1e8', '#f2c21c']), hair: pick(r, ['short', 'side', 'curly', 'bob']), hairColour: '#17130f',
+    face: r() < 0.45 ? 'glasses' : 'plain', flush: 0.5, drink: 'bottle', drinkColour: '#3f9a4a', special: 'dance',
+  }),
+  pirate: (r) => ({
+    skin: pick(r, ['#d99a6c', '#c98a5c', '#e8b48f']), shirt: '#f1ead9', jacket: pick(r, ['#3a2a3a', '#5a1f24', '#1f3a4a']), pattern: 'hoops',
+    patternColour: pick(r, ['#c8323a', '#24408e']), hair: 'long', hairColour: pick(r, ['#17130f', '#47301f', '#7b4b24']), hat: 'tricorn',
+    hatColour: '#1c1a22', hatAccent: '#e0b85a', face: 'patch', beard: pick(r, ['full', 'goatee', 'stubble']), drink: 'tankard',
+    drinkColour: '#8a4a22', special: 'dance',
+  }),
+  // ----- the locals at The Little Green Man -----
+  grey: (r) => ({
+    skin: pick(r, ['#b4bcc0', '#a8b4b0', '#c2c4cc']), shirt: pick(r, ['#c9d0dc', '#aeb8c8']), pattern: 'zip', patternColour: '#5cf0ff',
+    hair: 'bald', hairColour: '#000000', face: 'grey', bigHead: true, drink: 'pint', special: 'spark', glow: '#9fe7ff', build: 0.9,
+  }),
+  greenman: (r) => ({
+    skin: pick(r, ['#6fcf62', '#5cc27a', '#8ad45a']), shirt: '#e9e1cf', jacket: pick(r, ['#6b5a48', '#4e5a4a', '#40506a']), hair: 'bald',
+    hairColour: '#000000', hat: 'flatcap', hatColour: pick(r, ['#5d4a3a', '#6a5a4a', '#3f4550']), face: 'grey', pattern: 'tie',
+    patternColour: pick(r, ['#8c2d22', '#34406a']), drink: 'tankard', build: 0.94,
+  }),
+  stalks: (r) => ({
+    skin: pick(r, ['#ff9a6a', '#f07ab0', '#e8c24a']), shirt: pick(r, ['#2f8fd0', '#6c3fa0', '#1f8a7a']), pattern: 'stars',
+    patternColour: '#ffe15c', hair: 'bald', hairColour: '#000000', hat: 'stalks', face: 'stalks', drink: 'cocktail',
+    drinkColour: pick(r, ['#7affc1', '#7ad7ff']), special: 'dance', shortSleeves: true,
+  }),
   /** You. */
   hero: () => ({
     skin: '#f1c6a0', shirt: '#f4eddc', jacket: '#3f5f73', hair: 'greySides', hairColour: '#e8e3da', hat: 'flatcap',
@@ -193,6 +291,9 @@ type Action = 'idle' | 'sip' | 'talk' | 'laugh' | 'special';
 
 const HEAD_Y = -62;
 
+/** Tops that are a plain T-shirt or jumper at the neck (the rest draw collars of their own). */
+const CREW_NECKS = new Set<Pattern>(['none', 'print', 'tiedye', 'sash', 'lplate', 'stars', 'lanyard']);
+
 /** Drinks are drawn this much bigger than their own coordinates. */
 const DRINK_SCALE = 1.4;
 
@@ -208,6 +309,11 @@ const GRIPS: Record<Drink, { gx: number; gy: number; half: number; top: number; 
   tankard: { gx: -13.6, gy: -1, half: 7.8, top: -15.4, handle: true },
   flute: { gx: 0, gy: 1.5, half: 4.8, top: -23.8, stem: true },
   cocktail: { gx: 0, gy: 1.5, half: 10.5, top: -21, stem: true },
+  shot: { gx: -2.2, gy: 0, half: 3.6, top: -8.4 },
+  bottle: { gx: -2.8, gy: -1, half: 4.2, top: -24 },
+  // A litre of it: held, like a tankard, by the handle.
+  mass: { gx: -16.4, gy: -1, half: 9.8, top: -19.2, handle: true },
+  horn: { gx: -1, gy: 1, half: 6, top: -19 },
 };
 const UPPER = 21, FORE = 20;
 
@@ -243,6 +349,9 @@ function elbow(sx: number, sy: number, hx: number, hy: number, side: number, ste
   const e2: [number, number] = [sx + UPPER * Math.cos(base - a), sy + UPPER * Math.sin(base - a)];
   return (e1[0] - e2[0]) * side + (e1[1] - e2[1]) * 0.6 > 0 ? e1 : e2;
 }
+
+/** Every character there is a wardrobe for (drinkers, locals and the player). */
+export const LOOK_IDS = Object.keys(LOOKS);
 
 export class Figure {
   readonly look: Look;
@@ -291,6 +400,7 @@ export class Figure {
     this.belly = b() < 0.45 ? b() * 5 : 0;
     this.jaw = (b() - 0.4) * 2.4;
     this.nose = (b() - 0.4) * 2.2;
+    if (this.look.belly !== undefined) this.belly = this.look.belly;
     if (id === 'hero') {
       this.belly = 3.5;
       this.jaw = 0.8;
@@ -686,8 +796,18 @@ export class Figure {
       this.ink(ctx, clothSh, eCloth, 0.8);
       // Breast pocket.
       line(ctx, -13.4, -22.6, -6.4, -23.6, eCloth, 0.9);
+      // Shoulder seam, where the sleeve is set in.
+      curve(ctx, [-w + 6.4, -45.4, -w + 4.6, -38, -w + 4.2, -29], alpha(eCloth, 0.45), 0.8);
     } else {
       this.pattern(ctx, L, w + belly, t);
+      if (CREW_NECKS.has(L.pattern ?? 'none')) {
+        // A ribbed collar, and a glimpse of neck above it.
+        ellipse(ctx, 0.6, -47.6, 6.6, 2.6, skinSh);
+        curve(ctx, [-7.6, -48.4, 0.6, -43.4, 8.8, -48.4], clothSh, 2.6);
+        curve(ctx, [-7.6, -48.4, 0.6, -43.4, 8.8, -48.4], alpha(eCloth, 0.5), 0.6);
+      }
+      // A fold where the cloth pulls across the chest.
+      curve(ctx, [-w + 5, -30, -w + 9, -24, -w + 8, -15], alpha(eCloth, 0.28), 0.8);
     }
     // Shade under the chin and down the far side; a little light on the near shoulder.
     ellipse(ctx, 1.5, -46.5, 9.5, 4.2, alpha('#190a26', 0.2));
@@ -851,7 +971,7 @@ export class Figure {
     const dark = k('#2a1820');
     const nod = a.still ? 0 : Math.sin(t * 2.3 + ph) * 0.03 * a.talk - a.sip * 0.2 - a.laugh * 0.1 - a.cheer * 0.1;
     const face = L.face ?? 'plain';
-    const alien = face === 'cyclops' || face === 'three';
+    const alien = face === 'cyclops' || face === 'three' || face === 'grey' || face === 'stalks';
 
     ctx.save();
     ctx.translate(0, HEAD_Y + 14);
@@ -891,12 +1011,14 @@ export class Figure {
     }
 
     // The head: a rounded skull narrowing to a chin that leads the way he's facing.
-    const jaw = this.jaw;
-    const headPts = [
+    const jaw = L.bigHead ? -2.2 : this.jaw;
+    const rawHead = [
       -1, -17.6, 9, -15.6, 14.4, -8.4, 14.2, -1.5, 15.3, 4.4,
       12.6 + jaw, 11.4 + jaw * 0.6, 6.8 + jaw * 0.8, 16.8 + jaw * 0.5, -1.6, 17.3 + jaw * 0.3,
       -9.2 - jaw, 13.6 + jaw * 0.5, -14, 5.6, -15.8, -4, -11.6, -13.6,
     ];
+    // A big head swells above the eyes and stays put below them.
+    const headPts = L.bigHead ? rawHead.map((v, i) => (rawHead[i | 1] < 2 ? v * (i % 2 ? 1.14 : 1.13) + (i % 2 ? -1 : 0) : v)) : rawHead;
     blobPath(ctx, headPts);
     this.ink(ctx, skin, eSkin, 1.15);
     ctx.save();
@@ -905,21 +1027,39 @@ export class Figure {
     // Shade round the back of the head and under the jaw; light on the brow.
     blob(ctx, [-20, -22, -9, -17, -10.5, -2, -6.5, 10, 4, 17, 14, 15, 14, 24, -22, 24], alpha(skinSh, 0.9), 0.5);
     ellipse(ctx, 6, -9, 6.5, 4, alpha(skinHi, 0.55), -0.2);
-    if (face !== 'void') {
-      const rosy = Math.max(a.laugh, a.cheer, a.sip) + this.flush * 2;
+    if (face !== 'void' && !L.paint) {
+      const rosy = Math.max(a.laugh, a.cheer, a.sip) + this.flush * 2 + (L.flush ?? 0);
       ellipse(ctx, 10.4, 6.6, 3.8, 2.8, alpha(k('#ec6f62'), 0.34 + rosy * 0.2));
       ellipse(ctx, -3.6, 7.2, 3.6, 2.6, alpha(k('#ec6f62'), 0.24 + rosy * 0.16));
+    }
+    if (L.paint) {
+      // Woad over the whole face, with a white slash across it.
+      ctx.fillStyle = alpha(k(L.paint), 0.9);
+      ctx.fillRect(-20, -22, 40, 46);
+      poly(ctx, [-18, -9, -12, -15, 18, 8, 13, 14], alpha(k('#f6f4ee'), 0.95));
+      ctx.fillStyle = alpha('#0c1a4a', 0.22);
+      blob(ctx, [-20, -22, -9, -17, -10.5, -2, -6.5, 10, 4, 17, 14, 15, 14, 24, -22, 24], undefined, 0.5);
+      ctx.fill();
+    }
+    if (L.freckles) {
+      for (const [x, y] of [[8.6, 4.6], [11, 5.4], [12.8, 4.2], [-4.6, 5.4], [-2.6, 6.4]]) {
+        circle(ctx, x, y, 0.45, alpha(k('#a8502a'), 0.45));
+      }
     }
     if (L.beard === 'stubble') {
       blob(ctx, [-14, 4, -4, 8, 6, 7, 16, 3, 16, 22, -14, 22], alpha(k('#3a2c2e'), 0.2), 0.5);
     }
     ctx.restore();
 
-    // Near ear.
-    ctx.beginPath();
-    ctx.ellipse(-12.4, 2.4, 3.1, 4.5, -0.15, 0, TAU);
-    this.ink(ctx, skin, eSkin, 0.9);
-    curve(ctx, [-11.6, 0.2, -13.6, 1.8, -12.6, 4.6], eSkin, 0.7);
+    // Near ear (or, for some visitors, just the hole).
+    if (face === 'grey' || face === 'stalks') {
+      ellipse(ctx, -11.6, 3, 0.9, 1.5, alpha(eSkin, 0.7), -0.2);
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(-12.4, 2.4, 3.1, 4.5, -0.15, 0, TAU);
+      this.ink(ctx, skin, eSkin, 0.9);
+      curve(ctx, [-11.6, 0.2, -13.6, 1.8, -12.6, 4.6], eSkin, 0.7);
+    }
 
     // Hair on top.
     const hairShape = (pts: number[], c = hair) => {
@@ -969,6 +1109,11 @@ export class Figure {
         blobPath(ctx, [-11, -14, -9, -24, -4, -19, -1, -28, 3, -20, 7, -27, 9.5, -18.5, 12.5, -22, 11.5, -13, 0, -16.4], 0.2);
         this.ink(ctx, hair, eHair);
         break;
+      case 'swept':
+        // Brushed back off a high forehead, full at the sides.
+        hairShape([-16.4, 3, -17.4, -8, -12.6, -17.4, -3, -20.4, 6, -19, 10.6, -14.6, 5, -14.4, -2, -15, -8, -11, -10, -4, -10.6, 4.6, -14, 6.4]);
+        curve(ctx, [-13, -12, -6, -17, 3, -17.4], alpha(k(tint(L.hairColour, 0.4)), 0.5), 1.2);
+        break;
       case 'greySides':
         hairShape([-16, -2, -15, -9.6, -10.4, -10.2, -8.6, -4, -10.4, 3.6, -11.6, 7.4, -15, 6]);
         break;
@@ -978,6 +1123,10 @@ export class Figure {
       default: break;
     }
     if (L.hair === 'bald' && !alien && face !== 'void') ellipse(ctx, -3, -12.5, 4.6, 2, alpha(skinHi, 0.7), -0.3);
+    if (L.hair === 'short' || L.hair === 'side' || L.hair === 'long' || L.hair === 'bob' || L.hair === 'bun' || L.hair === 'quiff') {
+      // A sheen across the crown.
+      curve(ctx, [-11, -12.6, -5, -16.4, 3, -16.6], alpha(k(tint(L.hairColour, 0.45)), 0.55), 1.3);
+    }
 
     // ----- face -----
     const blink = a.still ? 1 : 1 - this.blink * 0.92;
@@ -1020,6 +1169,20 @@ export class Figure {
       eye(-0.6, 2.9);
       eye(9, 2.4);
       eye(4.6, 2.2, -9.4);
+    } else if (face === 'grey') {
+      // Great black almonds, tilted, with the room reflected in them.
+      const squint = happy > 0.5 ? 0.45 : blink;
+      for (const [x, rx, rot] of [[-1.6, 4.5, 0.42], [9.2, 3.7, -0.36]]) {
+        ctx.beginPath();
+        ctx.ellipse(x, -1.4, rx, Math.max(0.5, rx * 1.42 * squint), rot, 0, TAU);
+        this.ink(ctx, k('#0d0b14'), eSkin, 0.7);
+        if (squint > 0.4) {
+          ellipse(ctx, x + 1 + gx * 0.5, -3.6, rx * 0.34, rx * 0.5, 'rgba(255,255,255,0.75)', rot);
+          circle(ctx, x - 1, 1.6, rx * 0.16, 'rgba(160,220,255,0.5)');
+        }
+      }
+    } else if (face === 'stalks') {
+      // Its eyes are up on the stalks.
     } else if (face === 'void') {
       const c = L.glow ?? '#fff';
       for (const x of [0.5, 9.5]) {
@@ -1037,6 +1200,12 @@ export class Figure {
       line(ctx, -12, eyeY - 1.6, -5.6, eyeY - 2.4, k('#07060a'), 1);
       line(ctx, -3.8, eyeY - 2, -0.6, eyeY - 2, 'rgba(255,255,255,0.4)', 0.9);
       line(ctx, 6.8, eyeY - 2, 9.6, eyeY - 2, 'rgba(255,255,255,0.4)', 0.9);
+    } else if (face === 'patch') {
+      eye(-0.6, 3);
+      line(ctx, -15, -9, 14, -4.6, dark, 0.9);
+      ctx.beginPath();
+      ctx.ellipse(9, eyeY + 0.2, 3.4, 3.8, 0.1, 0, TAU);
+      this.ink(ctx, k('#17141c'), dark, 0.7);
     } else {
       eye(-0.6, 3);
       eye(9, 2.5);
@@ -1060,14 +1229,18 @@ export class Figure {
         line(ctx, -3.6, eyeY - 2.6, -1.8, eyeY - 3.4, 'rgba(255,255,255,0.5)', 0.8);
       }
     }
-    if (face === 'plain' || face === 'glasses' || face === 'three') {
+    if (face === 'plain' || face === 'glasses' || face === 'three' || face === 'patch') {
       const lift = happy * 1.7 + a.talk * Math.sin(t * 5 + ph) * 0.7;
       const brow = alien ? this.edge(L.skin) : k(mix(shade(L.hairColour, 0.3), '#2a1820', 0.35));
       const by = (face === 'three' ? -2 : 0) - lift;
       curve(ctx, [-4.4, -7.6 + by, -0.6, -9.3 + by, 3, -7.6 + by], brow, 1.8);
       curve(ctx, [6.6, -7.8 + by, 9.4, -9.2 + by, 12.4, -7.8 + by], brow, 1.7);
     }
-    if (face !== 'void') {
+    if (face === 'grey' || face === 'stalks') {
+      // No nose to speak of: two slits.
+      line(ctx, 5.8, 5.6, 6.1, 7, alpha(eSkin, 0.85), 0.8);
+      line(ctx, 7.8, 5.5, 7.9, 6.9, alpha(eSkin, 0.85), 0.8);
+    } else if (face !== 'void') {
       // Nose: it breaks the outline of the cheek, which is what makes the head read as turned.
       const nose = this.nose;
       const tip = 16.2 + nose;
@@ -1078,13 +1251,16 @@ export class Figure {
         ctx.bezierCurveTo(tip - 1.2, 8.6 + nose * 0.4, 12.2, 8, 10.6, 6.8);
       };
       trace();
-      ctx.fillStyle = k(mix(L.skin, '#e8705f', alien ? 0 : 0.16));
+      ctx.fillStyle = L.paint ? k(mix(L.paint, '#ffffff', 0.08)) : k(mix(L.skin, '#e8705f', alien ? 0 : 0.16));
       ctx.fill();
       trace();
       ctx.strokeStyle = eSkin;
       ctx.lineWidth = 1;
       ctx.lineCap = 'round';
       ctx.stroke();
+      // A catch of light on the end of the nose, and the hint of a nostril.
+      ellipse(ctx, tip - 1.6, 4.6 + nose * 0.3, 1.3, 1, alpha(skinHi, 0.8));
+      curve(ctx, [11.6, 7.2, 12.6, 6.4, 13.6, 7], alpha(eSkin, 0.7), 0.7);
     }
 
     // Beard goes under the mouth.
@@ -1130,6 +1306,8 @@ export class Figure {
         // A lopsided smile, with a dimple at the near corner.
         curve(ctx, [mx - 4.6, my - 1, mx - 0.4, my + 1.9, mx + 4.4, my - 1.4], dark, 1.25);
         curve(ctx, [mx - 5.4, my - 2, mx - 4.9, my - 0.7, mx - 4, my - 0.2], dark, 0.9);
+        // The shadow under the lower lip gives the mouth some depth.
+        if (L.beard !== 'full' && L.beard !== 'goatee') curve(ctx, [mx - 1.8, my + 3.6, mx + 0.4, my + 4.1, mx + 2.4, my + 3.4], alpha(eSkin, 0.4), 0.8);
       }
     }
     if (L.beard === 'moustache') {
@@ -1166,6 +1344,92 @@ export class Figure {
       this.ink(ctx, fill, edge);
     };
     switch (L.hat) {
+      case 'horned': {
+        // An iron cap with a nose guard and two horns. Historically dubious; nobody minds.
+        for (const sgn of [-1, 1]) {
+          const hx = sgn < 0 ? -13 : 12;
+          blobPath(ctx, [hx, -14, hx + sgn * 8, -17, hx + sgn * 12, -27 - wob * 0.2, hx + sgn * 8.6, -22, hx + sgn * 2, -19.6], 0.5);
+          this.ink(ctx, ac, eAc);
+        }
+        shape([-16.6, -6.4, -16, -15, -8, -22, 5, -22.6, 13.6, -17, 15.8, -8.4, 0, -7.6], c);
+        blob(ctx, [-9, -19.6, 3, -20.4, 10, -16.4, 0, -16.6], alpha(cHi, 0.8), 0.5);
+        ctx.beginPath();
+        ctx.roundRect(-17, -10.4, 33.4, 4.6, 2);
+        this.ink(ctx, cSh, e);
+        for (let i = 0; i < 6; i++) circle(ctx, -13.6 + i * 5.4, -8.1, 0.9, cHi);
+        ctx.beginPath();
+        ctx.roundRect(8.4, -7, 3.4, 9, 1.4);
+        this.ink(ctx, cSh, e, 0.8);
+        break;
+      }
+      case 'tricorn': {
+        // Three corners, gold braid, and a skull to make the point.
+        shape([-23, -8, -14, -17, -2, -14.6, 9, -18.6, 22, -9.4, 12, -5.4, -1, -8.6, -13, -5], c);
+        shape([-12.6, -11, -10, -20, -1, -23, 8.6, -20.6, 12, -11.6, 0, -9.6], cHi);
+        curve(ctx, [-22, -8.6, -13, -15.4, -2, -13, 9, -17, 21, -9.8], ac, 1.1);
+        circle(ctx, -0.4, -16.6, 2.6, k('#f1ead9'));
+        circle(ctx, -1.4, -17, 0.6, c);
+        circle(ctx, 0.6, -17, 0.6, c);
+        line(ctx, -3.4, -13.4, 2.6, -19.4, k('#f1ead9'), 0.8);
+        line(ctx, 2.6, -13.4, -3.4, -19.4, k('#f1ead9'), 0.8);
+        break;
+      }
+      case 'akubra': {
+        // Wide brim, pinched crown, and corks on strings to keep the flies off.
+        shape([-25, -6.6, -12, -12, 12, -12.6, 26, -8, 14, -4.6, -12, -4], cSh);
+        shape([-12.4, -10, -11.4, -19.4, -4.6, -22.6, 0.4, -19.6, 5.6, -23, 12.4, -19.4, 12.8, -10.6], c);
+        rect(ctx, -12, -13, 24.6, 2.4, ac);
+        for (let i = 0; i < 5; i++) {
+          const x = -20 + i * 10.6, sw = Math.sin(t * 3.4 + ph + i * 1.3) * (1.2 + energy * 2);
+          line(ctx, x, -5.2, x + sw, 2.2, k('#3a2a1c'), 0.5);
+          ctx.beginPath();
+          ctx.ellipse(x + sw, 3.6, 1.3, 1.9, 0, 0, TAU);
+          this.ink(ctx, k('#c9a26a'), k('#5a4026'), 0.6);
+        }
+        break;
+      }
+      case 'ushanka': {
+        // Fur hat with the ear flaps down and a red star on the front.
+        shape([-18.6, -7, -13, -8, -11.4, 8, -15.4, 12, -19.6, 6], cSh);
+        shape([-17.4, -4.6, -17, -16, -8, -23.4, 6, -24, 15.4, -17.6, 16.8, -6.6], c);
+        shape([-11, -13.6, 2, -15.6, 13, -14, 16, -7, 2, -8.6, -12.6, -6], cHi);
+        for (let i = 0; i < 6; i++) line(ctx, -13 + i * 5.2, -21.4 + Math.abs(i - 2.4) * 1.6, -12 + i * 5.2, -19.6 + Math.abs(i - 2.4) * 1.6, alpha(e, 0.5), 0.7);
+        const sx = 4.4, sy = -11;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const an = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? 1.3 : 3;
+          ctx.lineTo(sx + Math.cos(an) * rr, sy + Math.sin(an) * rr);
+        }
+        ctx.closePath();
+        this.ink(ctx, ac, eAc, 0.5);
+        break;
+      }
+      case 'hachimaki': {
+        // White headband: a red sun on the brow, a character either side, tails flying behind.
+        polyInk([-15.6, -9.6, -19 - wob * 0.5, -3, -22 - wob * 0.8, 3, -18.6 - wob * 0.5, 4, -14.4, -4], cSh);
+        polyInk([-15.6, -8, -21 - wob * 0.6, -9.6, -25 - wob, -6, -21.6 - wob * 0.6, -4.4, -14.6, -5], c);
+        shape([-16, -9.8, 0, -13, 14.8, -11, 14.6, -5.8, 0, -7.8, -16, -4.8], c);
+        circle(ctx, 5.4, -9.2, 2.3, ac);
+        const ink = k('#1c1a22');
+        for (const kx of [-0.6, 10.6]) {
+          line(ctx, kx - 1.5, -10.4, kx + 1.5, -10.6, ink, 0.7);
+          line(ctx, kx, -11.4, kx, -7.4, ink, 0.7);
+          line(ctx, kx - 1.6, -8, kx + 1.6, -8.4, ink, 0.7);
+        }
+        break;
+      }
+      case 'tyrolean': {
+        // Alpine hat, cord band, and a tuft on the side.
+        const fx = -8.6, fy = -13;
+        curve(ctx, [fx, fy, fx - 3 + wob * 0.3, fy - 9, fx - 1 + wob * 0.6, fy - 17], k('#f4f1e8'), 3.4);
+        curve(ctx, [fx, fy, fx - 3 + wob * 0.3, fy - 9, fx - 1 + wob * 0.6, fy - 17], k('#8a8f98'), 1);
+        shape([-22, -6.6, -11, -11.6, 13, -12.2, 23, -8.2, 13, -5, -11, -4.6], cSh);
+        shape([-12.6, -10, -10.4, -21, -1, -25.4, 8.6, -22.4, 12.8, -11], c);
+        blob(ctx, [-8, -20, -1, -23.4, 6, -21, -1, -19.6], alpha(cHi, 0.8), 0.5);
+        rect(ctx, -12.4, -13.4, 25, 2.6, ac);
+        circle(ctx, fx, fy + 1, 1.8, k('#c8323a'));
+        break;
+      }
       case 'flatcap':
         // Peak first, so the crown sits over it.
         shape([8, -12.4, 17, -11.6, 24, -7.6, 20, -4.8, 10, -6.6], cSh);
@@ -1280,6 +1544,23 @@ export class Figure {
         this.ink(ctx, ac, eAc, 0.8);
         ctx.restore();
         break;
+      case 'stalks':
+        for (const s of [-1, 1]) {
+          const tx = s * 8.6 + 2 + wob * 0.7, ty = -29 + Math.sin(t * 2.4 + ph + s) * 1.6;
+          const stalk = [s * 4.6 + 1, -15, s * 6.4 + 1, -22, tx, ty + 3];
+          curve(ctx, stalk, this.edge(L.skin), 4.2);
+          curve(ctx, stalk, k(L.skin), 2.6);
+          const open = Math.max(0.12, 1 - this.blink * 0.92);
+          ctx.beginPath();
+          ctx.ellipse(tx, ty, 4.4, 4.4 * open, 0, 0, TAU);
+          this.ink(ctx, k('#fdfaf2'), this.edge(L.skin), 0.9);
+          if (open > 0.4) {
+            const px = tx + 0.8 + this.gaze * 1.6;
+            circle(ctx, px, ty + 0.2, 2.2, k('#2a1820'));
+            circle(ctx, px + 0.7, ty - 0.8, 0.7, 'rgba(255,255,255,0.9)');
+          }
+        }
+        break;
       case 'antennae':
         for (const s of [-1, 1]) {
           const tx = s * 9.6 - 1 + wob * 0.8, ty = -30 + Math.sin(t * 3 + ph + s) * 1.4;
@@ -1326,6 +1607,131 @@ export class Figure {
     const k = this.k;
     const p1 = k(L.patternColour ?? '#ffffff'), p2 = k(L.patternColour2 ?? '#c8323a');
     switch (L.pattern) {
+      case 'jumper': {
+        // Cable knit: a ribbed crew neck and ropes running down the front.
+        curve(ctx, [-8, -48.6, 0.5, -43.6, 9, -48.6], k(shade(L.shirt, 0.18)), 3);
+        for (const x of [-9, 0.5, 10]) {
+          ctx.beginPath();
+          for (let y = -42; y < 70; y += 2) ctx.lineTo(x + Math.sin(y * 0.55) * 1.6, y);
+          ctx.strokeStyle = alpha(p1, 0.9);
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.beginPath();
+          for (let y = -42; y < 70; y += 2) ctx.lineTo(x - Math.sin(y * 0.55) * 1.6, y);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'tartan': {
+        // A rough tunic with a plaid over one shoulder, pinned with a brooch.
+        poly(ctx, [-6, -49, 6, -49, 0.5, -40], k(L.skin));
+        const sash = () => poly(ctx, [-w - 2, -36, -w + 11, -50, w + 2, -6, w + 2, 14, -w - 2, -18]);
+        sash();
+        ctx.fillStyle = p1;
+        ctx.fill();
+        ctx.save();
+        sash();
+        ctx.clip();
+        for (let i = -6; i < 8; i++) {
+          line(ctx, -w - 4 + i * 9, -60, -w + 40 + i * 9, 40, alpha(k(shade(L.patternColour ?? '#000', 0.4)), 0.7), 3.2, 'butt');
+          line(ctx, -w - 4 + i * 9 + 4.4, -60, -w + 44.4 + i * 9, 40, p2, 0.7, 'butt');
+          line(ctx, w + 4 - i * 9, -60, w - 40 - i * 9, 40, alpha(k(shade(L.patternColour ?? '#000', 0.4)), 0.55), 3.2, 'butt');
+          line(ctx, w + 4 - i * 9 - 4.4, -60, w - 44.4 - i * 9, 40, alpha(p2, 0.8), 0.7, 'butt');
+        }
+        ctx.restore();
+        ctx.beginPath();
+        ctx.arc(-w + 9, -42, 2.6, 0, TAU);
+        this.ink(ctx, k('#d9b25a'), k('#5a4020'), 0.7);
+        break;
+      }
+      case 'furcoat': {
+        // Greatcoat: a deep fur collar and two rows of buttons.
+        blobPath(ctx, [-13, -50.5, 0.5, -47, 14, -50.5, 17, -40, 9, -33.6, 0.5, -37, -8, -33.6, -16, -40]);
+        this.ink(ctx, p1, this.edge(L.patternColour ?? '#8a7a6a'), 0.9);
+        for (let i = 0; i < 7; i++) line(ctx, -12 + i * 4.2, -44 + Math.abs(i - 3) * 1.4, -11.4 + i * 4.2, -41.4 + Math.abs(i - 3) * 1.4, alpha(k('#3a2c22'), 0.4), 0.7);
+        line(ctx, 0.5, -36, 1.4, 70, this.edge(L.shirt), 0.9);
+        for (const y of [-26, -12, 2]) {
+          circle(ctx, -5, y, 1.4, k('#d9b25a'));
+          circle(ctx, 6.6, y, 1.4, k('#d9b25a'));
+        }
+        break;
+      }
+      case 'zip': {
+        // A hiking jacket: stand-up collar, a zip down the front, shoulders in a second colour.
+        blob(ctx, [-w - 4, -52, w + 6, -52, w + 6, -36, 0.8, -31, -w - 4, -36], alpha(p1, 0.9), 0.3);
+        line(ctx, 0.8, -46, 1.6, 70, this.edge(L.shirt), 1);
+        line(ctx, 0.8, -46, 1.6, 70, alpha(k('#f4f1e8'), 0.5), 0.4);
+        rect(ctx, -0.2, -40, 2.2, 3.4, k('#c9ced6'), 0.6);
+        ctx.beginPath();
+        ctx.roundRect(-8, -52, 17.6, 7, 3);
+        this.ink(ctx, k(shade(L.shirt, 0.12)), this.edge(L.shirt), 0.8);
+        rect(ctx, 6, -24, 8, 5, alpha(k('#f4f1e8'), 0.85), 1);
+        break;
+      }
+      case 'maosuit': {
+        // Buttoned to the throat: a turned-down collar, five buttons, and flapped pockets.
+        const cloth = L.shirt, e = this.edge(cloth);
+        line(ctx, 0.8, -44, 1.6, 70, e, 0.9);
+        for (const y of [-38, -26, -14, -2, 10]) {
+          ctx.beginPath();
+          ctx.arc(1.2, y, 1.4, 0, TAU);
+          this.ink(ctx, k(shade(cloth, 0.3)), e, 0.6);
+        }
+        for (const [px, py, pw] of [[-14.6, -31, 10], [5.6, -31, 10], [-15.6, -6, 12], [5.6, -6, 12]]) {
+          ctx.beginPath();
+          ctx.roundRect(px, py, pw, 9, 1.4);
+          this.ink(ctx, k(tint(cloth, 0.05)), e, 0.7);
+          poly(ctx, [px, py, px + pw, py, px + pw, py + 3, px + pw / 2, py + 4.6, px, py + 3]);
+          this.ink(ctx, k(shade(cloth, 0.12)), e, 0.7);
+          circle(ctx, px + pw / 2, py + 2.4, 0.7, e);
+        }
+        poly(ctx, [-8.6, -50.6, 0.6, -47.6, 0.2, -41.4, -6.6, -42.6]);
+        this.ink(ctx, k(tint(cloth, 0.1)), e, 0.8);
+        poly(ctx, [10, -50.6, 0.8, -47.6, 1.4, -41.4, 8, -42.6]);
+        this.ink(ctx, k(shade(cloth, 0.1)), e, 0.8);
+        break;
+      }
+      case 'plaid': {
+        // Checked shirt, open at the neck.
+        for (let x = -w - 4; x < w + 10; x += 9) rect(ctx, x, -52, 4, 130, alpha(p1, 0.34));
+        for (let y = -50; y < 70; y += 9) rect(ctx, -w - 6, y, w * 2 + 16, 4, alpha(p1, 0.34));
+        for (let x = -w - 2; x < w + 10; x += 9) rect(ctx, x, -52, 0.8, 130, alpha(p2, 0.5));
+        for (let y = -48; y < 70; y += 9) rect(ctx, -w - 6, y, w * 2 + 16, 0.8, alpha(p2, 0.5));
+        poly(ctx, [-6, -49.6, 7, -49.6, 0.8, -39], k(L.skin));
+        poly(ctx, [-7.6, -50.4, 0.6, -42, -4.4, -37.6, -10.6, -45]);
+        this.ink(ctx, k(tint(L.shirt, 0.12)), this.edge(L.shirt), 0.8);
+        poly(ctx, [9, -50.4, 0.8, -42, 5.6, -37.6, 11.6, -45]);
+        this.ink(ctx, k(shade(L.shirt, 0.12)), this.edge(L.shirt), 0.8);
+        line(ctx, 0.8, -39, 1.6, 70, this.edge(L.shirt), 0.8);
+        for (const y of [-30, -17, -4]) circle(ctx, 3.4, y, 1, k('#f2ead8'));
+        break;
+      }
+      case 'germany': {
+        // The away shirt: white, with the colours in a band across the chest.
+        curve(ctx, [-8, -48.6, 0.5, -43.6, 9, -48.6], k('#1c1c22'), 2.4);
+        rect(ctx, -w - 6, -31, w * 2 + 16, 3, k('#1c1c22'));
+        rect(ctx, -w - 6, -28, w * 2 + 16, 3, k('#c8323a'));
+        rect(ctx, -w - 6, -25, w * 2 + 16, 3, k('#f2c21c'));
+        break;
+      }
+      case 'lederhosen': {
+        // A checked shirt under leather braces, with a carved chest strap.
+        for (let x = -w - 4; x < w + 10; x += 5) rect(ctx, x, -52, 2.4, 130, alpha(p2, 0.3));
+        for (let y = -50; y < 70; y += 5) rect(ctx, -w - 6, y, w * 2 + 16, 2.4, alpha(p2, 0.3));
+        poly(ctx, [-6, -49.6, 7, -49.6, 0.8, -40], k(L.skin));
+        const leather = L.patternColour ?? '#6a4326', el = this.edge(leather);
+        for (const x of [-11.4, 8.6]) {
+          ctx.beginPath();
+          ctx.rect(x, -50, 5, 130);
+          this.ink(ctx, p1, el, 0.8);
+        }
+        ctx.beginPath();
+        ctx.roundRect(-12.4, -27, 27, 7, 2);
+        this.ink(ctx, k(tint(leather, 0.1)), el, 0.8);
+        for (let i = 0; i < 5; i++) circle(ctx, 1 + Math.cos(i * 1.256) * 1.7, -23.5 + Math.sin(i * 1.256) * 1.7, 1, k('#f4f1e8'));
+        circle(ctx, 1, -23.5, 0.8, k('#f2c21c'));
+        break;
+      }
       case 'hoops':
         for (let y = -46; y < 70; y += 13) rect(ctx, -w, y, w * 2, 6, p1);
         poly(ctx, [-6, -49, 6, -49, 0, -41], k('#f4f4f4'));
@@ -1465,10 +1871,65 @@ export class Figure {
       }
       return;
     }
-    const small = kind === 'tasting';
-    const hw = small ? 3.6 : kind === 'tankard' ? 5.6 : 5, top = small ? -8 : -11, bot = small ? 5 : 7;
-    const shapePts = kind === 'tankard' ? [-hw, top, hw, top, hw, bot, -hw, bot] : [-hw, top, hw, top, hw * 0.8, bot, -hw * 0.8, bot];
-    if (kind === 'tankard') {
+    if (kind === 'bottle') {
+      const glass = k(L.drinkColour ?? '#2f8a4a'), eg = this.edge(L.drinkColour ?? '#2f8a4a');
+      const body = () => {
+        ctx.beginPath();
+        ctx.moveTo(-3, 7);
+        ctx.lineTo(-3, -6);
+        ctx.quadraticCurveTo(-3, -9, -1.3, -10.6);
+        ctx.lineTo(-1.3, -16);
+        ctx.lineTo(1.3, -16);
+        ctx.lineTo(1.3, -10.6);
+        ctx.quadraticCurveTo(3, -9, 3, -6);
+        ctx.lineTo(3, 7);
+        ctx.closePath();
+      };
+      body();
+      this.ink(ctx, glass, eg, 0.7);
+      rect(ctx, -3, -4, 6, 6, k('#f4f2ea'));
+      rect(ctx, -3, -2, 6, 1.6, k('#c8323a'));
+      rect(ctx, -1.5, -17, 3, 1.6, k('#d9b25a'), 0.5);
+      line(ctx, -1.9, -7, -1.9, 5.6, 'rgba(255,255,255,0.4)', 0.7);
+      return;
+    }
+    if (kind === 'horn') {
+      // A drinking horn, banded in brass, mead to the brim.
+      const horn = () => {
+        ctx.beginPath();
+        ctx.moveTo(-4.4, -13);
+        ctx.lineTo(4.4, -13);
+        ctx.bezierCurveTo(5, -2, 2, 5, -6, 9.6);
+        ctx.bezierCurveTo(-3, 4, -4.4, -3, -4.4, -13);
+        ctx.closePath();
+      };
+      horn();
+      this.ink(ctx, k('#e9dcc0'), k('#5a4a34'), 0.7);
+      ctx.save();
+      horn();
+      ctx.clip();
+      rect(ctx, -8, 2, 16, 10, k('#3a2c22'));
+      rect(ctx, 1.6, -14, 4, 26, alpha('#3a2010', 0.2));
+      ctx.restore();
+      ellipse(ctx, 0, -13, 4.4, 1.5, lv > 0.1 ? beer : k('#5a4a34'));
+      rect(ctx, -4.8, -11.6, 9.6, 1.8, k('#d9b25a'), 0.6);
+      return;
+    }
+    if (kind === 'shot') {
+      const pts = [-2.6, -6, 2.6, -6, 2.1, 3, -2.1, 3];
+      poly(ctx, pts, 'rgba(220,240,250,0.3)');
+      poly(ctx, [-2.4, lerp(2, -4.4, lv), 2.4, lerp(2, -4.4, lv), 2.1, 2.4, -2.1, 2.4], alpha(beer, 0.75));
+      poly(ctx, pts);
+      ctx.strokeStyle = glassEdge;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      rect(ctx, -2.2, 1.8, 4.4, 1.4, 'rgba(240,250,255,0.6)');
+      return;
+    }
+    const small = kind === 'tasting', big = kind === 'mass', mug = kind === 'tankard' || big;
+    const hw = small ? 3.6 : big ? 7 : mug ? 5.6 : 5, top = small ? -8 : big ? -13 : -11, bot = small ? 5 : big ? 8 : 7;
+    const shapePts = mug ? [-hw, top, hw, top, hw, bot, -hw, bot] : [-hw, top, hw, top, hw * 0.8, bot, -hw * 0.8, bot];
+    if (mug) {
       ctx.beginPath();
       ctx.moveTo(hw, top + 3);
       ctx.bezierCurveTo(hw + 6, top + 3, hw + 6, bot - 3, hw, bot - 3);
@@ -1484,7 +1945,21 @@ export class Figure {
     rect(ctx, -hw, ly, hw * 2, bot - ly, beer);
     rect(ctx, hw * 0.25, ly, hw, bot - ly, beerSh);
     rect(ctx, -hw, ly - 2.4, hw * 2, 2.6, k('#fbf6e9'));
+    if (big) {
+      // Dimples.
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) circle(ctx, -4.4 + i * 4.4, -6 + j * 5, 1.5, 'rgba(255,255,255,0.14)');
+    }
     ctx.restore();
+    if (big && lv > 0.7) {
+      // A proper head, standing proud of the rim.
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        ctx.moveTo(-5 + i * 3.4 + 2.6, top - 0.6);
+        ctx.arc(-5 + i * 3.4, top - 0.6, 2.6, 0, TAU);
+      }
+      ctx.fillStyle = k('#fbf6e9');
+      ctx.fill();
+    }
     poly(ctx, shapePts);
     ctx.strokeStyle = glassEdge;
     ctx.lineWidth = 0.8;

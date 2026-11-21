@@ -16,8 +16,10 @@ pub is drawn in code on a single canvas.
 - **18 kinds of drinker**, from The Regular to the Multiverse Lock-In, each drinking for you all day.
 - **Beers that never run out.** 31 hand-written beers, then generated ones forever, each with its
   own colour, glass and effect.
-- **12 pubs to open and choose between**, each with a perk of its own.
-- **Around 250 upgrades and 160 achievements.**
+- **24 pubs to open and choose between**, from The Red Lion by way of Prague, a Viking mead hall,
+  a pirate ship, the Outback and an alien beer garden to the multiverse, each with a perk of its
+  own and, away from home, its own locals at the bar.
+- **Around 250 upgrades and 170 achievements.**
 - **Free Rounds:** a golden pint drifts through the pub every few minutes. Catch it.
 - **Last Orders:** ring the bell to start again with Beer Mats, which boost everything and buy
   permanent Landlord's Licences.
@@ -30,7 +32,7 @@ pub is drawn in code on a single canvas.
   <tr>
     <td><img src="docs/festival.png" alt="Festival Field: fairy lights, a big wheel and a stage" /></td>
     <td><img src="docs/moon.png" alt="The Moon Under Water: a brewery under a dome on the Moon" /></td>
-    <td><img src="docs/multiverse.png" alt="The Multiverse Tavern: other universes drifting past" /></td>
+    <td><img src="docs/multiverse.png" alt="The Multiverse Tavern: a back wall of doorways, each onto the same pub in another universe" /></td>
   </tr>
 </table>
 

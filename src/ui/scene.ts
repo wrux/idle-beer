@@ -308,18 +308,21 @@ export function crowdPlan(drinkers: readonly Drinker[], owned: (id: string) => n
     for (const o of order) if (round < o.count) dealt.push(o.id);
   }
 
-  const figures: CrowdFigure[] = [];
-  let k = 0;
+  return crowdSpots().slice(0, dealt.length).map((spot, i) => ({ id: dealt[i], ...spot }));
+}
+
+/**
+ * Every place someone can stand, in the order they fill up: front row first, and within a row
+ * from the middle outwards (so a narrow stage sees the first arrivals), with a stable scatter so
+ * it looks natural rather than symmetrical.
+ */
+export function crowdSpots(): { row: 0 | 1 | 2; x: number }[] {
+  const out: { row: 0 | 1 | 2; x: number }[] = [];
   for (const [row, spots] of CROWD_ROWS.entries()) {
-    // Fill each row from the middle outwards (so a narrow stage sees the first arrivals), with
-    // a stable scatter so it looks natural rather than symmetrical.
-    const shuffled = spots
+    const ordered = spots
       .map((x, i) => ({ x, key: Math.abs(x - 200) + 70 * Math.abs(Math.sin(i * 12.9898 + row * 78.233)) }))
       .sort((a, b) => a.key - b.key);
-    for (const spot of shuffled) {
-      if (k >= dealt.length) return figures;
-      figures.push({ id: dealt[k++], row: row as 0 | 1 | 2, x: spot.x });
-    }
+    for (const spot of ordered) out.push({ row: row as 0 | 1 | 2, x: spot.x });
   }
-  return figures;
+  return out;
 }

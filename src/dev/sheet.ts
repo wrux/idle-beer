@@ -5,8 +5,7 @@
  */
 import { newDrinkState } from '../core/drinking';
 import { BEERS } from '../data/beers';
-import { DRINKERS } from '../data/drinkers';
-import { Figure } from '../ui/art/figures';
+import { Figure, LOOK_IDS } from '../ui/art/figures';
 import { drawGlass } from '../ui/art/glass';
 import { Hero } from '../ui/art/player';
 import { LAYOUT } from '../ui/art/stage';
@@ -15,7 +14,7 @@ import { computePose } from '../ui/scene';
 const q = new URLSearchParams(location.search);
 const only = q.get('only')?.split(',');
 const S = Number(q.get('scale')) || 2.6;
-const types = DRINKERS.filter((d) => !only || only.includes(d.id));
+const types = LOOK_IDS.filter((id) => id !== 'hero' && (!only || only.includes(id))).map((id) => ({ id }));
 const PER = 3, CW = 70, CH = 124;
 const showHero = !only || only.includes('hero');
 const cols = Math.min(types.length * PER, 9) || 1;

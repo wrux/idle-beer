@@ -206,14 +206,33 @@ own, so the newest is usually best for output but an older one can suit what you
 | Festival Field | 1B | Free Round rewards last 50% longer |
 | The Whole Town | 100B | Drinkers keep going twice as long while you are away |
 | Great British Boozer | 10T | Lucky Rounds pay double |
-| The Earth Inn | 1e16 | Everything drinks a further 15% more |
-| The Moon Under Water | 1e20 | Pints go down 30% faster |
-| Solar System Social Club | 1e25 | Happy Hour is ×10 instead of ×7 |
-| The Galaxy Arms | 1e31 | Drinkers cost 15% less |
-| The Multiverse Tavern | 1e40 | Everything drinks a further 50% more |
+| The Highland Bothy | 1e14 | Chug streaks can build to +100% |
+| The Mead Hall | 1e15 | Two extra seconds before a chug streak breaks |
+| Prague Castle | 1e16 | Beers cost 20% less |
+| Oktoberfest | 1e17 | Earn 75% instead of 50% while you are away |
+| The Castle Bierkeller | 1e18 | Pints drunk by hand count five times |
+| Red Square | 1e19 | Drinkers cost 10% less |
+| The Forbidden City | 1e20 | Lucky Rounds pay triple |
+| Seoul Pocha | 1e21 | Free Round rewards last twice as long |
+| Tokyo Izakaya | 1e22 | Free Rounds turn up 35% more often |
+| The Jolly Roger | 1e23 | Lucky Rounds pay four times |
+| The Outback Pub | 3e24 | Everything drinks a further 10% more |
+| The Earth Inn | 1e26 | Everything drinks a further 15% more |
+| The Moon Under Water | 1e30 | Pints go down 30% faster |
+| Solar System Social Club | 1e35 | Happy Hour is ×10 instead of ×7 |
+| The Little Green Man | 1e38 | Free Rounds turn up twice as often |
+| The Galaxy Arms | 1e41 | Drinkers cost 15% less |
+| The Multiverse Tavern | 1e50 | Everything drinks a further 50% more |
 
 Moving (or opening a pub, which moves you there) starts a **5 minute cooldown** before you can move
 again, so a perk can't be picked up for a few seconds and dropped. Opening a pub is always allowed.
+
+**Locals.** A pub can name `locals`: characters who are always found there, whoever you bring.
+Three of them take fixed spots in the crowd (one at the bar) and your drinkers fill the rest.
+The eleven pubs of the world tour (the Highlands to the Outback) each have their own, and an
+Irishman turns up on the High Street and in The Whole Town. The Little Green Man, on somebody
+else's planet, has three kinds of alien regular. Locals are art only: they cost
+nothing and earn nothing.
 
 Perks are data (`effects` in `data/locations.ts`) and reuse the Licence's effect kinds, so
 `mods(state)` already includes the pub you are in. Pubs close again at Last Orders. Save format
@@ -480,7 +499,7 @@ world is 300 units tall and centred on x = 200; a wider stage simply shows more 
 |----------------------|---------------|
 | `draw.ts` | Canvas toolkit: colour mixing, easing, blobs, limbs, cached glows |
 | `kit.ts` | Scenery pieces shared by locations: skies, skylines, lamps, bunting, bottles |
-| `backdrops.ts` | The twelve locations |
+| `backdrops.ts`, `world.ts`, `cosmos.ts` | The twenty-four locations (Britain, the world tour, and space) |
 | `figures.ts` | The crowd: one rig, eighteen wardrobes |
 | `player.ts` | You, at the bar |
 | `glass.ts` | The pint: four glass shapes, beer, head, bubbles, beer effects |
