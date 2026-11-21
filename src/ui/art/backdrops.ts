@@ -25,14 +25,6 @@ export interface BarStyle {
   glow?: string;
 }
 
-export interface SignStyle {
-  kind: 'board' | 'neon' | 'banner' | 'holo';
-  x: number;
-  y: number;
-  colour: string;
-  back?: string;
-}
-
 export interface Backdrop {
   /** Colour the crowd fades towards with distance. */
   fog: string;
@@ -43,7 +35,6 @@ export interface Backdrop {
   shine: number;
   vignette: number;
   bar: BarStyle;
-  sign: SignStyle;
   far(ctx: Ctx, t: number): void;
   shell?(ctx: Ctx): void;
   mid?(ctx: Ctx, t: number): void;
@@ -64,7 +55,6 @@ function across(first: number, step: number, fn: (x: number, i: number) => void)
 const redlion: Backdrop = {
   fog: '#2b1c16', haze: 0.13, dim: 0.05, shine: 0.95, vignette: 0.6,
   bar: { kind: 'wood', top: '#8f5a30', front: '#4a2815', trim: '#d1a849' },
-  sign: { kind: 'board', x: 268, y: 34, colour: '#e6c067', back: '#5a1814' },
   far(ctx, t) {
     sky(ctx, ['#0d1430', '#1c2a55', '#33457a']);
     stars(ctx, t, 60, 11, { yMax: 120 });
@@ -205,7 +195,6 @@ function parasol(ctx: Ctx, x: number, y: number, s: number, t: number, a: string
 const garden: Backdrop = {
   fog: '#bfe3c4', haze: 0.12, dim: 0, shine: 1.15, vignette: 0.28,
   bar: { kind: 'planks', top: '#c99a63', front: '#a8774a', trim: '#f1ead9' },
-  sign: { kind: 'board', x: 268, y: 34, colour: '#fbf3da', back: '#2f6a45' },
   far(ctx, t) {
     sky(ctx, ['#4fa9e6', '#8fd0f2', '#d6f1f7']);
     // Sun with slow-turning rays.
@@ -321,7 +310,6 @@ function cab(ctx: Ctx, x: number, y: number, dir: number) {
 const highstreet: Backdrop = {
   fog: '#4a2633', haze: 0.16, dim: 0.07, shine: 0.95, vignette: 0.55,
   bar: { kind: 'wood', top: '#7a4426', front: '#3d1d16', trim: '#d9b25a' },
-  sign: { kind: 'board', x: 268, y: 34, colour: '#f0cf7a', back: '#3a1420' },
   far(ctx, t) {
     sky(ctx, [0, '#2a2458', 0.45, '#8a4a7a', 0.7, '#f08a5a', 1, '#f9cf8a'], 170);
     stars(ctx, t, 30, 3, { yMax: 60 });
@@ -423,7 +411,6 @@ const highstreet: Backdrop = {
 const superpub: Backdrop = {
   fog: '#1a2244', haze: 0.18, dim: 0.14, shine: 1, vignette: 0.6,
   bar: { kind: 'neon', top: '#2a2c3c', front: '#12131c', trim: '#8a8fa8', glow: '#ff4fd8' },
-  sign: { kind: 'neon', x: 268, y: 56, colour: '#ff4fd8' },
   far(ctx, t) {
     sky(ctx, ['#070a1c', '#141a3e', '#3a2a66', '#6a3a7a'], 200);
     stars(ctx, t, 40, 6, { yMax: 70 });
@@ -531,7 +518,6 @@ function firework(ctx: Ctx, t: number, i: number) {
 const festival: Backdrop = {
   fog: '#3a2760', haze: 0.17, dim: 0.1, shine: 0.95, vignette: 0.55,
   bar: { kind: 'planks', top: '#8f6a44', front: '#5a3f2a', trim: '#f2c94c', glow: '#ffb84a' },
-  sign: { kind: 'banner', x: 268, y: 62, colour: '#2a1648', back: '#ffd23c' },
   far(ctx, t) {
     sky(ctx, ['#140c30', '#2f1d5c', '#7a2f7a', '#e0607a'], 190);
     stars(ctx, t, 70, 8, { yMax: 110 });
@@ -679,7 +665,6 @@ function timberHouse(ctx: Ctx, x: number, w: number, top: number, flip: number) 
 const town: Backdrop = {
   fog: '#c98a5e', haze: 0.15, dim: 0.03, shine: 1.05, vignette: 0.42,
   bar: { kind: 'wood', top: '#a8733f', front: '#5c3a22', trim: '#e0b85a' },
-  sign: { kind: 'board', x: 268, y: 40, colour: '#f6e3a8', back: '#2f4a3a' },
   far(ctx, t) {
     sky(ctx, [0, '#3f4a8a', 0.4, '#c8688a', 0.7, '#f79a5a', 1, '#ffd98a'], 176);
     glow(ctx, 226, 158, 150, '#ffd27a', 0.7);
@@ -764,7 +749,6 @@ function balloon(ctx: Ctx, x: number, y: number, s: number, t: number, union: bo
 const britain: Backdrop = {
   fog: '#c4e6f2', haze: 0.13, dim: 0, shine: 1.15, vignette: 0.26,
   bar: { kind: 'wood', top: '#b98a52', front: '#1f4a36', trim: '#e0b85a' },
-  sign: { kind: 'banner', x: 268, y: 64, colour: '#ffffff', back: '#24408e' },
   far(ctx, t) {
     sky(ctx, ['#3f8fe0', '#7fc3f2', '#d9f0f7'], 150);
     glow(ctx, 60, 30, 90, '#fff8d0', 0.6);
@@ -954,7 +938,6 @@ function shootingStar(ctx: Ctx, t: number, i: number, colour = '#ffffff') {
 const earthInn: Backdrop = {
   fog: '#0e1c3a', haze: 0.18, dim: 0.16, shine: 0.9, vignette: 0.6,
   bar: { kind: 'metal', top: '#dfe5ee', front: '#aab3c2', trim: '#f4f7fb', glow: '#5fd0ff' },
-  sign: { kind: 'holo', x: 268, y: 58, colour: '#7fe0ff' },
   far(ctx, t) {
     sky(ctx, ['#02030a', '#060a1e', '#0a1430']);
     stars(ctx, t, 150, 9, { twinkle: 0.4, drift: 0.6 });
@@ -1049,7 +1032,6 @@ function vat(ctx: Ctx, x: number, s: number) {
 const moon: Backdrop = {
   fog: '#1c2030', haze: 0.17, dim: 0.14, shine: 0.9, vignette: 0.6,
   bar: { kind: 'metal', top: '#c9ccd4', front: '#6a6e7c', trim: '#c77a44', glow: '#ffb070' },
-  sign: { kind: 'holo', x: 268, y: 58, colour: '#ffd9a0' },
   far(ctx, t) {
     sky(ctx, ['#020308', '#070912', '#10131e']);
     stars(ctx, t, 170, 4, { twinkle: 0 });
@@ -1181,7 +1163,6 @@ const PLANETS: [number, number, number, string, string, number][] = [
 const solar: Backdrop = {
   fog: '#2a1634', haze: 0.18, dim: 0.16, shine: 0.9, vignette: 0.62,
   bar: { kind: 'neon', top: '#3a2a46', front: '#1a1222', trim: '#c9a0ff', glow: '#ff9a3c' },
-  sign: { kind: 'holo', x: 268, y: 58, colour: '#ffc56e' },
   far(ctx, t) {
     sky(ctx, ['#07040f', '#120a22', '#1f1030']);
     stars(ctx, t, 150, 13, { twinkle: 0.6, drift: 0.3 });
@@ -1363,7 +1344,6 @@ function galaxyImage(): HTMLCanvasElement {
 const galaxy: Backdrop = {
   fog: '#1c1248', haze: 0.19, dim: 0.18, shine: 0.9, vignette: 0.62,
   bar: { kind: 'neon', top: '#2a2456', front: '#0e0b22', trim: '#9fe7ff', glow: '#7a5cff' },
-  sign: { kind: 'holo', x: 268, y: 58, colour: '#ff9af0' },
   far(ctx, t) {
     sky(ctx, ['#04030f', '#0b0824', '#150c38']);
     // Nebulae.
@@ -1478,7 +1458,6 @@ function otherWorld(ctx: Ctx, x: number, y: number, r: number, i: number, t: num
 const multiverse: Backdrop = {
   fog: '#2a1250', haze: 0.18, dim: 0.14, shine: 1, vignette: 0.58,
   bar: { kind: 'neon', top: '#3a2460', front: '#150a26', trim: '#ffd6ff', glow: '#5cf0ff' },
-  sign: { kind: 'holo', x: 268, y: 58, colour: '#ffffff' },
   far(ctx, t) {
     sky(ctx, ['#0a0418', '#1c0a3a', '#2a0f4a']);
     // The seam where everything meets: rings turning against each other.

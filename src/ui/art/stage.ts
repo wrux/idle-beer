@@ -14,7 +14,7 @@ import {
 } from '../scene';
 import { BACKDROPS, type Backdrop, type BarStyle } from './backdrops';
 import {
-  TAU, alpha, approach, at, circle, clamp, curve, ellipse, glow, hash, hgrad, hsl, lerp, line, mix, poly, rect, rgrad,
+  TAU, alpha, approach, at, circle, clamp, curve, ellipse, glow, hash, hgrad, hsl, lerp, mix, poly, rect, rgrad,
   shade, tint, vgrad, type Ctx, type View,
 } from './draw';
 import { Figure } from './figures';
@@ -27,7 +27,7 @@ const MIN_W = 270;
 const MAX_W = 760;
 const BAR_BACK = 204;
 const BAR_LIP = 220;
-const LAYOUT: PoseLayout = { glassScale: 1.12, restX: 247, barTop: 212, mouth: { x: 176, y: 121 }, mouthTipsBack: true };
+export const LAYOUT: PoseLayout = { glassScale: 1, restX: 243, barTop: 212, mouth: { x: 167, y: 120.5 }, mouthTipsBack: false };
 const DISPLAY_FONT = '"Abril Fatface", "Baloo 2", Georgia, serif';
 
 /** Size, height and haze of each crowd row, front to back. */
@@ -60,7 +60,6 @@ export class StageRenderer implements Renderer {
   private look: BeerLook;
   private beerName = '';
   private backdrop: Backdrop = BACKDROPS.redlion;
-  private sign = 'THE RED LION';
   private hero = new Hero();
   private figures = new Map<string, Figure>();
   private order: Figure[] = [];
@@ -102,7 +101,6 @@ export class StageRenderer implements Renderer {
 
   setLocation(loc: Location): void {
     this.backdrop = BACKDROPS[loc.id] ?? BACKDROPS.redlion;
-    this.sign = loc.sign;
     this.layersDirty = true;
     this.applyTone();
   }
@@ -148,7 +146,7 @@ export class StageRenderer implements Renderer {
     for (const f of this.figures.values()) {
       f.tone = { fog: b.fog, amount: clamp(b.haze * ROWS[f.row].haze, 0, 0.6), dim: b.dim * (0.7 + f.row * 0.35) };
     }
-    this.hero.tone = (c) => mix(mix(c, b.fog, b.haze * 0.2), '#07040d', b.dim * 0.55);
+    this.hero.tone = { fog: b.fog, amount: b.haze * 0.2, dim: b.dim * 0.55 };
   }
 
   cheer(strength = 1): void {
@@ -247,8 +245,6 @@ export class StageRenderer implements Renderer {
     b.far(ctx, t);
     this.blit(this.shell);
     b.mid?.(ctx, t);
-    // On a narrow stage the counter needs the room, and the location tag already names the pub.
-    if (this.cssW >= 520) this.drawSign(ctx, t);
 
     for (const f of this.order) f.draw(ctx, t);
 
@@ -259,7 +255,6 @@ export class StageRenderer implements Renderer {
     this.hero.drawBody(ctx, pose, t);
     this.blit(this.barLayer);
     this.barGlow(ctx, t);
-    this.hero.drawRestingArm(ctx, LAYOUT.barTop);
     this.drawPump(ctx, pose, t);
     this.drawPint(ctx, pose, t);
     this.drawParticles(ctx);
@@ -383,77 +378,6 @@ export class StageRenderer implements Renderer {
     }
   }
 
-  private drawSign(ctx: Ctx, t: number) {
-    const s = this.backdrop.sign;
-    const text = this.sign;
-    const dim = this.backdrop.dim;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    if (s.kind === 'board') {
-      at(ctx, s.x, s.y - 30, Math.sin(t * 0.9) * 0.018, 1, 1, () => {
-        line(ctx, -40, -200, -40, 34, '#1c1410', 1.2);
-        line(ctx, 40, -200, 40, 34, '#1c1410', 1.2);
-        rect(ctx, -59, 34, 118, 34, 'rgba(0,0,0,0.3)', 5);
-        rect(ctx, -60, 31, 120, 34, mix(shade(s.back ?? '#3a1712', 0.3), '#07040d', dim), 5);
-        rect(ctx, -57.5, 33.5, 115, 29, mix(s.back ?? '#3a1712', '#07040d', dim), 3.5);
-        ctx.strokeStyle = mix(s.colour, '#07040d', dim);
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(-54.5, 36.5, 109, 23, 2.5);
-        ctx.stroke();
-        ctx.font = `400 13.5px ${DISPLAY_FONT}`;
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.fillText(text, 0.6, 49.4, 100);
-        ctx.fillStyle = mix(s.colour, '#07040d', dim);
-        ctx.fillText(text, 0, 48.6, 100);
-      });
-    } else if (s.kind === 'banner') {
-      const w = Math.min(190, 40 + text.length * 10.5);
-      const wave = (x: number) => Math.sin(t * 2 + x * 0.05) * 1.3;
-      ctx.beginPath();
-      for (let x = -w / 2; x <= w / 2; x += 6) ctx.lineTo(s.x + x, s.y - 11 + wave(x));
-      for (let x = w / 2; x >= -w / 2; x -= 6) ctx.lineTo(s.x + x, s.y + 12 + wave(x + 20));
-      ctx.closePath();
-      ctx.fillStyle = s.back ?? '#ffffff';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-      line(ctx, s.x - w / 2, s.y - 11 + wave(-w / 2), s.x - w / 2 - 8, s.y - 22, '#2a1c16', 0.8);
-      line(ctx, s.x + w / 2, s.y - 11 + wave(w / 2), s.x + w / 2 + 8, s.y - 22, '#2a1c16', 0.8);
-      ctx.font = `400 14px ${DISPLAY_FONT}`;
-      ctx.fillStyle = s.colour;
-      ctx.fillText(text, s.x, s.y + 1 + wave(0), w - 22);
-    } else {
-      // Lit signs: neon tubes, or a hologram that never quite holds still.
-      const holo = s.kind === 'holo';
-      const flick = hash(Math.floor(t * 14), 7) < 0.04 ? 0.45 : 1;
-      const y = s.y + (holo ? Math.sin(t * 1.3) * 1.2 : 0);
-      ctx.font = `400 ${holo ? 15 : 19}px ${DISPLAY_FONT}`;
-      const w = Math.min(190, ctx.measureText(text).width + 30);
-      if (holo) {
-        ctx.fillStyle = alpha(s.colour, 0.1 * flick);
-        ctx.fillRect(s.x - w / 2, y - 12, w, 24);
-        ctx.fillStyle = alpha(s.colour, 0.14 * flick);
-        for (let k = -12 + ((t * 9) % 3); k < 12; k += 3) ctx.fillRect(s.x - w / 2, y + k, w, 0.6);
-        ctx.fillStyle = alpha(s.colour, 0.7 * flick);
-        ctx.fillRect(s.x - w / 2, y - 12, w, 0.8);
-        ctx.fillRect(s.x - w / 2, y + 11.2, w, 0.8);
-      } else {
-        rect(ctx, s.x - w / 2 - 4, y - 16, w + 8, 32, 'rgba(8,8,16,0.75)', 5);
-      }
-      glow(ctx, s.x, y, w * 0.62, s.colour, 0.42 * flick, 0.42);
-      ctx.save();
-      ctx.shadowColor = s.colour;
-      ctx.shadowBlur = 9 * this.px;
-      ctx.fillStyle = alpha(tint(s.colour, 0.75), flick);
-      ctx.fillText(text, s.x, y + 1, 170);
-      ctx.restore();
-    }
-    ctx.textAlign = 'start';
-    ctx.textBaseline = 'alphabetic';
-  }
-
   /** The hand pump: brass column, swan neck over the glass, and a handle wearing the beer's clip. */
   private drawPump(ctx: Ctx, pose: Pose, t: number) {
     const dim = this.backdrop.dim;
@@ -551,7 +475,7 @@ export class StageRenderer implements Renderer {
     // Its glow on the polished wood.
     if (near > 0.2) glow(ctx, base.x, LAYOUT.barTop + 3, 30, tint(this.look.liquid, 0.3), 0.2 * near * this.backdrop.shine, 0.2);
 
-    this.hero.drawArm(ctx, pose);
+    this.hero.drawArm(ctx, pose, t);
 
     ctx.save();
     ctx.translate(pose.lip.x, pose.lip.y);
@@ -572,7 +496,7 @@ export class StageRenderer implements Renderer {
     });
     ctx.restore();
 
-    this.hero.drawFingers(ctx, pose);
+    this.hero.drawFingers(ctx, pose, t);
   }
 
   destroy(): void {

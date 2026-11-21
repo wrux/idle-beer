@@ -1,6 +1,6 @@
 import { beerAt, beerMultUpTo, type Beer } from '../data/beers';
 import { DRINKERS, DRINKER_BY_ID, type Drinker } from '../data/drinkers';
-import { LOCATION_BONUS, locationIndex } from '../data/locations';
+import { LOCATIONS, LOCATION_BONUS, LOCATION_BY_ID, type Location } from '../data/locations';
 import { UPGRADES, UPGRADE_BY_ID, type Upgrade } from '../data/upgrades';
 import { DOWN_IT_MULT, HAPPY_HOUR_MULT, hasBuff, QUIZ_DISCOUNT } from './events';
 import { mods } from './licenceState';
@@ -26,6 +26,8 @@ interface Derived {
   lunchSeconds: number;
   /** Bonus to everything from Reputation upgrades (1 = none). */
   reputationMult: number;
+  /** Price multiplier on drinkers from the pub you're in. */
+  drinkerCost: number;
   ppsEach: Map<string, Decimal>;
   totalPps: Decimal;
 }
@@ -69,8 +71,15 @@ function derive(state: GameState): Derived {
     }
   }
 
-  // Each location you've moved to adds a little to everything.
-  const locationMult = 1 + LOCATION_BONUS * locationIndex(state.lifetimePints);
+  // The pub you're in: a little to everything, more the further along it is, plus its own perk.
+  let locationMult = pubBonus(state.pub);
+  let drinkerCost = 1;
+  for (const e of LOCATION_BY_ID.get(state.pub)?.effects ?? []) {
+    if (e.kind === 'all') locationMult *= e.mult;
+    else if (e.kind === 'perDrink') perDrinkMult *= e.mult;
+    else if (e.kind === 'drinkTime') drinkTime *= e.mult;
+    else if (e.kind === 'drinkerCost') drinkerCost *= e.mult;
+  }
   const licence = mods(state);
   if (licence.downInOne) downInOne = true;
   lunchSeconds += licence.lunch;
@@ -94,7 +103,7 @@ function derive(state: GameState): Derived {
   const value: Derived = {
     drinkerMult, synergies, globalMult, perDrinkMult,
     drinkTime: Math.max(MIN_DRINK_TIME, drinkTime),
-    refillTime, downInOne, lunchSeconds, reputationMult, ppsEach, totalPps,
+    refillTime, downInOne, lunchSeconds, reputationMult, drinkerCost, ppsEach, totalPps,
   };
   cache = { state, value };
   return value;
@@ -156,8 +165,9 @@ export function maxAffordable(d: Drinker, have: number, funds: Decimal): number 
   return backOff(n, (k) => costOf(d, have, k).lte(funds), 1);
 }
 
-/** Price multiplier on drinkers right now (Pub Quiz Win makes them cheaper). */
-export const drinkerDiscount = (state: GameState): number => (hasBuff(state, 'quizWin') ? QUIZ_DISCOUNT : 1);
+/** Price multiplier on drinkers right now (a Pub Quiz Win, or the right pub, makes them cheaper). */
+export const drinkerDiscount = (state: GameState): number =>
+  (hasBuff(state, 'quizWin') ? QUIZ_DISCOUNT : 1) * derive(state).drinkerCost;
 
 /** What buying `qty` more drinkers costs you right now, including any discount. */
 export function priceOf(state: GameState, d: Drinker, have: number, qty: number): Decimal {
@@ -254,6 +264,54 @@ export function buyNextRound(state: GameState): boolean {
   return true;
 }
 
+// ---------- pubs ----------
+
+/** The share every pub gives to everything while you're in it: +2% per step along the list. */
+export const pubBonus = (id: string): number =>
+  1 + LOCATION_BONUS * Math.max(0, LOCATIONS.findIndex((l) => l.id === id));
+
+export type PubStatus = 'here' | 'open' | 'forSale' | 'mystery' | 'hidden';
+
+/**
+ * Where each pub stands: you're in it, it's open (you can move there), it's for sale, or it's
+ * still a rumour. Like drinkers, the next unknown one shows as "???".
+ */
+export function pubStatuses(state: GameState): PubStatus[] {
+  let mysteryUsed = false;
+  return LOCATIONS.map((l) => {
+    if (l.id === state.pub) return 'here';
+    if (state.pubs.has(l.id)) return 'open';
+    if (state.lifetimePints.gte(l.threshold.mul(0.1))) return 'forSale';
+    if (mysteryUsed) return 'hidden';
+    mysteryUsed = true;
+    return 'mystery';
+  });
+}
+
+/** The next pub you could open, if one is on offer. */
+export function pubsForSale(state: GameState): Location[] {
+  const status = pubStatuses(state);
+  return LOCATIONS.filter((_, i) => status[i] === 'forSale');
+}
+
+/** Open a pub and move there. */
+export function buyPub(state: GameState, id: string): boolean {
+  const l = LOCATION_BY_ID.get(id);
+  if (!l || state.pubs.has(id) || !state.lifetimePints.gte(l.threshold.mul(0.1)) || !spend(state, l.threshold)) return false;
+  state.pubs.add(id);
+  state.pub = id;
+  invalidate();
+  return true;
+}
+
+/** Move to a pub you've already opened. */
+export function selectPub(state: GameState, id: string): boolean {
+  if (!state.pubs.has(id) || state.pub === id) return false;
+  state.pub = id;
+  invalidate();
+  return true;
+}
+
 // ---------- offline progress ----------
 
 export const OFFLINE_RATE = 0.5;
@@ -262,7 +320,7 @@ export const OFFLINE_CAP_SECONDS = 60 * 60;
 /** Pints earned while the game was closed. Returns the amount and the seconds it covered. */
 export function offlineGain(state: GameState, awaySeconds: number): { pints: Decimal; seconds: number } {
   const m = mods(state);
-  const seconds = Math.min(Math.max(0, awaySeconds), m.offlineCap ?? OFFLINE_CAP_SECONDS);
+  const seconds = Math.min(Math.max(0, awaySeconds), (m.offlineCap ?? OFFLINE_CAP_SECONDS) * m.offlineCapMult);
   return { pints: totalPps(state).mul(seconds * (m.offlineRate ?? OFFLINE_RATE)), seconds };
 }
 

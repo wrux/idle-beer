@@ -1,8 +1,8 @@
 import './styles/main.css';
 import { newDrinkState, stepDrink } from './core/drinking';
 import {
-  availableUpgrades, buyDrinker, buyNextRound, buyUpgrade, currentBeer, drinkerPpsEach, drinkTime, earn,
-  hasDownInOne, invalidate, offlineGain, pintsPerDrink, priceOf, refillTime, storeVisibility, totalPps,
+  availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerPpsEach, drinkTime, earn,
+  hasDownInOne, invalidate, offlineGain, pintsPerDrink, priceOf, pubBonus, pubsForSale, refillTime, storeVisibility, totalPps,
 } from './core/economy';
 import {
   BUFFS, buffDuration, freeRoundLifetime, nextFreeRoundIn, rollFreeRound, startBuff, tickBuffs,
@@ -20,7 +20,7 @@ import {
 } from './data/achievements';
 import { BEERS } from './data/beers';
 import { DRINKERS } from './data/drinkers';
-import { LOCATIONS, LOCATION_BONUS, locationIndex } from './data/locations';
+import { LOCATIONS, LOCATION_BY_ID } from './data/locations';
 import { StageRenderer } from './ui/art/stage';
 import { FreeRoundView } from './ui/freeRound';
 import { bonusText, LastOrdersPanel } from './ui/lastOrders';
@@ -112,33 +112,23 @@ const pose = () => {
 };
 $('scene').appendChild(renderer.root);
 
-// Location: the pub "moves" as lifetime pints grow.
+// The pub you're in. You open pubs and move between them in the shop.
 const locationEl = $('location-name');
-let locIndex = locationIndex(state.lifetimePints);
-function showLocation() {
-  const loc = LOCATIONS[locIndex];
+let shownPub = '';
+function showLocation(announce = false) {
+  if (state.pub === shownPub) return;
+  const first = shownPub === '';
+  shownPub = state.pub;
+  const loc = LOCATION_BY_ID.get(state.pub) ?? LOCATIONS[0];
   renderer.setLocation(loc);
   locationEl.textContent = loc.name;
+  if (first || !announce) return;
+  renderer.cheer(2);
+  sound.play('beer');
+  const bonus = Math.round((pubBonus(loc.id) - 1) * 100);
+  toast(`🍻 Welcome to <b>${loc.name}</b>. ${loc.perk}${bonus ? ` Everything drinks ${bonus}% more here.` : ''}`);
 }
 showLocation();
-
-function checkLocation() {
-  const i = locationIndex(state.lifetimePints);
-  if (i === locIndex) return;
-  if (i < locIndex) {
-    // Last Orders sends you back to The Red Lion; no fanfare.
-    locIndex = i;
-    showLocation();
-    return;
-  }
-  locIndex = i;
-  invalidate();
-  showLocation();
-  sound.play('beer');
-  renderer.cheer(2);
-  toast(`🍻 You've moved on to <b>${LOCATIONS[i].name}</b>. Everyone drinks ${Math.round(LOCATION_BONUS * 100 * i)}% more here.`);
-}
-
 
 /** Who's in the pub, plus a headcount so the crowd's real size is always clear. */
 const crowdCountEl = $('crowd-count');
@@ -346,6 +336,7 @@ const store = new StoreView($('store'), () => state, {
     renderer.setBeer(currentBeer(state).look, state.beer);
     renderer.cheer(1);
   },
+  onPubChanged: (opened) => showLocation(opened),
 });
 let lastStoreUpdate = 0;
 
@@ -382,7 +373,7 @@ const lastOrdersPanel = new LastOrdersPanel(() => state, {
     streak.count = 0;
     renderer.setBeer(currentBeer(state).look, state.beer);
     updateCrowd();
-    checkLocation();
+    showLocation();
     store.update();
     save();
     sound.play('freeRound');
@@ -407,6 +398,15 @@ function autoBuy() {
   if (m.auto.has('upgrades') && state.settings.auto.upgrades) {
     for (const u of availableUpgrades(state).slice(0, 10)) {
       if (state.pints.gte(u.cost) && buyUpgrade(state, u.id)) bought = true;
+    }
+  }
+  if (m.auto.has('upgrades') && state.settings.auto.upgrades) {
+    // The bar staff open new pubs too, but leave it to you where to drink.
+    const here = state.pub;
+    for (const l of pubsForSale(state)) if (buyPub(state, l.id)) bought = true;
+    if (state.pub !== here) {
+      state.pub = here;
+      invalidate();
     }
   }
   if (m.auto.has('drinkers') && state.settings.auto.drinkers) {
@@ -522,7 +522,7 @@ startLoop((elapsed, now) => {
     lastStoreUpdate = now;
     store.update();
     renderBuffs();
-    checkLocation();
+    showLocation();
     updateCrowd();
     announce(checkAchievements(state, { pps: totalPps(state), now: new Date() }));
     achievementsPanel.update();
@@ -581,8 +581,12 @@ if (new URLSearchParams(location.search).has('debug')) {
       return;
     }
     if (value === 'location') {
-      const next = LOCATIONS[(locIndex + 1) % LOCATIONS.length];
-      state.lifetimePints = Decimal.max(state.lifetimePints, next.threshold);
+      // Open the next pub for free and move there (or go round again).
+      const next = LOCATIONS.find((l) => !state.pubs.has(l.id)) ?? LOCATIONS[(LOCATIONS.findIndex((l) => l.id === state.pub) + 1) % LOCATIONS.length];
+      state.pubs.add(next.id);
+      state.pub = next.id;
+      invalidate();
+      showLocation(true);
       return;
     }
     const amount: Decimal = value === '1e1e10' ? big(1, 1e10) : D(value);

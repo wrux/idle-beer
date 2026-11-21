@@ -1,21 +1,27 @@
 /**
- * The store panel: next beer, upgrades and drinkers. DOM is built once and patched
- * (upgrade tiles are only rebuilt when the set of available upgrades changes).
+ * The shop: the next beer on top, then tabs for drinkers, upgrades and pubs. DOM is built once
+ * and patched (upgrade rows are only rebuilt when the set of available upgrades changes).
  */
 import {
-  availableUpgrades, buyDrinker, buyNextRound, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach, priceOf,
-  nextRound, quantityFor, storeVisibility,
+  availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach,
+  nextRound, priceOf, pubBonus, pubStatuses, quantityFor, selectPub, storeVisibility,
 } from '../core/economy';
 import { format } from '../core/format';
 import { D } from '../core/num';
 import { owned, type BuyMode, type GameState } from '../core/state';
 import { beerAt } from '../data/beers';
 import { DRINKERS } from '../data/drinkers';
+import { LOCATIONS } from '../data/locations';
 import type { Upgrade } from '../data/upgrades';
-import { beerIcon, drinkerPortrait } from './art/icons';
+import { beerIcon, drinkerPortrait, pubThumb } from './art/icons';
 
 const MODES: BuyMode[] = [1, 10, 100, 'max'];
 const modeLabel = (m: BuyMode) => (m === 'max' ? 'Max' : `×${m}`);
+type Tab = 'drinkers' | 'upgrades' | 'pubs';
+
+const GROUP_LABEL: Record<Upgrade['group'], string> = {
+  drinker: 'Drinkers', drinking: 'Drinking', synergy: 'Teamwork', pub: 'The pub', reputation: 'Reputation',
+};
 
 /** Only touch the DOM when text actually changes. */
 function textSetter() {
@@ -30,14 +36,19 @@ function textSetter() {
 const multText = (m: number) => `×${m % 1 === 0 ? m : m.toFixed(1)}`;
 
 export interface StoreEvents {
-  /** Anything bought: drinkers, upgrades or a beer. */
+  /** Anything bought: drinkers, upgrades, a beer or a pub. */
   onBought(): void;
   /** The beer in your hand changed. */
   onBeerChanged(): void;
+  /** You moved pub. `opened` is true when it's one you've just bought. */
+  onPubChanged(opened: boolean): void;
 }
 
 export class StoreView {
   private set = textSetter();
+  private tab: Tab = 'drinkers';
+  private tabButtons: HTMLButtonElement[];
+  private panels: HTMLElement[];
   private modeButtons: HTMLButtonElement[] = [];
   private rows: {
     el: HTMLButtonElement; name: HTMLElement; owned: HTMLElement;
@@ -54,16 +65,25 @@ export class StoreView {
   private beerIconKey = '';
 
   // Upgrades
-  private upgradeGrid: HTMLElement;
+  private upgradeList: HTMLElement;
   private upgradeCount: HTMLElement;
-  private detail: HTMLElement;
-  private tiles = new Map<string, HTMLButtonElement>();
-  private tileKey = '';
-  private focused: string | null = null;
-  private lastPointer = 'mouse';
+  private upgradeRows = new Map<string, { el: HTMLButtonElement; cost: HTMLElement }>();
+  private upgradeKey = '';
+
+  // Pubs
+  private pubCount: HTMLElement;
+  private pubRows: {
+    el: HTMLButtonElement; thumb: HTMLElement; name: HTMLElement; perk: HTMLElement; bonus: HTMLElement; action: HTMLElement;
+    drawn: boolean;
+  }[] = [];
 
   constructor(root: HTMLElement, private getState: () => GameState, private events: StoreEvents) {
     const q = <T extends HTMLElement>(s: string) => root.querySelector<T>(s)!;
+
+    // ----- tabs -----
+    this.tabButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('.tab'));
+    this.panels = Array.from(root.querySelectorAll<HTMLElement>('.tab-panel'));
+    for (const b of this.tabButtons) b.addEventListener('click', () => this.show(b.dataset.tab as Tab));
 
     // ----- beer -----
     this.beerNow = q('.beer-now');
@@ -81,13 +101,8 @@ export class StoreView {
     });
 
     // ----- upgrades -----
-    this.upgradeGrid = q('.upgrade-grid');
+    this.upgradeList = q('.upgrade-list');
     this.upgradeCount = q('.upgrade-count');
-    this.detail = q('.upgrade-detail');
-    this.upgradeGrid.addEventListener('pointerdown', (e) => (this.lastPointer = e.pointerType));
-    this.upgradeGrid.addEventListener('pointerleave', () => {
-      if (this.lastPointer === 'mouse') this.showDetail(null);
-    });
 
     // ----- drinkers -----
     const modes = q('.buy-modes');
@@ -129,13 +144,54 @@ export class StoreView {
         flavour: r('.d-flavour'), cost: r('.d-cost'), pps: r('.d-pps'),
       });
     }
+
+    // ----- pubs -----
+    this.pubCount = q('.pub-count');
+    const pubs = q('.pub-list');
+    for (const l of LOCATIONS) {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'pub';
+      el.innerHTML = `
+        <span class="p-thumb" aria-hidden="true"></span>
+        <span class="p-main">
+          <span class="p-name"></span>
+          <span class="p-perk"></span>
+          <span class="p-bonus"></span>
+        </span>
+        <span class="p-action"></span>`;
+      el.addEventListener('click', () => {
+        const state = this.getState();
+        if (buyPub(state, l.id)) {
+          this.events.onBought();
+          this.events.onPubChanged(true);
+        } else if (selectPub(state, l.id)) {
+          this.events.onPubChanged(false);
+        }
+        this.update();
+      });
+      pubs.appendChild(el);
+      const r = (s: string) => el.querySelector<HTMLElement>(s)!;
+      this.pubRows.push({
+        el, thumb: r('.p-thumb'), name: r('.p-name'), perk: r('.p-perk'), bonus: r('.p-bonus'), action: r('.p-action'),
+        drawn: false,
+      });
+    }
+    this.update();
+  }
+
+  private show(tab: Tab) {
+    this.tab = tab;
+    for (const b of this.tabButtons) b.setAttribute('aria-selected', String(b.dataset.tab === tab));
+    for (const p of this.panels) p.hidden = p.dataset.panel !== tab;
     this.update();
   }
 
   update(): void {
     this.updateBeer();
     this.updateUpgrades();
-    this.updateDrinkers();
+    this.updatePubs();
+    if (this.tab === 'drinkers') this.updateDrinkers();
   }
 
   // ---------- beer ----------
@@ -177,97 +233,94 @@ export class StoreView {
 
   private updateUpgrades() {
     const state = this.getState();
+    const f = state.settings.numberFormat;
     const list = availableUpgrades(state);
     const key = list.map((u) => u.id).join(',');
-    if (key !== this.tileKey) this.rebuildTiles(list);
+    if (key !== this.upgradeKey) this.rebuildUpgrades(list);
 
-    this.set(this.upgradeCount, list.length ? String(list.length) : '');
-    for (const u of list) this.tiles.get(u.id)!.classList.toggle('affordable', state.pints.gte(u.cost));
-    if (this.focused && !this.tiles.has(this.focused)) this.focused = null;
-    this.renderDetail();
+    let ready = 0;
+    for (const u of list) {
+      const affordable = state.pints.gte(u.cost);
+      if (affordable) ready++;
+      const row = this.upgradeRows.get(u.id)!;
+      row.el.classList.toggle('affordable', affordable);
+      this.set(row.cost, format(u.cost, f));
+    }
+    // The badge counts what you can buy right now, so it's worth a look when it lights up.
+    this.set(this.upgradeCount, ready ? String(ready) : '');
   }
 
-  private rebuildTiles(list: Upgrade[]) {
-    this.tileKey = list.map((u) => u.id).join(',');
-    this.tiles.clear();
-    this.upgradeGrid.replaceChildren();
+  private rebuildUpgrades(list: Upgrade[]) {
+    this.upgradeKey = list.map((u) => u.id).join(',');
+    this.upgradeRows.clear();
+    this.upgradeList.replaceChildren();
     if (!list.length) {
       const empty = document.createElement('p');
-      empty.className = 'upgrade-empty';
+      empty.className = 'list-empty';
       empty.textContent = 'Nothing on offer yet. Keep drinking.';
-      this.upgradeGrid.appendChild(empty);
+      this.upgradeList.appendChild(empty);
       return;
     }
     for (const u of list) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = `upgrade-tile group-${u.group}`;
-      b.innerHTML = `<span class="u-icon" aria-hidden="true"></span>${u.badge ? '<span class="u-badge"></span>' : ''}`;
-      const iconEl = b.querySelector<HTMLElement>('.u-icon')!;
-      if (u.effect.kind === 'drinker') iconEl.appendChild(drinkerPortrait(u.effect.drinker, 38));
-      else iconEl.textContent = u.icon;
-      if (u.badge) b.querySelector<HTMLElement>('.u-badge')!.textContent = u.badge;
-      b.setAttribute('aria-label', `${u.name}: ${u.desc}`);
-      b.addEventListener('pointerenter', (e) => {
-        if (e.pointerType === 'mouse') this.showDetail(u.id);
-      });
-      b.addEventListener('focus', () => this.showDetail(u.id));
+      b.className = `upgrade group-${u.group}`;
+      b.innerHTML = `
+        <span class="u-tile" aria-hidden="true"><span class="u-icon"></span>${u.badge ? '<span class="u-badge"></span>' : ''}</span>
+        <span class="u-main">
+          <span class="u-name"></span>
+          <span class="u-desc"></span>
+          <span class="u-meta"><span class="u-cost"></span><span class="u-group"></span></span>
+        </span>`;
+      const r = (s: string) => b.querySelector<HTMLElement>(s)!;
+      if (u.effect.kind === 'drinker') r('.u-icon').appendChild(drinkerPortrait(u.effect.drinker, 40));
+      else r('.u-icon').textContent = u.icon;
+      if (u.badge) r('.u-badge').textContent = u.badge;
+      r('.u-name').textContent = u.name;
+      r('.u-desc').textContent = u.desc;
+      r('.u-group').textContent = GROUP_LABEL[u.group];
       b.addEventListener('click', () => {
-        // Mouse: click buys. Touch: first tap shows details, second tap buys.
-        if (this.lastPointer !== 'mouse' && this.focused !== u.id) {
-          this.showDetail(u.id);
-          return;
-        }
-        if (buyUpgrade(this.getState(), u.id)) {
-          this.events.onBought();
-          this.focused = null;
-        }
+        if (buyUpgrade(this.getState(), u.id)) this.events.onBought();
         this.update();
       });
-      this.upgradeGrid.appendChild(b);
-      this.tiles.set(u.id, b);
+      this.upgradeList.appendChild(b);
+      this.upgradeRows.set(u.id, { el: b, cost: r('.u-cost') });
     }
   }
 
-  private showDetail(id: string | null) {
-    this.focused = id;
-    for (const [tid, el] of this.tiles) el.classList.toggle('focused', tid === id);
-    this.renderDetail();
-  }
+  // ---------- pubs ----------
 
-  private renderDetail() {
+  private updatePubs() {
     const state = this.getState();
-    const list = availableUpgrades(state);
-    const u = this.focused ? list.find((x) => x.id === this.focused) : null;
-    // The panel sits below the grid and is always there, so hovering never shifts the tiles.
-    this.detail.hidden = list.length === 0;
-    if (!u) {
-      if (this.detail.dataset.id !== '') {
-        this.detail.dataset.id = '';
-        this.detail.innerHTML = '<div class="ud-placeholder"></div>';
-      }
-      this.set(
-        this.detail.querySelector<HTMLElement>('.ud-placeholder')!,
-        this.lastPointer === 'mouse' ? 'Hover an upgrade to see what it does.' : 'Tap an upgrade to see what it does.',
-      );
-      return;
-    }
     const f = state.settings.numberFormat;
-    const affordable = state.pints.gte(u.cost);
-    const action = this.lastPointer === 'mouse' ? 'Click' : 'Tap again';
-    const html =
-      `<div class="ud-head"><span class="ud-name"></span><span class="ud-cost ${affordable ? '' : 'short'}"></span></div>` +
-      `<div class="ud-desc"></div><div class="ud-hint"></div>`;
-    if (this.detail.dataset.id !== u.id) {
-      this.detail.dataset.id = u.id;
-      this.detail.innerHTML = html;
-    }
-    const d = (s: string) => this.detail.querySelector<HTMLElement>(s)!;
-    this.set(d('.ud-name'), u.name);
-    this.set(d('.ud-cost'), format(u.cost, f));
-    d('.ud-cost').classList.toggle('short', !affordable);
-    this.set(d('.ud-desc'), u.desc);
-    this.set(d('.ud-hint'), affordable ? `${action} to buy` : 'Not enough pints yet');
+    const status = pubStatuses(state);
+    let ready = 0;
+    LOCATIONS.forEach((l, i) => {
+      const row = this.pubRows[i];
+      const st = status[i];
+      if (st === 'forSale' && state.pints.gte(l.threshold)) ready++;
+      if (this.tab !== 'pubs') return;
+      row.el.hidden = st === 'hidden';
+      if (st === 'hidden') return;
+      const mystery = st === 'mystery';
+      const affordable = st === 'forSale' && state.pints.gte(l.threshold);
+      row.el.className = `pub ${st}${affordable || st === 'open' ? ' affordable' : ''}`;
+      row.el.disabled = mystery || st === 'here';
+      if (!mystery && !row.drawn) {
+        row.drawn = true;
+        row.thumb.replaceChildren(pubThumb(l.id));
+      }
+      const bonus = Math.round((pubBonus(l.id) - 1) * 100);
+      this.set(row.name, mystery ? '???' : l.name);
+      this.set(row.perk, mystery ? `Word gets round at ${format(l.threshold.mul(0.1), f)} lifetime pints.` : l.perk);
+      this.set(row.bonus, mystery || !bonus ? '' : `+${bonus}% everything`);
+      this.set(row.action, st === 'here' ? "You're here" : st === 'open' ? 'Move here' : mystery ? '' : format(l.threshold, f));
+      row.el.setAttribute(
+        'aria-label',
+        mystery ? 'Unknown pub' : `${l.name}. ${l.perk} ${st === 'here' ? 'You are here.' : st === 'open' ? 'Move here.' : `Open for ${format(l.threshold, f)} pints.`}`,
+      );
+    });
+    this.set(this.pubCount, ready ? String(ready) : '');
   }
 
   // ---------- drinkers ----------

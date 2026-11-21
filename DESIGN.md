@@ -190,14 +190,35 @@ the time) reaches about 10 mats in 1h 40m in the simulator.
 Mats for **Kegs**, which give exponential multipliers. Only needed once numbers pass
 around `1e100`. The save already has a `kegs` field reserved for it; build it after launch.
 
-### Locations (visual progression)
+### Pubs (levels you open and choose)
 
-The scene changes as lifetime pints grow. This is mostly cosmetic plus a small bonus,
-and it gives a sense of travel:
+Each location is a pub you **open with pints** in the shop's Pubs tab (it is listed once lifetime
+pints reach a tenth of its price), and you can **move between any you have opened**. Only the pub
+you are in counts. Every pub gives +2% to everything per step along the list, plus a perk of its
+own, so the newest is usually best for output but an older one can suit what you are doing:
 
-The Red Lion (tiny local) → The Red Lion with beer garden → High Street Pub Crawl →
-City Centre Superpub → Festival Field → Entire Town → Great Britain → Earth → The Moon
-→ Solar System → The Galaxy → The Multiverse.
+| Pub | Price | Perk while you are there |
+|-----|-------|--------------------------|
+| The Red Lion | start | An extra second before a chug streak breaks |
+| The Red Lion Beer Garden | 1K | Free Rounds turn up 20% more often |
+| High Street Pub Crawl | 100K | Drinkers cost 5% less |
+| City Centre Superpub | 10M | Pints drunk by hand count triple |
+| Festival Field | 1B | Free Round rewards last 50% longer |
+| The Whole Town | 100B | Drinkers keep going twice as long while you are away |
+| Great British Boozer | 10T | Lucky Rounds pay double |
+| The Earth Inn | 1e16 | Everything drinks a further 15% more |
+| The Moon Under Water | 1e20 | Pints go down 30% faster |
+| Solar System Social Club | 1e25 | Happy Hour is ×10 instead of ×7 |
+| The Galaxy Arms | 1e31 | Drinkers cost 15% less |
+| The Multiverse Tavern | 1e40 | Everything drinks a further 50% more |
+
+Perks are data (`effects` in `data/locations.ts`) and reuse the Licence's effect kinds, so
+`mods(state)` already includes the pub you are in. Pubs close again at Last Orders. Save format
+version 3 added `pubs` and `pub`; older saves keep every pub their lifetime pints had reached.
+The upgrades auto-buyer opens new pubs but never moves you.
+
+**The shop** has the next beer on top, then three tabs: Drinkers, Upgrades (a list, with a badge
+counting what you can afford) and Pubs.
 
 ---
 
@@ -483,6 +504,13 @@ and hand → particles → the location's `front` pass (light beams, dust) → v
   buses and umbrellas on the High Street, the match on the Superpub's screens, fireworks and a
   big wheel at the festival, a steam train over the viaduct in Great Britain, the Earth turning
   under the Earth Inn, a rover and a rocket on the Moon, planets orbiting in the Solar System.
+
+**Characters** are drawn as illustration rather than assembled from primitives: heads turned
+three-quarters with a nose that breaks the silhouette, eyes with whites and lids, shaped torsos
+with sloping shoulders, mitten hands, and an outline round every shape in a darker shade of its
+own fill. Each person also gets their own jaw, nose and belly from their seed. Open `/sheet.html`
+on the dev server to see every drinker type and the player's poses large (`?only=regular,hero`,
+`?scale=3`).
 
 **Rules for adding art:** colours go through the figure's or the room's `tone` so a new character
 sits in every location's light; anything static belongs in `shell` (it is cached); anything

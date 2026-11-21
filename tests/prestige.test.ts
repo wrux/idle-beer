@@ -184,7 +184,10 @@ describe('saves', () => {
   it('migrate version 1 saves', () => {
     const v1 = btoa(JSON.stringify({ version: 1, pints: '500', lifetimePints: '2e12', startedAt: 1234 }));
     const s = deserialize(v1);
-    expect(s.version).toBe(2);
+    expect(s.version).toBe(3);
+    // Pubs used to follow lifetime pints: 2e12 had reached The Whole Town, so that's where you still are.
+    expect(s.pub).toBe('town');
+    expect(s.pubs.size).toBe(6);
     expect(s.pints.toNumber()).toBe(500);
     expect(s.beerMats.eq(0)).toBe(true);
     expect(s.runStartedAt).toBe(1234);

@@ -1,5 +1,6 @@
 /** Small canvases for the shop, drawn with the same rigs as the scene so everything matches. */
 import type { BeerLook } from '../../data/beers';
+import { BACKDROPS } from './backdrops';
 import { circle, rgrad } from './draw';
 import { Figure } from './figures';
 import { drawGlassIcon } from './glass';
@@ -54,5 +55,36 @@ export function beerIcon(look: BeerLook, size = 46): HTMLCanvasElement {
   ctx.translate(size / 2, size / 2);
   ctx.scale(s, s);
   drawGlassIcon(ctx, look);
+  return c;
+}
+
+/** A postcard of a pub: its sky, its walls and its lights, without the people. */
+export function pubThumb(id: string, w = 76, h = 56): HTMLCanvasElement {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2) * 1.5;
+  const make = () => {
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * dpr);
+    c.height = Math.round(h * dpr);
+    const ctx = c.getContext('2d')!;
+    // Show world x 60..340, y 6..212.
+    const s = (w * dpr) / 280;
+    ctx.setTransform(s, 0, 0, s, -60 * s, -6 * s);
+    return [c, ctx] as const;
+  };
+  const b = BACKDROPS[id] ?? BACKDROPS.redlion;
+  const [c, ctx] = make();
+  c.style.width = `${w}px`;
+  c.style.height = `${h}px`;
+  b.far(ctx, 1.3);
+  if (b.shell) {
+    // The shell punches its windows out, so it needs a layer of its own.
+    const [layer, lctx] = make();
+    b.shell(lctx);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+  }
+  b.mid?.(ctx, 1.3);
   return c;
 }

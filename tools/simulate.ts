@@ -12,8 +12,8 @@
  * Free Rounds and streaks are ignored, so real players get a bit of a bonus on top.
  */
 import {
-  availableUpgrades, buyDrinker, buyNextRound, buyUpgrade, costOf, drinkTime, earn, invalidate,
-  nextRound, pintsPerDrink, refillTime, storeVisibility, totalPps,
+  availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, costOf, drinkTime, earn, invalidate,
+  nextRound, pintsPerDrink, pubsForSale, refillTime, storeVisibility, totalPps,
 } from '../src/core/economy';
 import { autoCycleSeconds } from '../src/core/drinking';
 import { format } from '../src/core/format';
@@ -38,7 +38,7 @@ const handRate = (s: GameState) =>
 const income = (s: GameState) => totalPps(s).add(handRate(s));
 
 function clone(s: GameState): GameState {
-  return { ...s, drinkers: { ...s.drinkers }, upgrades: new Set(s.upgrades), settings: { ...s.settings } };
+  return { ...s, drinkers: { ...s.drinkers }, upgrades: new Set(s.upgrades), pubs: new Set(s.pubs), settings: { ...s.settings } };
 }
 
 interface Option {
@@ -59,6 +59,8 @@ function options(s: GameState): Option[] {
   }
   const offer = nextRound(s);
   if (offer) out.push({ label: `beer: ${offer.beer.name}`, cost: offer.cost, buy: buyNextRound });
+  // Opening a pub moves you there; the bot judges it, like everything else, by what it does to income.
+  for (const l of pubsForSale(s)) out.push({ label: `pub: ${l.name}`, cost: l.threshold, buy: (x) => buyPub(x, l.id) });
   return out;
 }
 
@@ -120,8 +122,8 @@ function playRun(s: GameState, stop: (s: GameState) => boolean, verbose: boolean
     const inc = income(s);
     if (best && s.pints.gte(best.cost)) {
       best.buy(s);
-      const key = best.label.startsWith('upgrade') || best.label.startsWith('beer') ? best.label : `first ${best.label}`;
-      const important = key.startsWith('beer') || key.startsWith('first') || key.includes('Down in One');
+      const key = /^(upgrade|beer|pub)/.test(best.label) ? best.label : `first ${best.label}`;
+      const important = key.startsWith('beer') || key.startsWith('pub') || key.startsWith('first') || key.includes('Down in One');
       if (!seen.has(key) && important) {
         log(key);
         note(key);

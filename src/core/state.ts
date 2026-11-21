@@ -3,7 +3,7 @@ import type { Buff } from './events';
 import type { NumberFormat } from './format';
 import type { AutoBuy } from '../data/licence';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export type BuyMode = 1 | 10 | 100 | 'max';
 
@@ -27,6 +27,10 @@ export interface GameState {
   upgrades: Set<string>;
   /** Index of the beer you're drinking (see beerAt: hand-written first, then generated forever). */
   beer: number;
+  /** Pubs opened this run (ids from data/locations). The Red Lion is always open. */
+  pubs: Set<string>;
+  /** The pub you're drinking in. */
+  pub: string;
   /** Timed rewards from Free Rounds. */
   buffs: Buff[];
   /** Golden pints clicked. */
@@ -78,6 +82,8 @@ export function newGame(now = Date.now()): GameState {
     drinkers: {},
     upgrades: new Set(),
     beer: 0,
+    pubs: new Set(['redlion']),
+    pub: 'redlion',
     buffs: [],
     freeRounds: 0,
     bestStreak: 0,

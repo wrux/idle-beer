@@ -180,6 +180,21 @@ export function limb(ctx: Ctx, ax: number, ay: number, bx: number, by: number, r
   ctx.fill();
 }
 
+/** Trace a (possibly tapered) capsule without filling it. */
+export function capsule(ctx: Ctx, ax: number, ay: number, bx: number, by: number, ra: number, rb: number) {
+  const d = Math.hypot(bx - ax, by - ay) || 1;
+  const a = Math.atan2((bx - ax) / d, -(by - ay) / d);
+  ctx.beginPath();
+  ctx.arc(ax, ay, ra, a, a + Math.PI);
+  ctx.arc(bx, by, rb, a + Math.PI, a + TAU);
+  ctx.closePath();
+}
+
+/** Trace a smooth closed curve through points without filling it. */
+export function blobPath(ctx: Ctx, pts: number[], tension = 0.5) {
+  blob(ctx, pts, undefined, tension);
+}
+
 export function vgrad(ctx: Ctx, y0: number, y1: number, stops: (string | number)[]): CanvasGradient {
   const g = ctx.createLinearGradient(0, y0, 0, y1);
   addStops(g, stops);

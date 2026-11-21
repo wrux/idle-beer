@@ -2,6 +2,7 @@ import { DRINKERS } from '../data/drinkers';
 import { BUFFS, type BuffKind } from './events';
 import { ACHIEVEMENT_BY_ID } from '../data/achievements';
 import { LICENCE_BY_ID } from '../data/licence';
+import { LOCATIONS, LOCATION_BY_ID, locationIndex } from '../data/locations';
 import { UPGRADE_BY_ID } from '../data/upgrades';
 import { Decimal, toDecimal } from './num';
 import { newGame, SAVE_VERSION, type GameState } from './state';
@@ -10,6 +11,8 @@ const KEY = 'idleBeer.save';
 /** Beers that existed when Brew Again was replaced by more beers. */
 const BEERS_BEFORE_BREW = 13;
 const BACKUP_KEY = 'idleBeer.save.bak';
+/** A save we couldn't read is parked here before anything overwrites it, so it can be rescued by hand. */
+export const UNREADABLE_KEY = 'idleBeer.save.unreadable';
 
 type Raw = Record<string, any>;
 
@@ -27,6 +30,11 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
     kegs: '0',
     runStartedAt: raw.startedAt,
   }),
+  // v2 → v3: pubs are opened and chosen, rather than following lifetime pints. Keep everyone where they were.
+  2: (raw) => {
+    const reached = locationIndex(toDecimal(raw.lifetimePints));
+    return { ...raw, version: 3, pubs: LOCATIONS.slice(0, reached + 1).map((l) => l.id), pub: LOCATIONS[reached].id };
+  },
 };
 
 function toBase64(text: string): string {
@@ -47,6 +55,7 @@ export function serialize(state: GameState): string {
   return toBase64(JSON.stringify({
     ...state,
     upgrades: [...state.upgrades],
+    pubs: [...state.pubs],
     achievements: [...state.achievements],
     licence: [...state.licence],
   }));
@@ -82,6 +91,8 @@ export function deserialize(text: string, now = Date.now()): GameState {
     for (const id of raw.upgrades) if (UPGRADE_BY_ID.has(id)) s.upgrades.add(id);
   }
   if (Number.isInteger(raw.beer) && raw.beer > 0) s.beer = raw.beer;
+  if (Array.isArray(raw.pubs)) for (const id of raw.pubs) if (LOCATION_BY_ID.has(id)) s.pubs.add(id);
+  if (typeof raw.pub === 'string' && s.pubs.has(raw.pub)) s.pub = raw.pub;
   // Older saves had "Brew Again" levels after Singularity Stout (beer 12); they become the beers after it.
   if (Number.isInteger(raw.brewAgain) && raw.brewAgain > 0) s.beer = Math.max(s.beer, BEERS_BEFORE_BREW - 1) + raw.brewAgain;
   if (['short', 'scientific', 'engineering'].includes(raw.settings?.numberFormat)) {
@@ -131,14 +142,24 @@ export function saveGame(state: GameState, storage: Storage = localStorage, now 
   }
 }
 
-/** Load the save, falling back to the backup, then to a new game. */
+/**
+ * Load the save, falling back to the backup, then to a new game. A save that exists but won't
+ * load (a bug, a bad update) is set aside first: the new game's autosaves would otherwise write
+ * over it and its backup within a minute.
+ */
 export function loadGame(storage: Storage = localStorage, now = Date.now()): GameState {
   for (const key of [KEY, BACKUP_KEY]) {
+    let text: string | null = null;
     try {
-      const text = storage.getItem(key);
+      text = storage.getItem(key);
       if (text) return deserialize(text, now);
     } catch (err) {
       console.warn(`Could not load ${key}`, err);
+      try {
+        if (text && key === KEY) storage.setItem(UNREADABLE_KEY, text);
+      } catch {
+        /* storage full or blocked: nothing more we can do */
+      }
     }
   }
   return newGame(now);

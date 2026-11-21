@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  availableUpgrades, buyNextRound, buyUpgrade, currentBeer, drinkTime, globalMult, hasDownInOne,
-  invalidate, nextRound, pintsPerDrink, refillTime, totalPps,
+  availableUpgrades, buyNextRound, buyPub, buyUpgrade, costOf, currentBeer, drinkTime, globalMult, hasDownInOne,
+  invalidate, nextRound, offlineGain, pintsPerDrink, priceOf, pubBonus, pubStatuses, refillTime, selectPub, totalPps,
 } from '../src/core/economy';
+import { mods } from '../src/core/licenceState';
+import { lastOrders } from '../src/core/prestige';
 import { D } from '../src/core/num';
 import { deserialize, serialize } from '../src/core/save';
 import { newGame, type GameState } from '../src/core/state';
 import { BEERS, beerAt, generatedBeerName } from '../src/data/beers';
-import { DRINKERS } from '../src/data/drinkers';
-import { LOCATION_BONUS, locationIndex } from '../src/data/locations';
+import { DRINKERS, DRINKER_BY_ID } from '../src/data/drinkers';
+import { LOCATIONS } from '../src/data/locations';
 import { UPGRADES } from '../src/data/upgrades';
 
-/** The location bonus a save gets from its lifetime pints (rich saves are at the Multiverse). */
-const loc = (s: GameState) => 1 + LOCATION_BONUS * locationIndex(s.lifetimePints);
+/** The bonus from the pub a save is in (new games are at The Red Lion, which adds nothing to output). */
+const loc = (s: GameState) => pubBonus(s.pub);
 
 const rich = (): GameState => {
   const s = newGame();
@@ -148,17 +150,59 @@ describe('beers', () => {
   });
 });
 
-describe('locations', () => {
-  it('move as lifetime pints grow and add 2% each', () => {
+describe('pubs', () => {
+  it('are opened with pints, then you can move between them', () => {
     const s = newGame();
     s.drinkers = { student: 1 };
     invalidate();
-    expect(locationIndex(s.lifetimePints)).toBe(0);
     expect(totalPps(s).toNumber()).toBeCloseTo(1);
+    expect(pubStatuses(s).slice(0, 3)).toEqual(['here', 'mystery', 'hidden']);
+
     s.lifetimePints = D(1e5);
-    invalidate();
-    expect(locationIndex(s.lifetimePints)).toBe(2);
-    expect(totalPps(s).toNumber()).toBeCloseTo(1.04);
+    s.pints = D(1e5);
+    expect(pubStatuses(s).slice(0, 4)).toEqual(['here', 'forSale', 'forSale', 'mystery']);
+    expect(buyPub(s, 'highstreet')).toBe(true);
+    expect(s.pints.toNumber()).toBe(0);
+    expect(s.pub).toBe('highstreet');
+    expect(totalPps(s).toNumber()).toBeCloseTo(1.04); // third pub along: +4%
+    expect(buyPub(s, 'garden')).toBe(false); // can't afford it now
+
+    expect(selectPub(s, 'redlion')).toBe(true);
+    expect(totalPps(s).toNumber()).toBeCloseTo(1);
+    expect(selectPub(s, 'moon')).toBe(false); // not open
+  });
+
+  it('each have a perk that only applies while you are there', () => {
+    const s = newGame();
+    const regular = DRINKER_BY_ID.get('regular')!;
+    expect(mods(s).streakSlack).toBe(1); // The Red Lion
+    s.pubs = new Set(LOCATIONS.map((l) => l.id));
+
+    selectPub(s, 'highstreet');
+    expect(mods(s).streakSlack).toBe(0);
+    expect(priceOf(s, regular, 0, 1).toNumber()).toBe(10); // 9.5, rounded up
+    expect(priceOf(s, regular, 20, 1).toNumber()).toBe(Math.ceil(costOf(regular, 20, 1).toNumber() * 0.95));
+
+    selectPub(s, 'superpub');
+    expect(pintsPerDrink(s).toNumber()).toBeCloseTo(3 * pubBonus('superpub'));
+
+    selectPub(s, 'moon');
+    expect(drinkTime(s)).toBeCloseTo(0.7);
+
+    selectPub(s, 'town');
+    expect(offlineGain(s, 1e9).seconds).toBe(2 * 60 * 60);
+
+    selectPub(s, 'multiverse');
+    expect(pintsPerDrink(s).toNumber()).toBeCloseTo(1.5 * pubBonus('multiverse'));
+  });
+
+  it('close again at Last Orders', () => {
+    const s = newGame();
+    s.pubs = new Set(['redlion', 'garden']);
+    s.pub = 'garden';
+    lastOrders(s);
+    expect([...s.pubs]).toEqual(['redlion']);
+    expect(s.pub).toBe('redlion');
   });
 });
 

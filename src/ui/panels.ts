@@ -7,7 +7,7 @@ import { D } from '../core/num';
 import type { GameState } from '../core/state';
 import { ACHIEVEMENTS, type Achievement } from '../data/achievements';
 import { DRINKERS } from '../data/drinkers';
-import { LOCATIONS, locationIndex } from '../data/locations';
+import { LOCATION_BY_ID } from '../data/locations';
 import { UPGRADES } from '../data/upgrades';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -142,7 +142,8 @@ export class StatsPanel {
       ['Drinkers', n(drinkers)],
       ['Upgrades', `${s.upgrades.size} of ${UPGRADES.length}`],
       ['Beer', currentBeer(s).name],
-      ['Location', LOCATIONS[locationIndex(s.lifetimePints)].name],
+      ['Drinking at', LOCATION_BY_ID.get(s.pub)?.name ?? ''],
+      ['Pubs open', String(s.pubs.size)],
       ['Achievements', `${s.achievements.size} of ${ACHIEVEMENTS.length}`],
       ['Time played', playTime(s.playSeconds)],
       ['Started', new Date(s.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })],

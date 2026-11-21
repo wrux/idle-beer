@@ -95,21 +95,28 @@
             </button>
           </section>
 
-          <section class="store-section" aria-label="Upgrades">
-            <div class="section-head">
-              <h2>Upgrades</h2>
-              <span class="upgrade-count"></span>
-            </div>
-            <div class="upgrade-grid"></div>
-            <div class="upgrade-detail" aria-live="polite"></div>
-          </section>
+          <div class="tabs" role="tablist" aria-label="Shop">
+            <button type="button" role="tab" class="tab" data-tab="drinkers" aria-selected="true">Drinkers</button>
+            <button type="button" role="tab" class="tab" data-tab="upgrades" aria-selected="false">Upgrades<span class="tab-badge upgrade-count"></span></button>
+            <button type="button" role="tab" class="tab" data-tab="pubs" aria-selected="false">Pubs<span class="tab-badge pub-count"></span></button>
+          </div>
 
-          <section class="store-section drinkers-section" aria-label="Drinkers">
-            <div class="section-head store-head">
-              <h2>Drinkers</h2>
+          <section class="tab-panel" data-panel="drinkers" aria-label="Drinkers">
+            <div class="panel-head">
+              <span class="panel-note">Each one drinks for you, all day.</span>
               <div class="buy-modes" role="group" aria-label="How many to buy"></div>
             </div>
             <div class="store-list"></div>
+          </section>
+
+          <section class="tab-panel" data-panel="upgrades" aria-label="Upgrades" hidden>
+            <div class="panel-head"><span class="panel-note">Bought once. They last until Last Orders.</span></div>
+            <div class="upgrade-list"></div>
+          </section>
+
+          <section class="tab-panel" data-panel="pubs" aria-label="Pubs" hidden>
+            <div class="panel-head"><span class="panel-note">Open a pub, then drink wherever suits. Only the pub you're in counts.</span></div>
+            <div class="pub-list"></div>
           </section>
         </aside>
       </div>

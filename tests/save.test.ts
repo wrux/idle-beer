@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deserialize, loadGame, saveGame, serialize } from '../src/core/save';
+import { deserialize, loadGame, saveGame, serialize, UNREADABLE_KEY } from '../src/core/save';
 import { big, D } from '../src/core/num';
 import { newGame } from '../src/core/state';
 
@@ -70,6 +70,16 @@ describe('save', () => {
     saveGame(s, storage); // previous save (100) becomes the backup
     storage.setItem('idleBeer.save', 'not base64 at all!!');
     expect(loadGame(storage).pints.eq(100)).toBe(true);
+  });
+
+  it('sets an unreadable save aside rather than letting autosave write over it', () => {
+    const storage = new MemoryStorage();
+    storage.setItem('idleBeer.save', 'not base64 at all!!');
+    const fresh = loadGame(storage);
+    expect(fresh.pints.eq(0)).toBe(true);
+    saveGame(fresh, storage);
+    saveGame(fresh, storage); // by now both the save and its backup are the new game
+    expect(storage.getItem(UNREADABLE_KEY)).toBe('not base64 at all!!');
   });
 
   it('starts a new game when there is nothing saved', () => {

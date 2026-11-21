@@ -7,7 +7,7 @@ import { D, Decimal } from '../core/num';
 import { owned, type GameState } from '../core/state';
 import { BEERS } from './beers';
 import { DRINKERS } from './drinkers';
-import { LOCATIONS, locationIndex } from './locations';
+import { LOCATIONS } from './locations';
 
 export interface AchievementContext {
   /** Current pints per second. */
@@ -140,10 +140,10 @@ const beerAchievements: Achievement[] = BEER_MILESTONES.map(([n, name, desc]) =>
   id: `beer-${n}`, name, desc, icon: '🍻', check: (s: GameState) => s.beer >= n,
 }));
 
-const locationAchievements: Achievement[] = LOCATIONS.slice(1).map((loc, i) => ({
+const locationAchievements: Achievement[] = LOCATIONS.slice(1).map((loc) => ({
   id: `location-${loc.id}`, name: `Welcome to ${loc.name}`, icon: '🗺️',
-  desc: `Move the pub to ${loc.name}.`,
-  check: (s: GameState) => locationIndex(s.lifetimePints) >= i + 1,
+  desc: `Open ${loc.name}.`,
+  check: (s: GameState) => s.pubs.has(loc.id),
 }));
 
 // ---------- Last Orders ----------

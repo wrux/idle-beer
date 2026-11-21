@@ -19,6 +19,8 @@ export type LicenceEffect =
   | { kind: 'freeRoundLifetime'; mult: number }
   | { kind: 'happyHour'; mult: number }
   | { kind: 'offlineCap'; seconds: number }
+  /** Stretches whatever the cap is. */
+  | { kind: 'offlineCapMult'; mult: number }
   | { kind: 'offlineRate'; rate: number }
   | { kind: 'auto'; what: AutoBuy }
   | { kind: 'downInOne' }
@@ -140,6 +142,7 @@ export interface LicenceMods {
   freeRoundLifetime: number;
   happyHour: number | null;
   offlineCap: number | null;
+  offlineCapMult: number;
   offlineRate: number | null;
   auto: Set<AutoBuy>;
   downInOne: boolean;
@@ -153,41 +156,48 @@ export interface LicenceMods {
 
 export const BASE_MAT_RATE = 0.01;
 
-/** Fold every owned node into one set of modifiers. */
-export function licenceMods(owned: ReadonlySet<string>): LicenceMods {
-  const m: LicenceMods = {
+/** Modifiers with nothing bought. */
+export function baseMods(): LicenceMods {
+  return {
     startDrinkers: {}, startPints: 0, keepBeer: 0, keepHalfBeers: false, beerDiscount: 1,
     freeRoundGap: 1, buffDuration: 1, luckyMult: 1, freeRoundLifetime: 1, happyHour: null,
-    offlineCap: null, offlineRate: null, auto: new Set(), downInOne: false, streakMaxSteps: null,
+    offlineCap: null, offlineCapMult: 1, offlineRate: null, auto: new Set(), downInOne: false, streakMaxSteps: null,
     streakSlack: 0, lunch: 0, keepDrinking: false, matRate: BASE_MAT_RATE, matGain: 1,
   };
-  for (const id of owned) {
-    for (const e of LICENCE_BY_ID.get(id)?.effects ?? []) {
-      switch (e.kind) {
-        case 'startDrinkers':
-          for (const [k, v] of Object.entries(e.drinkers)) m.startDrinkers[k] = Math.max(m.startDrinkers[k] ?? 0, v);
-          break;
-        case 'startPints': m.startPints = Math.max(m.startPints, e.pints); break;
-        case 'keepBeer': m.keepBeer = Math.max(m.keepBeer, e.min); break;
-        case 'keepHalfBeers': m.keepHalfBeers = true; break;
-        case 'beerDiscount': m.beerDiscount *= e.mult; break;
-        case 'freeRoundGap': m.freeRoundGap *= e.mult; break;
-        case 'buffDuration': m.buffDuration *= e.mult; break;
-        case 'luckyMult': m.luckyMult *= e.mult; break;
-        case 'freeRoundLifetime': m.freeRoundLifetime *= e.mult; break;
-        case 'happyHour': m.happyHour = Math.max(m.happyHour ?? 0, e.mult); break;
-        case 'offlineCap': m.offlineCap = Math.max(m.offlineCap ?? 0, e.seconds); break;
-        case 'offlineRate': m.offlineRate = Math.max(m.offlineRate ?? 0, e.rate); break;
-        case 'auto': m.auto.add(e.what); break;
-        case 'downInOne': m.downInOne = true; break;
-        case 'streakMax': m.streakMaxSteps = Math.max(m.streakMaxSteps ?? 0, e.steps); break;
-        case 'streakSlack': m.streakSlack += e.seconds; break;
-        case 'lunch': m.lunch += e.seconds; break;
-        case 'keepDrinking': m.keepDrinking = true; break;
-        case 'matRate': m.matRate = Math.max(m.matRate, e.rate); break;
-        case 'matGain': m.matGain *= e.mult; break;
-      }
-    }
+}
+
+/** Fold one effect into a set of modifiers. */
+export function applyEffect(m: LicenceMods, e: LicenceEffect): void {
+  switch (e.kind) {
+    case 'startDrinkers':
+      for (const [k, v] of Object.entries(e.drinkers)) m.startDrinkers[k] = Math.max(m.startDrinkers[k] ?? 0, v);
+      break;
+    case 'startPints': m.startPints = Math.max(m.startPints, e.pints); break;
+    case 'keepBeer': m.keepBeer = Math.max(m.keepBeer, e.min); break;
+    case 'keepHalfBeers': m.keepHalfBeers = true; break;
+    case 'beerDiscount': m.beerDiscount *= e.mult; break;
+    case 'freeRoundGap': m.freeRoundGap *= e.mult; break;
+    case 'buffDuration': m.buffDuration *= e.mult; break;
+    case 'luckyMult': m.luckyMult *= e.mult; break;
+    case 'freeRoundLifetime': m.freeRoundLifetime *= e.mult; break;
+    case 'happyHour': m.happyHour = Math.max(m.happyHour ?? 0, e.mult); break;
+    case 'offlineCap': m.offlineCap = Math.max(m.offlineCap ?? 0, e.seconds); break;
+    case 'offlineCapMult': m.offlineCapMult *= e.mult; break;
+    case 'offlineRate': m.offlineRate = Math.max(m.offlineRate ?? 0, e.rate); break;
+    case 'auto': m.auto.add(e.what); break;
+    case 'downInOne': m.downInOne = true; break;
+    case 'streakMax': m.streakMaxSteps = Math.max(m.streakMaxSteps ?? 0, e.steps); break;
+    case 'streakSlack': m.streakSlack += e.seconds; break;
+    case 'lunch': m.lunch += e.seconds; break;
+    case 'keepDrinking': m.keepDrinking = true; break;
+    case 'matRate': m.matRate = Math.max(m.matRate, e.rate); break;
+    case 'matGain': m.matGain *= e.mult; break;
   }
+}
+
+/** Fold every owned node into one set of modifiers. */
+export function licenceMods(owned: ReadonlySet<string>): LicenceMods {
+  const m = baseMods();
+  for (const id of owned) for (const e of LICENCE_BY_ID.get(id)?.effects ?? []) applyEffect(m, e);
   return m;
 }

@@ -120,7 +120,7 @@ describe('buff effects', () => {
 });
 
 describe('locations', () => {
-  it('are in order and reached by lifetime pints', () => {
+  it('are in order of price', () => {
     for (let i = 1; i < LOCATIONS.length; i++) expect(LOCATIONS[i].threshold.gt(LOCATIONS[i - 1].threshold)).toBe(true);
     expect(locationIndex(D(0))).toBe(0);
     expect(locationIndex(D('1e1000'))).toBe(LOCATIONS.length - 1);
