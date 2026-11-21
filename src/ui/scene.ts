@@ -22,18 +22,23 @@ export const INNER_BOT = BOT - GLASS.BASE;
 
 /** Width profiles as [t, fraction of W/2] control points, t = 0 at the rim, 1 at the base. */
 const PROFILES: Record<Exclude<GlassShape, 'nonic'>, [number, number][]> = {
-  tankard: [[0, 1.04], [1, 1.04]],
-  tulip: [[0, 0.9], [0.18, 0.8], [0.5, 1.0], [0.8, 0.72], [0.92, 0.3], [1, 0.62]],
-  snifter: [[0, 0.62], [0.2, 0.82], [0.55, 1.08], [0.8, 0.8], [0.9, 0.24], [1, 0.62]],
+  // A dimpled mug: a gentle barrel.
+  tankard: [[0, 1.0], [0.5, 1.07], [1, 0.98]],
+  // Stemmed glasses: a bowl, a thin stem, then a foot.
+  tulip: [[0, 0.84], [0.16, 0.78], [0.46, 1.0], [0.7, 0.84], [0.8, 0.4], [0.84, 0.1], [0.945, 0.1], [0.97, 0.56], [1, 0.62]],
+  snifter: [[0, 0.6], [0.2, 0.84], [0.5, 1.08], [0.68, 0.9], [0.78, 0.42], [0.82, 0.1], [0.945, 0.1], [0.97, 0.56], [1, 0.62]],
 };
+
+/** Where the beer stops, as a fraction of the glass height: the base, or the top of the stem. */
+export const LIQUID_BOTTOM: Record<GlassShape, number> = { nonic: 0.92, tankard: 0.91, tulip: 0.79, snifter: 0.77 };
 
 /** Outer half-width at height ly for a glass shape. */
 export function halfWidth(ly: number, shape: GlassShape = 'nonic'): number {
   const t = Math.min(1, Math.max(0, (ly - TOP) / GLASS.H)); // 0 at rim, 1 at base
   if (shape === 'nonic') {
     // Tapers towards the base, with the nonic bulge near the top.
-    let hw = (GLASS.W / 2) * (1 - 0.16 * t);
-    if (t > 0.1 && t < 0.28) hw += 1.6 * Math.sin((Math.PI * (t - 0.1)) / 0.18);
+    let hw = (GLASS.W / 2) * (1 - 0.2 * t);
+    if (t > 0.1 && t < 0.32) hw += 1.8 * Math.sin((Math.PI * (t - 0.1)) / 0.22) ** 2;
     return hw;
   }
   const pts = PROFILES[shape];
@@ -197,10 +202,9 @@ export function worldToHead(headTilt: number, wx: number, wy: number): Pt {
   return { x: p.x - HEAD.x, y: p.y - HEAD.y };
 }
 
-/** Where "+N pints" popups start, as a fraction of the stage. */
+/** Where "+N pints" popups start: the top of the glass, in world units. */
 export function popupAnchor(pose: Pose): Pt {
-  const top = toWorld(pose, 0, TOP);
-  return { x: top.x / SCENE_W, y: top.y / SCENE_H };
+  return toWorld(pose, 0, TOP);
 }
 
 export interface Renderer {
@@ -209,13 +213,19 @@ export interface Renderer {
   readonly layout: PoseLayout;
   /** Swap the beer in the glass (colour, head, glass shape, effects). */
   setBeer(look: BeerLook, index?: number): void;
-  /** Move the pub (sign, walls, window view). */
+  /** Move the pub. */
   setLocation(loc: Location): void;
   /**
-   * Who's in the pub: how many of each drinker type you own. Called often; each art style
-   * works out its own line-up and only rebuilds when it would look different.
+   * Who's in the pub: how many of each drinker type you own. Called often; the renderer
+   * works out its own line-up and only changes it when it would look different.
    */
   setCrowd(owned: (id: string) => number): void;
+  /** The current chug streak, so the scene can get merrier with it. */
+  setStreak(count: number): void;
+  /** The pub cheers. 1 = a raised glass, 2 = a proper celebration. */
+  cheer(strength?: number): void;
+  /** A point in world units, as fractions of the stage (for DOM popups over the canvas). */
+  project(p: Pt): Pt;
   render(pose: Pose, t: number): void;
   destroy(): void;
 }
@@ -241,20 +251,23 @@ export function pickCrowd(drinkers: readonly Drinker[], owned: (id: string) => n
   return picked.map((d, i) => ({ d, k: key(d, i) })).sort((a, b) => a.k - b.k).map((x) => x.d);
 }
 
-// ---------- crowd plan (painted style) ----------
+// ---------- crowd plan ----------
 
 export interface CrowdFigure {
   id: string;
-  /** 0 = front row at the bar, 1 = middle, 2 = back. */
+  /** 0 = front row, nearest the bar, 1 = middle, 2 = back. */
   row: 0 | 1 | 2;
   x: number;
 }
 
-/** Spots in each row, front to back. The front row stays clear of the regular, the pint and the tap. */
+/**
+ * Spots in each row, front to back, in world x (the scene is centred on 200 and wide stages
+ * show well beyond 0..400). The front row stays clear of you, your pint and the pump.
+ */
 export const CROWD_ROWS: number[][] = [
-  [26, 84, 288, 378],
-  [10, 58, 108, 158, 214, 266, 318, 374],
-  [0, 40, 80, 122, 164, 206, 248, 290, 332, 374, 400],
+  [-96, -22, 50, 340, 412, 486],
+  [-152, -102, -50, 2, 56, 330, 382, 434, 486, 538],
+  [-170, -132, -94, -56, -18, 20, 58, 96, 134, 172, 210, 248, 286, 324, 362, 400, 438, 476, 514, 552],
 ];
 export const CROWD_CAPACITY = CROWD_ROWS.reduce((n, r) => n + r.length, 0);
 
@@ -298,8 +311,11 @@ export function crowdPlan(drinkers: readonly Drinker[], owned: (id: string) => n
   const figures: CrowdFigure[] = [];
   let k = 0;
   for (const [row, spots] of CROWD_ROWS.entries()) {
-    // Fill each row from a stable shuffled order so it looks natural, not left-to-right.
-    const shuffled = spots.map((x, i) => ({ x, key: Math.sin(i * 12.9898 + row * 78.233) })).sort((a, b) => a.key - b.key);
+    // Fill each row from the middle outwards (so a narrow stage sees the first arrivals), with
+    // a stable scatter so it looks natural rather than symmetrical.
+    const shuffled = spots
+      .map((x, i) => ({ x, key: Math.abs(x - 200) + 70 * Math.abs(Math.sin(i * 12.9898 + row * 78.233)) }))
+      .sort((a, b) => a.key - b.key);
     for (const spot of shuffled) {
       if (k >= dealt.length) return figures;
       figures.push({ id: dealt[k++], row: row as 0 | 1 | 2, x: spot.x });

@@ -89,7 +89,6 @@ export function deserialize(text: string, now = Date.now()): GameState {
   }
   if ([1, 10, 100, 'max'].includes(raw.settings?.buyMode)) s.settings.buyMode = raw.settings.buyMode;
   if (typeof raw.settings?.sound === 'boolean') s.settings.sound = raw.settings.sound;
-  if (raw.settings?.art === 'classic' || raw.settings?.art === 'painted') s.settings.art = raw.settings.art;
   if (Array.isArray(raw.buffs)) {
     for (const b of raw.buffs) {
       if (b && b.kind in BUFFS && Number.isFinite(b.remaining) && b.remaining > 0) {

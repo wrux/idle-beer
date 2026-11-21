@@ -231,8 +231,9 @@ often and last longer.
   - If we ever want past that (tetration-level numbers), **break_eternity.js** has a
     near-identical API and can be swapped in. Keeping all maths behind our own
     `num.ts` wrapper makes that a one-file change.
-- **SVG + CSS animations** for the pint, liquid, foam and drinkers. They're crisp at any
-  size, easy to animate, and need no art pipeline. Canvas only if particle effects need it.
+- **One 2D canvas** for the whole scene, drawn in code every frame (section 13). No image
+  assets and no art pipeline: every character, glass and location is shapes and rigs, so it is
+  crisp at any size and everything can move.
 - **Web Audio** for a few small sounds (glug, "ahh", glass clink, pub ambience), with mute.
 - Static build, deployable anywhere (Cloudflare Pages, GitHub Pages, Netlify).
 
@@ -329,14 +330,12 @@ beer-incrimental/
 │   │   ├── locations.ts
 │   │   └── licence.ts       # prestige tree
 │   ├── ui/
-│   │   ├── pintView.ts      # SVG glass, liquid, tilt animation, input handling
-│   │   ├── sceneView.ts     # pub background + drinker sprites per location
-│   │   ├── storeView.ts     # drinkers list, buy ×1/10/100/max
-│   │   ├── upgradesView.ts
-│   │   ├── statsView.ts / achievementsView.ts / settingsView.ts
-│   │   └── toasts.ts
-│   ├── audio/sfx.ts
-│   └── styles/*.css
+│   │   ├── scene.ts         # pose maths (glass, arm, crowd plan), art-agnostic and tested
+│   │   ├── art/             # the canvas scene (section 13)
+│   │   ├── store.ts         # beer, upgrades, drinkers list, buy ×1/10/100/max
+│   │   ├── panels.ts / lastOrders.ts / freeRound.ts
+│   │   └── sound.ts
+│   └── styles/              # stage.css (scene + HUD), main.css (shop, dialogs)
 ├── tools/
 │   └── simulate.ts          # headless balance simulator
 └── tests/                   # vitest: format, economy, save/migrate
@@ -436,11 +435,57 @@ Each phase ends in something playable.
 ## 12. Decisions
 
 1. **Currency:** Pints are both the score and the money. Beer Mats are the prestige currency.
-2. **Art style:** flat vector SVG. Both flat and pixel art were prototyped in Phase 1,
-   and flat was picked. The pixel renderer was removed afterwards.
+2. **Art style:** hand-built vector art on a canvas, animated throughout (section 13). Earlier
+   prototypes (flat SVG, pixel art, and AI-generated paintings in PixiJS) were all removed.
 3. **Tone:** no "drink responsibly" line. It's just a game.
 4. **Hosting:** to be deployed on Cloudflare later, as a static Vite build served as
    Workers static assets or on Pages.
 5. **No React.** State is one plain object changed by the game loop. Views update the DOM,
    SVG and canvas directly. Preact could be added later for menu panels if they get
    complicated, but it isn't needed.
+
+---
+
+## 13. The scene (art and animation)
+
+The stage is a single canvas that fills the left of the screen, with the HUD laid over it. The
+world is 300 units tall and centred on x = 200; a wider stage simply shows more of the room
+(roughly 270 to 760 units), so anything that matters sits between 0 and 400.
+
+| File (`src/ui/art/`) | What it draws |
+|----------------------|---------------|
+| `draw.ts` | Canvas toolkit: colour mixing, easing, blobs, limbs, cached glows |
+| `kit.ts` | Scenery pieces shared by locations: skies, skylines, lamps, bunting, bottles |
+| `backdrops.ts` | The twelve locations |
+| `figures.ts` | The crowd: one rig, eighteen wardrobes |
+| `player.ts` | You, at the bar |
+| `glass.ts` | The pint: four glass shapes, beer, head, bubbles, beer effects |
+| `stage.ts` | Puts it together: layers, bar, hand pump, particles, sizing |
+| `icons.ts` | Shop portraits and pint icons, drawn with the same rigs |
+
+**Layers, back to front:** the location's `far` pass (sky, street, space; animated) → its `shell`
+(architecture; static, cached, with windows punched through) → `mid` (lamps, bunting, screens) →
+the crowd in three rows, hazier with distance → you → the bar (cached) → hand pump → your pint
+and hand → particles → the location's `front` pass (light beams, dust) → vignette.
+
+**What moves:**
+
+- **You:** breathing, blinking, eyes shut and a swallow while drinking, an "ahh" with a foam
+  moustache after each pint, a flush that builds with a chug streak, drumming fingers when idle.
+- **The pint:** beer sloshes against the glass's movement, bubbles rise, the head wobbles, the
+  pump handle is pulled and a stream pours on a refill, and the glass squashes as it lands.
+- **The crowd:** each figure runs its own timer through sipping (their glass empties and gets
+  refilled), talking, laughing and a party piece for their type (a dart thrown, a scarf held
+  aloft, a glow stick, a flag, an astronaut drifting, an alien's camera flash, the black hole
+  regular warping, the multiverse regular glitching). New arrivals pop up from behind the bar,
+  and the whole pub cheers for a new beer, a Free Round, a new location or a long streak.
+- **Locations:** every one has its own motion: rain and a swinging clock at The Red Lion,
+  buses and umbrellas on the High Street, the match on the Superpub's screens, fireworks and a
+  big wheel at the festival, a steam train over the viaduct in Great Britain, the Earth turning
+  under the Earth Inn, a rover and a rocket on the Moon, planets orbiting in the Solar System.
+
+**Rules for adding art:** colours go through the figure's or the room's `tone` so a new character
+sits in every location's light; anything static belongs in `shell` (it is cached); anything
+additive uses `glow()` (a cached sprite) rather than a fresh gradient. A full pub costs about
+2 ms a frame. `game.scene(i)` and `game.crowd(n)` in the console preview a location or a full
+house without touching the save.

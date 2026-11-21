@@ -2,11 +2,17 @@
 
 const GOLDEN_PINT = `
 <svg viewBox="-20 -26 40 52" aria-hidden="true">
-  <path d="M-12,-20 L12,-20 L10,20 L-10,20 Z" fill="#ffd34d" stroke="#fff7d1" stroke-width="2.5" stroke-linejoin="round"/>
-  <path d="M-12,-20 L12,-20 L11.5,-12 L-11.5,-12 Z" fill="#fffdf2"/>
-  <circle cx="-12" cy="-19" r="4" fill="#fffdf2"/><circle cx="-4" cy="-21" r="4.5" fill="#fffdf2"/>
-  <circle cx="5" cy="-21" r="4" fill="#fffdf2"/><circle cx="11" cy="-19" r="3.5" fill="#fffdf2"/>
-  <path d="M5,-8 L4,14" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <defs>
+    <linearGradient id="fr-gold" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#e89a1c"/><stop offset="0.45" stop-color="#ffe27a"/><stop offset="1" stop-color="#f0a92a"/>
+    </linearGradient>
+  </defs>
+  <path d="M-12.500,-19 L12.500,-19 L10,21 Q0,23.500 -10,21 Z" fill="url(#fr-gold)" stroke="#fff7d1" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M-11,3 L-9.300,19 Q0,21.300 9.300,19 L11,3 Z" fill="#fff3b0" opacity="0.28"/>
+  <path d="M-13.500,-19 Q-15,-25 -9,-24 Q-6,-28.500 -1,-25 Q4,-29 8,-24.500 Q15,-25.500 13.500,-19 L12.800,-12.500 Q6,-10 2,-13 Q-3,-9.500 -7,-13 Q-10,-11 -12.800,-12.500 Z" fill="#fffdf2"/>
+  <path d="M-7,-7 L-6,13" stroke="#fff" stroke-width="2.600" stroke-linecap="round" opacity="0.75"/>
+  <circle cx="4" cy="6" r="1.300" fill="#fff8d0"/><circle cx="1" cy="-2" r="1" fill="#fff8d0"/><circle cx="6" cy="13" r="0.900" fill="#fff8d0"/>
+  <path d="M15,-12 l1.600,-4 l1.600,4 l4,1.600 l-4,1.600 l-1.600,4 l-1.600,-4 l-4,-1.600 Z" fill="#fff" opacity="0.95"/>
 </svg>`;
 
 export class FreeRoundView {

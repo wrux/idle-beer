@@ -7,19 +7,16 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "simulate": "tsx tools/simulate.ts",
-    "art": "tsx tools/art.ts"
+    "simulate": "tsx tools/simulate.ts"
   },
   "author": "Callum Bonnyman",
   "license": "ISC",
   "description": "A UK pub incremental game",
   "dependencies": {
-    "break_infinity.js": "^2.2.0",
-    "pixi.js": "^8.23.0"
+    "break_infinity.js": "^2.2.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "sharp": "^0.35.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",

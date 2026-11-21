@@ -7,49 +7,75 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Baloo+2:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>" />
   </head>
   <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" fill="currentColor"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 17h6M8 20h8"/></symbol>
+        <symbol id="i-stats" viewBox="0 0 24 24"><path d="M5 20v-7M12 20V5M19 20V10" stroke-width="3.2"/></symbol>
+        <symbol id="i-cog" viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.6"/><circle cx="8" cy="17" r="2.6"/></symbol>
+        <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h3l5-4v14l-5-4H4Z" fill="currentColor"/><path d="M16 9a4 4 0 0 1 0 6M18.500 6.500a8 8 0 0 1 0 11"/></symbol>
+        <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h3l5-4v14l-5-4H4Z" fill="currentColor"/><path d="M16.500 9.500l5 5M21.500 9.500l-5 5"/></symbol>
+        <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2Z" fill="currentColor"/><path d="M10 21h4M12 3v2"/></symbol>
+        <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" fill="currentColor"/><circle cx="17" cy="9" r="2.400" fill="currentColor"/><path d="M3 20a6 6 0 0 1 12 0Z" fill="currentColor"/><path d="M16 14.500a4.500 4.500 0 0 1 5 5"/></symbol>
+        <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6-6.500-6-11a6 6 0 0 1 12 0c0 4.500-6 11-6 11Z"/><circle cx="12" cy="10" r="2" fill="currentColor"/></symbol>
+        <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1 4 5 5.500 5 10.500a5 5 0 0 1-10 0c0-2 1-3.500 2-4.500 0 1.500.800 2.500 1.500 3 0-3.500.500-6.500 1.500-9Z" fill="currentColor" stroke="none"/></symbol>
+      </defs>
+    </svg>
     <div id="app">
-      <header class="topbar">
-        <div class="counter">
-          <div class="counter-main">
-            <div class="pints" id="pints">0</div>
-            <div class="pints-label" id="pints-label">pints</div>
-          </div>
-          <div class="pps"><b id="pps">0</b> per second</div>
-          <div class="mats" id="mats" hidden>🟫 <b id="mats-count">0</b> Beer Mats · <span id="mats-bonus"></span></div>
-        </div>
-        <div class="buffs" id="buffs" aria-live="polite"></div>
-        <div class="topbar-actions">
-          <button type="button" id="open-last-orders" class="last-orders-button with-badge" aria-label="Last Orders" hidden>
-            🔔<span class="lo-text"> Last Orders</span><span class="badge" id="last-orders-badge" hidden></span>
-          </button>
-          <button type="button" id="open-achievements" class="icon-button with-badge" aria-label="Achievements" title="Achievements">
-            🏆<span class="badge" id="achievement-badge" hidden></span>
-          </button>
-          <button type="button" id="open-stats" class="icon-button" aria-label="Stats" title="Stats">📊</button>
-          <button type="button" id="open-settings" class="icon-button" aria-label="Settings" title="Settings">⚙️</button>
-          <button type="button" id="sound-toggle" class="icon-button" aria-pressed="true" aria-label="Sound">🔊</button>
-        </div>
-      </header>
-
       <div class="layout">
         <main class="stage" id="stage" tabindex="0" aria-label="Your pint. Hold to drink, or hold Space.">
-          <div class="scene-box">
-            <div class="scene" id="scene"></div>
-            <div class="location-name" id="location-name"></div>
-            <div class="crowd-count" id="crowd-count" hidden></div>
-            <div class="streak" id="streak" hidden>
-              <span class="streak-label"></span>
-              <span class="streak-bar"><i></i></span>
+          <div class="scene" id="scene"></div>
+
+          <header class="hud-top">
+            <div class="counter">
+              <div class="counter-main">
+                <div class="pints" id="pints">0</div>
+                <div class="pints-label" id="pints-label">pints</div>
+              </div>
+              <div class="pps"><b id="pps">0</b> per second</div>
+              <div class="mats" id="mats" hidden><i class="mat-ico" aria-hidden="true"></i><b id="mats-count">0</b> Beer Mats · <span id="mats-bonus"></span></div>
             </div>
-            <div class="popups" id="popups"></div>
-            <div class="free-rounds" id="free-rounds"></div>
-            <div class="hint" id="hint">Click and hold to drink</div>
+            <div class="topbar-actions">
+              <button type="button" id="open-last-orders" class="last-orders-button with-badge" aria-label="Last Orders" hidden>
+                <svg class="ico"><use href="#i-bell" /></svg><span class="lo-text">Last Orders</span><span class="badge" id="last-orders-badge" hidden></span>
+              </button>
+              <button type="button" id="open-achievements" class="icon-button with-badge" aria-label="Achievements" title="Achievements">
+                <svg class="ico"><use href="#i-trophy" /></svg><span class="badge" id="achievement-badge" hidden></span>
+              </button>
+              <button type="button" id="open-stats" class="icon-button" aria-label="Stats" title="Stats"><svg class="ico"><use href="#i-stats" /></svg></button>
+              <button type="button" id="open-settings" class="icon-button" aria-label="Settings" title="Settings"><svg class="ico"><use href="#i-cog" /></svg></button>
+              <button type="button" id="sound-toggle" class="icon-button" aria-pressed="true" aria-label="Sound">
+                <svg class="ico ico-on"><use href="#i-sound" /></svg><svg class="ico ico-off"><use href="#i-mute" /></svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="buffs" id="buffs" aria-live="polite"></div>
+
+          <div class="streak" id="streak" hidden>
+            <span class="streak-row"><svg class="ico"><use href="#i-flame" /></svg><span class="streak-label"></span></span>
+            <span class="streak-bar"><i></i></span>
+          </div>
+          <div class="popups" id="popups"></div>
+          <div class="free-rounds" id="free-rounds"></div>
+          <div class="hint" id="hint">Click and hold to drink</div>
+
+          <div class="hud-bottom">
+            <div class="hud-tags">
+              <div class="location-name"><svg class="ico"><use href="#i-pin" /></svg><span id="location-name"></span></div>
+              <div class="crowd-count" id="crowd-count" hidden><svg class="ico"><use href="#i-people" /></svg><span id="crowd-count-text"></span></div>
+            </div>
+            <footer class="statusbar">
+                <span>Per drink <b id="per-drink">1</b></span>
+                <span>Drinks <b id="drinks">0</b></span>
+                <span>Lifetime <b id="lifetime">0</b></span>
+                <span>Best streak <b id="best-streak">0</b></span>
+            </footer>
           </div>
         </main>
 
@@ -60,12 +86,12 @@
               <span class="beer-now"></span>
             </div>
             <button type="button" class="beer-card">
-              <span class="beer-icon" aria-hidden="true">🍺</span>
+              <span class="beer-icon" aria-hidden="true"></span>
               <span class="beer-main">
                 <span class="beer-name"></span>
                 <span class="beer-desc"></span>
+                <span class="beer-cost"></span>
               </span>
-              <span class="beer-cost"></span>
             </button>
           </section>
 
@@ -102,7 +128,7 @@
 
       <dialog class="panel-dialog wide" id="last-orders-dialog" aria-labelledby="last-orders-title">
         <header class="dialog-head">
-          <h2 id="last-orders-title">🔔 Last Orders</h2>
+          <h2 id="last-orders-title">Last Orders</h2>
           <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
         </header>
         <section class="bell">
@@ -116,7 +142,7 @@
               <div>Ring now for <b class="big" id="mats-on-reset">0</b> Beer Mats</div>
               <div class="setting-note" id="next-mat"></div>
             </div>
-            <button type="button" id="ring-bell" class="ring-bell">🔔 Ring the bell</button>
+            <button type="button" id="ring-bell" class="ring-bell"><svg class="ico"><use href="#i-bell" /></svg>Ring the bell</button>
           </div>
         </section>
         <section class="licence">
@@ -152,13 +178,6 @@
             </select>
           </label>
           <label class="setting">
-            <span>Scene art</span>
-            <select id="art-setting">
-              <option value="classic">Classic (vector)</option>
-              <option value="painted">Painted (prototype)</option>
-            </select>
-          </label>
-          <label class="setting">
             <span>Sound</span>
             <input type="checkbox" id="sound-setting" />
           </label>
@@ -176,13 +195,6 @@
           <button type="button" id="hard-reset" class="danger">Hard reset (wipe everything)</button>
         </div>
       </dialog>
-
-      <footer class="statusbar">
-        <span>Pints per drink: <b id="per-drink">1</b></span>
-        <span>Drinks: <b id="drinks">0</b></span>
-        <span>Lifetime: <b id="lifetime">0</b></span>
-        <span>Best streak: <b id="best-streak">0</b></span>
-      </footer>
 
       <div class="debug" id="debug" hidden>
         <b>Debug</b>

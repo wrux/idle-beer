@@ -30,7 +30,7 @@ describe('save', () => {
     expect(back.drinks).toBe(42);
     expect(back.glassFill).toBe(0.4);
     expect(back.settings).toEqual({
-      numberFormat: 'engineering', buyMode: 'max', sound: true, auto: { upgrades: true, drinkers: true, beer: true }, art: 'classic',
+      numberFormat: 'engineering', buyMode: 'max', sound: true, auto: { upgrades: true, drinkers: true, beer: true },
     });
     expect(back.drinkers).toEqual({ regular: 12, multiverse: 160_000_000_000 });
   });

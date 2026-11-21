@@ -150,7 +150,7 @@ describe('crowd', () => {
   });
 });
 
-describe('crowd plan (painted)', () => {
+describe('crowd plan', () => {
   const plan = (counts: Record<string, number>) => crowdPlan(DRINKERS, (id) => counts[id] ?? 0);
 
   it('the pub fills up on a log scale, up to capacity', () => {
@@ -180,8 +180,8 @@ describe('crowd plan (painted)', () => {
     expect(figures.some((f) => f.id === 'student')).toBe(true);
   });
 
-  it('with millions of every type, the newest types get priority and the rows fill front to back', () => {
-    const counts = Object.fromEntries(DRINKERS.map((d) => [d.id, 1e9]));
+  it('with a trillion of every type, the newest types get priority and the rows fill front to back', () => {
+    const counts = Object.fromEntries(DRINKERS.map((d) => [d.id, 1e12]));
     const figures = plan(counts);
     expect(figures).toHaveLength(CROWD_CAPACITY);
     expect(figures.some((f) => f.id === 'multiverse')).toBe(true);

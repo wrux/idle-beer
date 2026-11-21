@@ -12,6 +12,7 @@ import { owned, type BuyMode, type GameState } from '../core/state';
 import { beerAt } from '../data/beers';
 import { DRINKERS } from '../data/drinkers';
 import type { Upgrade } from '../data/upgrades';
+import { beerIcon, drinkerPortrait } from './art/icons';
 
 const MODES: BuyMode[] = [1, 10, 100, 'max'];
 const modeLabel = (m: BuyMode) => (m === 'max' ? 'Max' : `×${m}`);
@@ -39,7 +40,7 @@ export class StoreView {
   private set = textSetter();
   private modeButtons: HTMLButtonElement[] = [];
   private rows: {
-    el: HTMLButtonElement; icon: HTMLElement; name: HTMLElement; owned: HTMLElement;
+    el: HTMLButtonElement; name: HTMLElement; owned: HTMLElement;
     flavour: HTMLElement; cost: HTMLElement; pps: HTMLElement;
   }[] = [];
 
@@ -49,6 +50,8 @@ export class StoreView {
   private beerName: HTMLElement;
   private beerDesc: HTMLElement;
   private beerCost: HTMLElement;
+  private beerIconEl: HTMLElement;
+  private beerIconKey = '';
 
   // Upgrades
   private upgradeGrid: HTMLElement;
@@ -68,6 +71,7 @@ export class StoreView {
     this.beerName = q('.beer-name');
     this.beerDesc = q('.beer-desc');
     this.beerCost = q('.beer-cost');
+    this.beerIconEl = q('.beer-icon');
     this.beerCard.addEventListener('click', () => {
       if (buyNextRound(this.getState())) {
         this.events.onBought();
@@ -119,8 +123,9 @@ export class StoreView {
       });
       list.appendChild(el);
       const r = (s: string) => el.querySelector<HTMLElement>(s)!;
+      r('.d-icon').appendChild(drinkerPortrait(d.id));
       this.rows.push({
-        el, icon: r('.d-icon'), name: r('.d-name'), owned: r('.d-owned'),
+        el, name: r('.d-name'), owned: r('.d-owned'),
         flavour: r('.d-flavour'), cost: r('.d-cost'), pps: r('.d-pps'),
       });
     }
@@ -142,6 +147,12 @@ export class StoreView {
     this.set(this.beerNow, `Drinking: ${now.name}`);
 
     const offer = nextRound(state);
+    const shown = offer ? offer.beer : beerAt(state.beer + 1);
+    const iconKey = `${shown.id}:${offer ? 1 : 0}`;
+    if (iconKey !== this.beerIconKey) {
+      this.beerIconKey = iconKey;
+      this.beerIconEl.replaceChildren(beerIcon(shown.look, 52));
+    }
     if (!offer) {
       // Tease the next one with when it shows up.
       const next = beerAt(state.beer + 1);
@@ -159,7 +170,7 @@ export class StoreView {
     this.beerCard.classList.toggle('affordable', affordable);
     this.set(this.beerName, offer.beer.name);
     this.set(this.beerDesc, `${multText(offer.mult)} everything. ${offer.beer.flavour}`);
-    this.set(this.beerCost, `🍺 ${format(offer.cost, f)}`);
+    this.set(this.beerCost, format(offer.cost, f));
   }
 
   // ---------- upgrades ----------
@@ -192,7 +203,9 @@ export class StoreView {
       b.type = 'button';
       b.className = `upgrade-tile group-${u.group}`;
       b.innerHTML = `<span class="u-icon" aria-hidden="true"></span>${u.badge ? '<span class="u-badge"></span>' : ''}`;
-      b.querySelector<HTMLElement>('.u-icon')!.textContent = u.icon;
+      const iconEl = b.querySelector<HTMLElement>('.u-icon')!;
+      if (u.effect.kind === 'drinker') iconEl.appendChild(drinkerPortrait(u.effect.drinker, 38));
+      else iconEl.textContent = u.icon;
       if (u.badge) b.querySelector<HTMLElement>('.u-badge')!.textContent = u.badge;
       b.setAttribute('aria-label', `${u.name}: ${u.desc}`);
       b.addEventListener('pointerenter', (e) => {
@@ -251,7 +264,7 @@ export class StoreView {
     }
     const d = (s: string) => this.detail.querySelector<HTMLElement>(s)!;
     this.set(d('.ud-name'), u.name);
-    this.set(d('.ud-cost'), `🍺 ${format(u.cost, f)}`);
+    this.set(d('.ud-cost'), format(u.cost, f));
     d('.ud-cost').classList.toggle('short', !affordable);
     this.set(d('.ud-desc'), u.desc);
     this.set(d('.ud-hint'), affordable ? `${action} to buy` : 'Not enough pints yet');
@@ -282,11 +295,10 @@ export class StoreView {
       row.el.classList.toggle('affordable', affordable && !mystery);
       row.el.disabled = mystery;
 
-      this.set(row.icon, mystery ? '❓' : d.icon);
       this.set(row.name, mystery ? '???' : d.name);
       this.set(row.flavour, mystery ? 'Keep drinking to find out who turns up.' : d.flavour);
       this.set(row.owned, have > 0 ? format(D(have), f) : '');
-      this.set(row.cost, `🍺 ${format(cost, f)}${qty > 1 ? ` for ${format(D(qty), f)}` : ''}`);
+      this.set(row.cost, `${format(cost, f)}${qty > 1 ? ` for ${format(D(qty), f)}` : ''}`);
       this.set(row.pps, mystery ? '' : `+${format(drinkerPpsEach(state, d), f)}/s each`);
       row.el.setAttribute(
         'aria-label',

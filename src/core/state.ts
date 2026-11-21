@@ -6,7 +6,6 @@ import type { AutoBuy } from '../data/licence';
 export const SAVE_VERSION = 2;
 
 export type BuyMode = 1 | 10 | 100 | 'max';
-export type ArtStyle = 'classic' | 'painted';
 
 export interface GameState {
   version: number;
@@ -62,8 +61,6 @@ export interface GameState {
     sound: boolean;
     /** Auto-buyer switches (they only run once the Licence node is bought). */
     auto: Record<AutoBuy, boolean>;
-    /** Scene art: the original vector style, or the painted prototype. */
-    art: ArtStyle;
   };
   startedAt: number;
   lastSaved: number;
@@ -94,7 +91,7 @@ export function newGame(now = Date.now()): GameState {
     kegs: D(0),
     runStartedAt: now,
     debugPerDrinkMult: D(1),
-    settings: { numberFormat: 'short', buyMode: 1, sound: true, auto: { upgrades: true, drinkers: true, beer: true }, art: 'classic' },
+    settings: { numberFormat: 'short', buyMode: 1, sound: true, auto: { upgrades: true, drinkers: true, beer: true } },
     startedAt: now,
     lastSaved: now,
   };
