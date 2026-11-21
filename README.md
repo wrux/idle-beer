@@ -32,7 +32,7 @@ pub is drawn in code on a single canvas.
   <tr>
     <td><img src="docs/festival.png" alt="Festival Field: fairy lights, a big wheel and a stage" /></td>
     <td><img src="docs/moon.png" alt="The Moon Under Water: a brewery under a dome on the Moon" /></td>
-    <td><img src="docs/multiverse.png" alt="The Multiverse Tavern: a back wall of doorways, each onto the same pub in another universe" /></td>
+    <td><img src="docs/multiverse.png" alt="The Multiverse Tavern: what is left of a pub, in orbit round a black hole" /></td>
   </tr>
 </table>
 

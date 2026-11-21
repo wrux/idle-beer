@@ -5,11 +5,11 @@
  */
 import type { Backdrop } from './backdrops';
 import {
-  TAU, alpha, arc, at, blob, circle, curve, ellipse, glow, hash, hgrad, hsl, lerp, line, poly, rect, rgrad, shade,
+  TAU, alpha, arc, at, blob, circle, clamp, curve, ellipse, glow, hash, hgrad, hsl, lerp, line, poly, rect, rgrad, shade,
   sparkle, tint, vgrad, type Ctx,
 } from './draw';
 import {
-  SPAN, X0, X1, archPath, beam, bottles, cloud, drift, festoon, fillAcross, hillY, hills, motes, pendant, punch, sky,
+  SPAN, X0, X1, archPath, beam, bottles, cloud, drift, festoon, fillAcross, hillY, hills, motes, pendant, picture, punch, sky,
   stars, wainscot, wallpaper,
 } from './kit';
 
@@ -1108,7 +1108,7 @@ const galaxy: Backdrop = {
 
 // ---------------------------------------------------------------- The Multiverse Tavern
 
-/** The doorways along the back wall. Each opens on the same pub in a different universe. */
+/** A doorway onto the same pub in a different universe. The tavern's back wall was full of them. */
 const DOOR = { first: 68, pitch: 132, w: 98, top: 22, bottom: 188, arch: 49 };
 const T = DOOR.top, B = DOOR.bottom;
 
@@ -1393,126 +1393,293 @@ const WORLDS: World[] = [
   },
 ];
 
-function doors(fn: (cx: number, world: World, n: number) => void) {
-  for (let n = -2; n <= 4; n++) fn(DOOR.first + n * DOOR.pitch, WORLDS[((n % WORLDS.length) + WORLDS.length) % WORLDS.length], n);
+/** The hole in the middle of everything. */
+const HOLE = { x: 318, y: 70, r: 26, tilt: -0.14, flat: 0.15 };
+/** [distance in hole radii, width, colour, strength]: the disc of everything falling in, inside to out. */
+const DISC: [number, number, string, number][] = [
+  [1.5, 4, '#fff6d8', 0.95], [1.9, 6, '#ffd27a', 0.8], [2.4, 7, '#ffa23c', 0.62], [3, 8, '#e8601c', 0.44], [3.7, 9, '#b8340c', 0.3],
+  [4.5, 9, '#7a1a3a', 0.2],
+];
+
+/** Half of the disc: the far half goes behind the hole, the near half across the front of it. */
+function disc(ctx: Ctx, t: number, front: boolean) {
+  const H = HOLE;
+  at(ctx, H.x, H.y, H.tilt, 1, 1, () => {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'butt';
+    for (const [d, w, c, a] of DISC) {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, H.r * d, H.r * d * H.flat, 0, front ? 0 : Math.PI, front ? Math.PI : TAU);
+      ctx.strokeStyle = alpha(c, a);
+      ctx.lineWidth = w;
+      ctx.stroke();
+    }
+    // Hot knots racing round, quicker the closer in; brighter on the side coming towards us.
+    for (let i = 0; i < 46; i++) {
+      const d = 1.45 + hash(i, 401) ** 1.5 * 3.2;
+      const a = hash(i, 402) * TAU + (t * 5) / (d * d);
+      if (Math.sin(a) > 0 !== front) continue;
+      glow(ctx, Math.cos(a) * H.r * d, Math.sin(a) * H.r * d * H.flat, 2.6 + hash(i, 403) * 3.4, '#fff0c0', 0.5 - 0.36 * Math.cos(a));
+    }
+  });
+}
+
+function blackHole(ctx: Ctx, t: number) {
+  const H = HOLE;
+  glow(ctx, H.x, H.y, H.r * 7, '#ff7a2a', 0.4);
+  glow(ctx, H.x, H.y, H.r * 12, '#8a3aff', 0.22);
+  // Jets, straight out of the poles.
+  for (const up of [0, Math.PI]) beam(ctx, H.x, H.y, up + H.tilt, 190, 0.045, '#9fc8ff', 0.3 + 0.06 * Math.sin(t * 3 + up));
+  disc(ctx, t, false);
+  at(ctx, H.x, H.y, H.tilt, 1, 1, () => {
+    // Light from the far side of the disc, bent right over the top of the hole and under it.
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const [a0, a1, w, a] of [[Math.PI, TAU, 9, 0.7], [0, Math.PI, 4, 0.45]]) {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, H.r * 1.6, H.r * 1.5, 0, a0, a1);
+      ctx.strokeStyle = alpha('#ffa23c', a);
+      ctx.lineWidth = w;
+      ctx.stroke();
+      ctx.strokeStyle = alpha('#fff0c0', a);
+      ctx.lineWidth = w * 0.34;
+      ctx.stroke();
+    }
+    ctx.restore();
+    circle(ctx, 0, 0, H.r * 1.26, '#000000');
+    ctx.beginPath();
+    ctx.arc(0, 0, H.r * 1.28, 0, TAU);
+    ctx.strokeStyle = 'rgba(255,244,214,0.85)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  });
+  disc(ctx, t, true);
+}
+
+/** Somebody who was stood too near the door. */
+function tumbler(ctx: Ctx, shirt: string, skin: string, t: number, i: number) {
+  const wave = Math.sin(t * 3 + i) * 2;
+  line(ctx, -2, -4, -9, -7 + wave, shirt, 2.4);
+  line(ctx, 2, -4, 9, -8 - wave, shirt, 2.4);
+  line(ctx, -1.4, 5, -5, 13 + wave * 0.6, '#2a2a3a', 2.8);
+  line(ctx, 1.4, 5, 6, 12 - wave * 0.6, '#2a2a3a', 2.8);
+  rect(ctx, -3.8, -6, 7.6, 12, shirt, 3);
+  circle(ctx, 0, -10, 4.2, skin);
+  ellipse(ctx, 0.8, -13.2, 5, 1.9, '#5d4a3a', -0.1);
+  rect(ctx, 8.4, -13 - wave, 3.2, 4.6, '#e0a030', 0.6);
+  rect(ctx, 8.4, -13.6 - wave, 3.2, 1.2, '#fbf6e9', 0.5);
+}
+
+/** What the tavern had in it, now in orbit. */
+const DEBRIS: ((ctx: Ctx, t: number, i: number) => void)[] = [
+  (ctx) => { rect(ctx, -9, -16, 18, 32, '#6a3e2a', 1.5); rect(ctx, -6.4, -13, 12.8, 11, '#8a5638', 1); rect(ctx, -6.4, 1, 12.8, 11, '#8a5638', 1); circle(ctx, 5.6, 0, 1.2, '#ffe08a'); },
+  (ctx, t, i) => tumbler(ctx, '#3b82f6', '#f1c6a0', t, i),
+  (ctx) => { rect(ctx, -8, -2.4, 16, 3.6, '#8a5638', 1.5); line(ctx, -6, 1, -8, 15, '#6a3e2a', 1.6); line(ctx, 6, 1, 8, 15, '#6a3e2a', 1.6); line(ctx, -7, 9, 7, 9, '#6a3e2a', 1.2); },
+  (ctx) => { poly(ctx, [-5, -8, 5, -8, 4, 8, -4, 8], 'rgba(220,240,250,0.3)'); rect(ctx, -4.4, -4, 8.6, 11, '#e0a030'); rect(ctx, -4.8, -6.4, 9.6, 2.8, '#fbf6e9', 1); },
+  (ctx, t, i) => tumbler(ctx, '#e84393', '#c0825a', t, i),
+  (ctx) => { circle(ctx, 0, 0, 11, '#16130f'); circle(ctx, 0, 0, 8.6, '#e9dfc4'); circle(ctx, 0, 0, 5, '#1c1a17'); circle(ctx, 0, 0, 2, '#c0392b'); },
+  (ctx) => keg(ctx, 0, 0, 0, 1.5),
+  (ctx) => { rect(ctx, -11, -9, 22, 18, '#b8923e', 1); rect(ctx, -8.6, -6.6, 17.2, 13.2, '#5a7a8a'); circle(ctx, 3, -1, 2.6, '#ffe08a'); },
+  (ctx, t, i) => tumbler(ctx, '#16a085', '#f4cfae', t, i),
+  (ctx) => { rect(ctx, -3, -10, 6, 20, '#3d7a4a', 1.6); rect(ctx, -1.2, -15, 2.4, 6, '#3d7a4a', 0.8); rect(ctx, -3, -3, 6, 6, '#efe6cf'); },
+  (ctx) => { rect(ctx, -12, -1.6, 24, 3.2, '#8a5638', 1); rect(ctx, -1.6, 1.6, 3.2, 12, '#6a3e2a'); rect(ctx, -6, 13, 12, 2, '#6a3e2a', 1); },
+  (ctx, t, i) => tumbler(ctx, '#f59e0b', '#96603f', t, i),
+  (ctx) => { ellipse(ctx, 0, 0, 9, 3.4, '#6b7355'); ellipse(ctx, 5, 1.4, 6, 1.6, '#555c44'); },
+  (ctx) => cottage(ctx, 0, 9, 1.1, '#f6efe0', '#8a4a2a'),
+];
+
+/** A clock that has given up. */
+function softClock(ctx: Ctx, x: number, y: number, s: number, rot: number, t: number, rate: number) {
+  at(ctx, x, y, rot, s, s, () => {
+    const drip = 5 + Math.sin(t * 0.6 + x) * 2.4;
+    const face = [-10, 0, -7.4, -7.6, 0, -10, 7.4, -7.6, 10, 0, 9.4, 7, 6.4, 12 + drip, 2.6, 8.6, -5, 9.6];
+    blob(ctx, face.map((v, i) => v * 1.14 + (i % 2 ? 0.6 : 0)), '#a8823a', 0.5);
+    blob(ctx, face, '#f6efe0', 0.5);
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * TAU;
+      circle(ctx, Math.cos(a) * 7.4, Math.sin(a) * 7.2 + (Math.sin(a) > 0.5 ? drip * 0.3 : 0), 0.6, '#3a2418');
+    }
+    const hh = t * rate * 0.3, mm = t * rate * 2.2;
+    line(ctx, 0, 0, Math.sin(hh) * 4, -Math.cos(hh) * 4, '#2a1820', 1.2);
+    line(ctx, 0, 0, Math.sin(mm) * 6.4, -Math.cos(mm) * 6.4, '#2a1820', 0.8);
+    circle(ctx, 0, 0, 0.9, '#c8323a');
+  });
+}
+
+/** A flight of stairs with no particular opinion about which way is up. */
+function stairs(ctx: Ctx, x: number, y: number, s: number, rot: number) {
+  at(ctx, x, y, rot, s, s, () => {
+    for (let k = 0; k < 6; k++) {
+      const sx = -24 + k * 8, sy = 14 - k * 6;
+      poly(ctx, [sx, sy, sx + 8, sy, sx + 13, sy - 4, sx + 5, sy - 4], '#c9a0d8');
+      rect(ctx, sx, sy, 8, 6, '#7a5296');
+      poly(ctx, [sx + 8, sy, sx + 13, sy - 4, sx + 13, sy + 2, sx + 8, sy + 6], '#4a2c66');
+    }
+    line(ctx, -22, 4, 22, -29, '#e0b85a', 1.2);
+    for (let k = 0; k < 6; k++) line(ctx, -20 + k * 8, 10 - k * 6, -20 + k * 8, 2.6 - k * 6, '#e0b85a', 0.7);
+  });
+}
+
+/** One of the doorways, come loose from its wall and still open. */
+function looseDoor(ctx: Ctx, x: number, y: number, s: number, rot: number, world: World, t: number) {
+  glow(ctx, x, y, 90 * s, world.light, 0.3);
+  at(ctx, x, y, rot, s, s, () => {
+    ctx.translate(0, -(T + B) / 2);
+    const w = DOOR.w, lx = -w / 2;
+    archPath(ctx, lx - 9, T - 9, w + 18, B - T + 18, DOOR.arch + 9);
+    ctx.fillStyle = '#2a1420';
+    ctx.fill();
+    archPath(ctx, lx - 7, T - 7, w + 14, B - T + 14, DOOR.arch + 7);
+    ctx.fillStyle = vgrad(ctx, T, B, ['#8a5638', '#4a2a22']);
+    ctx.fill();
+    archPath(ctx, lx - 2.6, T - 2.6, w + 5.2, B - T + 5.2, DOOR.arch + 2.6);
+    ctx.fillStyle = vgrad(ctx, T, B, ['#f0d488', '#a8823a']);
+    ctx.fill();
+    ctx.save();
+    archPath(ctx, lx, T, w, B - T, DOOR.arch);
+    ctx.clip();
+    world.paint(ctx, lx, w, t);
+    const sweep = ((t * 0.12 + x * 0.003) % 1) * (w + 120) - 60;
+    poly(ctx, [lx + sweep, T - 30, lx + sweep + 16, T - 30, lx + sweep - 34, B, lx + sweep - 50, B], 'rgba(255,255,255,0.08)');
+    ctx.restore();
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    archPath(ctx, lx + 2, T + 2, w - 4, B - T - 4, DOOR.arch - 2);
+    ctx.strokeStyle = alpha(world.light, 0.4 + 0.12 * Math.sin(t * 2.1 + x));
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+/** [x, y, size, lean, which world]: where the loose doorways hang. */
+const LOOSE: [number, number, number, number, number][] = [
+  [-52, 92, 0.6, -0.16, 0], [84, 44, 0.36, 0.2, 6], [226, 26, 0.24, -0.3, 3], [462, 100, 0.62, 0.12, 2], [548, 40, 0.4, -0.22, 5],
+  [-150, 40, 0.42, 0.28, 1], [404, 150, 0.3, 0.5, 4],
+];
+
+/** The ragged edge where the back wall used to carry on. */
+function tornEdge(ctx: Ctx) {
+  ctx.beginPath();
+  ctx.moveTo(-64, -400);
+  for (let y = -380, i = 0; y < 190; y += 19, i++) ctx.lineTo(-72 + hash(i, 411) * 44 + (i % 2) * 10, y);
+  for (let x = -40, i = 0; x < 520; x += 23, i++) ctx.lineTo(x, 191 + hash(i, 412) * 9 - (i % 2) * 5);
+  for (let y = 186, i = 0; y > -400; y -= 19, i++) ctx.lineTo(502 + hash(i, 413) * 44 - (i % 2) * 10, y);
+  ctx.closePath();
 }
 
 const multiverse: Backdrop = {
-  fog: '#2a1444', haze: 0.17, dim: 0.14, shine: 1, vignette: 0.58,
+  fog: '#1c0c34', haze: 0.15, dim: 0.13, shine: 1, vignette: 0.6, adrift: 1,
   bar: { kind: 'wood', top: '#8a5638', front: '#3a1a3a', trim: '#e0b85a', glow: '#c78cff' },
   far(ctx, t) {
-    fillAcross(ctx, -400, 226, '#0a0418');
-    doors((cx, world) => {
-      const x = cx - DOOR.w / 2;
-      ctx.save();
-      archPath(ctx, x - 1, T - 1, DOOR.w + 2, B - T + 2, DOOR.arch + 1);
-      ctx.clip();
-      world.paint(ctx, x, DOOR.w, t);
-      // The surface of the doorway: a slow shimmer across whatever is behind it.
-      const sweep = ((t * 0.12 + cx * 0.003) % 1) * (DOOR.w + 120) - 60;
-      poly(ctx, [x + sweep, T - 30, x + sweep + 16, T - 30, x + sweep - 34, B, x + sweep - 50, B], 'rgba(255,255,255,0.07)');
-      ctx.restore();
-    });
+    const H = HOLE;
+    sky(ctx, ['#05020e', '#12062a', '#220a3a']);
+    gas(ctx, nebula(21, ['#5a1a8a', '#b8306a', '#2a3aa0']), 150, 90, 760, 320, 0.9, 0.3 + t * 0.004);
+    gas(ctx, nebula(22, ['#ff7a2a', '#b8306a', '#5a1a8a']), H.x, H.y, 520, 240, 0.8, H.tilt - t * 0.01);
+    // Every star in the sky is going round it, the near ones smeared into arcs.
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 190; i++) {
+      const d = 46 + hash(i, 421) ** 0.7 * 460, a = hash(i, 422) * TAU + (t * 9) / d;
+      const smear = clamp(34 / d, 0.02, 0.7);
+      ctx.beginPath();
+      ctx.ellipse(H.x, H.y, d, d * 0.82, H.tilt, a - smear, a);
+      ctx.strokeStyle = alpha(['#ffffff', '#bfd6ff', '#ffd9b0'][i % 3], 0.3 + hash(i, 423) * 0.6);
+      ctx.lineWidth = 0.5 + hash(i, 424) ** 3 * 1.4;
+      ctx.stroke();
+    }
+    // Ripples in space itself, spreading out.
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 4; k++) {
+      const p = (t * 0.09 + k / 4) % 1;
+      ctx.beginPath();
+      ctx.ellipse(H.x, H.y, 30 + p * 470, (30 + p * 470) * 0.82, H.tilt, 0, TAU);
+      ctx.strokeStyle = alpha('#c78cff', 0.2 * (1 - p) ** 1.5);
+      ctx.lineWidth = 1.5 + p * 9;
+      ctx.stroke();
+    }
+    ctx.restore();
+    // The contents of the tavern, on their way in: round and round, faster and thinner.
+    const falling = (front: boolean) => {
+      for (let i = 0; i < 22; i++) {
+        const p = (t * (0.016 + hash(i, 431) * 0.012) + hash(i, 432)) % 1;
+        const r = lerp(330, H.r * 1.1, p ** 0.75), a = hash(i, 433) * TAU + 2.4 / (1.08 - p) + p * 4;
+        if (Math.sin(a) > 0 !== front) continue;
+        const x = H.x + Math.cos(a) * r, y = H.y + Math.sin(a) * r * 0.5 + Math.cos(a) * r * H.tilt;
+        const pull = 1 + clamp((p - 0.72) / 0.28) ** 2 * 5;
+        const s = lerp(1.05, 0.22, p ** 1.2);
+        ctx.save();
+        ctx.globalAlpha = clamp((1 - p) * 9) * clamp(p * 12);
+        ctx.translate(x, y);
+        ctx.rotate(Math.atan2(H.y - y, H.x - x));
+        ctx.scale(s * pull, s / Math.sqrt(pull));
+        ctx.rotate(t * (hash(i, 434) - 0.5) * 1.4 * (1 - p) + i);
+        DEBRIS[i % DEBRIS.length](ctx, t, i);
+        ctx.restore();
+      }
+    };
+    falling(false);
+    blackHole(ctx, t);
+    falling(true);
   },
   shell(ctx) {
-    // The back wall of a snug old tavern, which happens to have doorways to everywhere.
+    // What is left of the snug: either end of the back wall, and a strip of panelling.
     wallpaper(ctx, -400, 190, '#38204c', 'rgba(255,214,140,0.075)', 'diamond');
-    fillAcross(ctx, -400, 10, vgrad(ctx, 0, 10, ['#2a1620', '#3f2418']));
-    fillAcross(ctx, 10, 12, '#7a5430');
-    doors((cx) => {
-      const x = cx - DOOR.w / 2, w = DOOR.w, h = B - T;
-      // The surround: dark timber, a band of brass, then the stone lip of the doorway itself.
-      archPath(ctx, x - 10, T - 10, w + 20, h + 10, DOOR.arch + 10);
-      ctx.fillStyle = '#2a1420';
-      ctx.fill();
-      archPath(ctx, x - 8, T - 8, w + 16, h + 8, DOOR.arch + 8);
-      ctx.fillStyle = vgrad(ctx, T - 8, B, ['#7a4a2e', '#4a2a22']);
-      ctx.fill();
-      // Stones round the arch.
-      for (let k = 0; k <= 10; k++) {
-        const a = Math.PI + (k / 10) * Math.PI;
-        line(ctx, cx + Math.cos(a) * (DOOR.arch + 2.4), T + DOOR.arch + Math.sin(a) * (DOOR.arch + 2.4), cx + Math.cos(a) * (DOOR.arch + 8), T + DOOR.arch + Math.sin(a) * (DOOR.arch + 8), 'rgba(30,14,22,0.6)', 0.8, 'butt');
-      }
-      for (let y = T + DOOR.arch + 16; y < B; y += 17) {
-        line(ctx, x - 8, y, x - 2.4, y, 'rgba(30,14,22,0.6)', 0.8, 'butt');
-        line(ctx, x + w + 2.4, y, x + w + 8, y, 'rgba(30,14,22,0.6)', 0.8, 'butt');
-      }
-      archPath(ctx, x - 2.6, T - 2.6, w + 5.2, h + 2.6, DOOR.arch + 2.6);
-      ctx.fillStyle = vgrad(ctx, T, B, ['#f0d488', '#a8823a']);
-      ctx.fill();
-      punch(ctx, () => archPath(ctx, x, T, w, h, DOOR.arch));
-      poly(ctx, [cx - 7, T - 13, cx + 7, T - 13, cx + 4.6, T + 1.4, cx - 4.6, T + 1.4], '#e0b85a');
-      poly(ctx, [cx - 7, T - 13, cx - 4, T - 13, cx - 2.6, T + 1.4, cx - 4.6, T + 1.4], '#fff0b8');
-      // Between the doors: a pilaster, and a clock keeping that universe's time.
-      const px = cx + DOOR.pitch / 2;
-      rect(ctx, px - 6, 46, 12, 144, vgrad(ctx, 46, 190, ['#6a3e2a', '#40221e']));
-      rect(ctx, px - 6, 46, 2.4, 144, 'rgba(255,220,170,0.16)');
-      rect(ctx, px + 3.4, 46, 2.6, 144, 'rgba(20,8,16,0.3)');
-      rect(ctx, px - 9, 42, 18, 5, '#8a5638', 1);
-      rect(ctx, px - 9, 42, 18, 1.4, '#c08a5a', 1);
-      circle(ctx, px, 25, 11.6, '#2a1420');
-      circle(ctx, px, 25, 10.4, '#e0b85a');
-      circle(ctx, px, 25, 8.6, '#f6efe0');
-      for (let k = 0; k < 12; k++) {
-        const a = (k / 12) * TAU;
-        line(ctx, px + Math.cos(a) * 7, 25 + Math.sin(a) * 7, px + Math.cos(a) * 8.2, 25 + Math.sin(a) * 8.2, '#3a2418', k % 3 ? 0.5 : 1, 'butt');
-      }
-      // A bracket for the lantern.
-      line(ctx, px, 84, px, 92, '#17100e', 1);
-    });
     wainscot(ctx, 188, 226, '#4a2438');
+    picture(ctx, -150, 70, 34, 26, '#b8923e', 2);
+    picture(ctx, 546, 60, 26, 32, '#b8923e', 1);
+    punch(ctx, () => tornEdge(ctx));
+    // Broken plaster and lath along the tear, and cracks running back from it.
+    tornEdge(ctx);
+    ctx.strokeStyle = '#1a0c1c';
+    ctx.lineWidth = 3.4;
+    ctx.lineJoin = 'miter';
+    ctx.stroke();
+    ctx.strokeStyle = '#d9c4a8';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    for (let i = 0; i < 10; i++) {
+      const left = i % 2 === 0, y = 20 + hash(i, 414) * 150, x0 = left ? -66 : 520;
+      const dir = left ? -1 : 1;
+      curve(ctx, [x0, y, x0 + dir * 14, y + (hash(i, 415) - 0.5) * 16, x0 + dir * 30, y + (hash(i, 416) - 0.5) * 26, x0 + dir * 44, y + (hash(i, 417) - 0.5) * 30], 'rgba(20,8,24,0.7)', 0.8);
+    }
   },
   mid(ctx, t) {
-    ctx.lineCap = 'round';
-    doors((cx, world, n) => {
-      const x = cx - DOOR.w / 2;
-      // Each doorway lights the room its own colour, and hums at the edges.
-      glow(ctx, cx, 96, 96, world.light, 0.16 + 0.03 * Math.sin(t * 1.3 + n));
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      archPath(ctx, x + 1.6, T + 1.6, DOOR.w - 3.2, B - T, DOOR.arch - 1.6);
-      ctx.strokeStyle = alpha(world.light, 0.3 + 0.12 * Math.sin(t * 2.1 + n * 1.7));
-      ctx.lineWidth = 4.4;
+    // Doorways that used to be in that wall, still open on wherever they led.
+    LOOSE.forEach(([x, y, s, lean, w], i) => {
+      looseDoor(ctx, x + Math.sin(t * 0.17 + i * 2) * 9, y + Math.sin(t * 0.31 + i * 1.3) * 7, s, lean + Math.sin(t * 0.2 + i) * 0.14, WORLDS[w], t);
+    });
+    stairs(ctx, 6 + Math.sin(t * 0.13) * 8, 150 + Math.sin(t * 0.2) * 6, 0.9, Math.PI + t * 0.05);
+    stairs(ctx, 268 + Math.sin(t * 0.16) * 6, 150, 0.6, t * -0.07 + 1);
+    softClock(ctx, 150 + Math.sin(t * 0.21) * 8, 24 + Math.sin(t * 0.33) * 4, 1.1, Math.sin(t * 0.3) * 0.3, t, -1.7);
+    softClock(ctx, 424 + Math.sin(t * 0.18) * 6, 32 + Math.sin(t * 0.4) * 5, 0.8, 0.4 + Math.sin(t * 0.25) * 0.3, t, 9);
+    softClock(ctx, -96 + Math.sin(t * 0.15) * 8, 150, 0.9, -0.5, t, 0.2);
+    softClock(ctx, 566, 132 + Math.sin(t * 0.3) * 6, 1, 0.3, t, -5);
+    // A tankard, pouring sideways: the beer knows where it's going.
+    const tx = 398 + Math.sin(t * 0.22) * 5, ty = 58 + Math.sin(t * 0.35) * 4;
+    for (let k = 0; k < 14; k++) {
+      const u = (t * 0.22 + k / 14) % 1, v = 1 - u;
+      const x = v * v * (tx - 8) + 2 * v * u * (tx - 34) + u * u * (HOLE.x + 30);
+      const y = v * v * (ty - 4) + 2 * v * u * (ty - 30) + u * u * (HOLE.y + 3);
+      ellipse(ctx, x, y, (3.4 - u * 2.6) * (1 + u), 3 - u * 2.4, alpha('#f0a428', 0.95 - u * 0.5), -0.4);
+    }
+    at(ctx, tx, ty, -1.25 + Math.sin(t * 0.5) * 0.1, 1, 1, () => {
+      rect(ctx, -6, -8, 12, 16, 'rgba(220,235,245,0.4)', 1.6);
+      rect(ctx, -5, -3, 10, 10, '#f0a428', 1);
+      ctx.beginPath();
+      ctx.arc(7, 0, 4.4, -1.2, 1.2);
+      ctx.strokeStyle = 'rgba(230,240,250,0.7)';
+      ctx.lineWidth = 1.6;
       ctx.stroke();
-      ctx.strokeStyle = alpha('#ffffff', 0.5);
-      ctx.lineWidth = 0.9;
-      ctx.stroke();
-      ctx.restore();
-      // A spark running round the frame.
-      const u = (t * 0.16 + n * 0.37) % 1, a = Math.PI + u * Math.PI;
-      const sx = cx + Math.cos(a) * (DOOR.arch - 1.6), sy = T + DOOR.arch + Math.sin(a) * (DOOR.arch - 1.6);
-      glow(ctx, sx, sy, 12, world.light, 0.9 * arc(u));
-      sparkle(ctx, sx, sy, 3.4 * arc(u), '#ffffff', arc(u));
-      // Things from the other side, drifting through.
-      for (let k = 0; k < 7; k++) {
-        const p = (t * (0.07 + hash(k, n + 300) * 0.07) + hash(k, n + 301)) % 1;
-        const a0 = Math.PI * (1.08 + hash(k, n + 302) * 0.84), r = DOOR.arch - 14 + p * 44;
-        world.leak(ctx, cx + Math.cos(a0) * r + Math.sin(t * 1.4 + k) * 3, T + DOOR.arch + Math.sin(a0) * r, arc(p) * 0.95, t, k);
-      }
-      // The clock, and the lantern.
-      const px = cx + DOOR.pitch / 2, rate = [1, -2.6, 0.3, 7, -0.6, 13, 0.08][((n % 7) + 7) % 7];
-      const hh = t * rate * 0.05 + n, mm = t * rate * 0.6 + n * 2;
-      line(ctx, px, 25, px + Math.sin(hh) * 4.4, 25 - Math.cos(hh) * 4.4, '#2a1820', 1.3);
-      line(ctx, px, 25, px + Math.sin(mm) * 6.6, 25 - Math.cos(mm) * 6.6, '#2a1820', 0.8);
-      circle(ctx, px, 25, 1, '#c8323a');
-      const sway = Math.sin(t * 0.9 + n) * 0.05;
-      at(ctx, px, 92, sway, 1, 1, () => {
-        const flick = 0.85 + 0.15 * Math.sin(t * 11 + n * 3) * Math.sin(t * 4.3 + n);
-        glow(ctx, 0, 8, 34, world.light, 0.5 * flick);
-        rect(ctx, -4.4, 0, 8.8, 2, '#17100e', 0.8);
-        rect(ctx, -3.6, 2, 7.2, 11, alpha(tint(world.light, 0.5), 0.5), 1);
-        ellipse(ctx, 0, 9, 1.5, 3 * flick, tint(world.light, 0.7));
-        rect(ctx, -4.4, 13, 8.8, 2, '#17100e', 0.8);
-        for (const lx of [-3.6, 3.6]) line(ctx, lx, 2, lx, 13, '#17100e', 0.7, 'butt');
-      });
+      rect(ctx, -6, -8, 2, 16, 'rgba(255,255,255,0.5)', 1);
     });
   },
   front(ctx, t) {
-    for (let i = 0; i < 10; i++) {
+    glow(ctx, HOLE.x, HOLE.y, 260, '#ff8a3a', 0.1 + 0.02 * Math.sin(t * 0.7));
+    for (let i = 0; i < 12; i++) {
       const p = (t * (0.05 + hash(i, 171) * 0.05) + hash(i, 172)) % 1;
       sparkle(ctx, X0 + hash(i, 173) * SPAN, lerp(210, 0, p), 3 * arc(p), hsl((i * 47 + t * 30) % 360, 0.9, 0.85), arc(p) * 0.7);
     }
-    motes(ctx, t, 10, 61, '#ffd9a0', { y0: 20, y1: 200, a: 0.35, size: 0.7 });
   },
 };
 

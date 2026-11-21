@@ -33,7 +33,7 @@ export const DRINKERS: Drinker[] = [
   drinker('lunar', '🌙', 'Lunar Brewery', 2.1e15, 2.9e9, 'Low gravity, high ABV.'),
   drinker('crawl', '🪐', 'Interplanetary Pub Crawl', 2.6e16, 2.1e10, 'Next stop: the Mars Arms.'),
   drinker('galactic', '🌌', 'Galactic Happy Hour', 3.1e17, 1.5e11, 'Two-for-one across the Milky Way.'),
-  drinker('blackhole', '🕳️', 'Black Hole Beer Garden', 7.1e18, 1.1e12, 'Last orders lasts forever here.'),
+  drinker('blackhole', '🕳️', 'Black Hole Barfly', 7.1e18, 1.1e12, 'Last orders lasts forever here.'),
   drinker('multiverse', '♾️', 'Multiverse Lock-In', 1.2e20, 8.3e12, 'Infinite pubs, infinite yous, infinite pints.'),
 ];
 

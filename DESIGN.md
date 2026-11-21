@@ -94,7 +94,7 @@ than the one before and produces about 6–8× more.
 | 14 | Lunar Brewery              | 2.1Qa     | 2.9B        | Low gravity, high ABV                        |
 | 15 | Interplanetary Pub Crawl   | 26Qa      | 21B         | Next stop: Mars Arms                         |
 | 16 | Galactic Happy Hour        | 310Qa     | 150B        | Two-for-one across the Milky Way             |
-| 17 | Black Hole Beer Garden     | 7.1Qi     | 1.1T        | Last orders lasts forever here               |
+| 17 | Black Hole Barfly     | 7.1Qi     | 1.1T        | Last orders lasts forever here               |
 | 18 | Multiverse Lock-In         | 120Qi     | 8.3T        | Infinite pubs, infinite yous, infinite pints |
 
 The Regular is the first drinker, so the "one person in the pub" opening is literally

@@ -177,6 +177,7 @@ export class StageRenderer implements Renderer {
   private applyTone() {
     const b = this.backdrop;
     for (const f of this.figures.values()) {
+      f.adrift = b.adrift ?? 0;
       f.tone = { fog: b.fog, amount: clamp(b.haze * ROWS[f.row].haze, 0, 0.6), dim: b.dim * (0.7 + f.row * 0.35) };
     }
     this.hero.tone = { fog: b.fog, amount: b.haze * 0.2, dim: b.dim * 0.55 };

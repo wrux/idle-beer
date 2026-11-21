@@ -362,6 +362,8 @@ export class Figure {
   flip = 1;
   row = 0;
   tone: Tone = { fog: '#000000', amount: 0, dim: 0 };
+  /** 0..1, how weightless the room is (set by the stage for places with no floor). */
+  adrift = 0;
 
   private phase: number;
   private rand: () => number;
@@ -553,6 +555,11 @@ export class Figure {
       - this.cheerV * (2 + 3 * Math.abs(Math.sin(t * 7 + ph)))
       - dance * Math.abs(Math.sin(t * 6.5 + ph)) * 3.2;
     let sway = Math.sin(t * 0.8 + ph) * 0.022 + dance * Math.sin(t * 6.5 + ph) * 0.07 + this.talk * Math.sin(t * 2.3) * 0.02;
+    if (this.adrift) {
+      // No floor to speak of: everyone hangs where they are, turning slowly.
+      bob += (Math.sin(t * 0.47 + ph * 1.7) * 8 - 5) * this.adrift;
+      sway += (Math.sin(t * 0.31 + ph * 2.3) * 0.17 + Math.sin(t * 0.83 + ph) * 0.05) * this.adrift;
+    }
     if (floaty) {
       bob += Math.sin(t * 0.55 + ph) * 5 - 4 - this.special * 7;
       sway += Math.sin(t * 0.4 + ph) * 0.09 + this.special * Math.sin(t * 1.2) * 0.12;
@@ -637,24 +644,13 @@ export class Figure {
     const breath = still ? 0 : Math.sin(t * 1.7 + ph) * 0.5;
     const sp = L.special;
 
-    if (L.glow && L.face === 'void' && !pup) {
-      // Accretion halo behind the head.
-      ctx.save();
-      ctx.translate(0, HEAD_Y);
-      ctx.rotate(-0.3);
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 25 + i * 4, 7 + i * 1.5, 0, 0, TAU);
-        ctx.strokeStyle = alpha(i ? L.glow : '#ffffff', [0.8, 0.45, 0.2][i] * (1 - this.tone.amount));
-        ctx.lineWidth = [1, 2.4, 4][i];
-        ctx.stroke();
-      }
-      for (let i = 0; i < 3; i++) {
-        const a = t * (1.5 + i * 0.3) + i * 2.1 + ph;
-        glow(ctx, Math.cos(a) * 27, Math.sin(a) * 8, 5, L.glow, 0.9);
-      }
-      ctx.restore();
+    const ringed = L.glow && L.face === 'void' && !pup ? L.glow : null;
+    if (ringed) {
+      // A faint light of its own, so it can be found in a dark room; then the far half of its ring.
+      const seen = 1 - this.tone.amount * 0.5;
+      glow(ctx, 0, HEAD_Y, 38, ringed, 0.34 * seen);
+      glow(ctx, 0, -26, 44, ringed, 0.2 * seen, 1.3);
+      this.halo(ctx, t, ringed, false);
     }
 
     // ----- arms: work out where the hands are -----
@@ -842,6 +838,8 @@ export class Figure {
     ctx.closePath();
     this.ink(ctx, skinSh, eSkin, 0.9);
     this.head(ctx, t, L, { sip, cheer, talk, laugh, special, still });
+    // The near half of the ring passes in front of the face.
+    if (ringed) this.halo(ctx, t, ringed, true);
 
     // ----- raised back arm and what it's holding -----
     if (backRaised) {
@@ -955,6 +953,28 @@ export class Figure {
         capsule(ctx, 1.4, y, -reach + Math.abs(i - 1.4) * 0.8, y + 0.2, 1.65, 1.5);
         this.ink(ctx, skin, eSkin, 0.75);
       }
+    }
+    ctx.restore();
+  }
+
+  /** The black hole's accretion ring, tilted round the head: draw the far half, the head, then the near half. */
+  private halo(ctx: Ctx, t: number, colour: string, front: boolean) {
+    ctx.save();
+    ctx.translate(0, HEAD_Y - 1);
+    ctx.rotate(-0.3);
+    ctx.globalCompositeOperation = 'lighter';
+    const seen = 1 - this.tone.amount;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 25 + i * 4, 7 + i * 1.5, 0, front ? 0 : Math.PI, front ? Math.PI : TAU);
+      ctx.strokeStyle = alpha(i ? colour : '#ffffff', [0.85, 0.5, 0.22][i] * seen);
+      ctx.lineWidth = [1.1, 2.6, 4.2][i];
+      ctx.lineCap = 'butt';
+      ctx.stroke();
+    }
+    for (let i = 0; i < 3; i++) {
+      const a = t * (1.5 + i * 0.3) + i * 2.1 + this.phase;
+      if (Math.sin(a) > 0 === front) glow(ctx, Math.cos(a) * 27, Math.sin(a) * 8, 5, colour, 0.9);
     }
     ctx.restore();
   }

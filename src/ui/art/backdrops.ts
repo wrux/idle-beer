@@ -36,6 +36,8 @@ export interface Backdrop {
   shine: number;
   vignette: number;
   bar: BarStyle;
+  /** How far the crowd has come loose from the floor (0 = feet on the ground). */
+  adrift?: number;
   far(ctx: Ctx, t: number): void;
   shell?(ctx: Ctx): void;
   mid?(ctx: Ctx, t: number): void;
