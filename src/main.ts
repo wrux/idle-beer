@@ -364,6 +364,8 @@ function renderBuffs() {
   const key = state.buffs.map((b) => `${b.kind}:${Math.ceil(b.remaining)}`).join(',');
   if (key === buffKey) return;
   buffKey = key;
+  // Happy Hour lights the edge of the scene gold for as long as it lasts.
+  document.getElementById('stage')!.classList.toggle('happy-hour', state.buffs.some((b) => b.kind === 'happyHour'));
   hud.buffs.replaceChildren(...state.buffs.map((b) => {
     const info = BUFFS[b.kind];
     const chip = document.createElement('div');

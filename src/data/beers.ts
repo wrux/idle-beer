@@ -204,10 +204,12 @@ const PREFIXES = [
   'Galactic', 'Abyssal', 'Ethereal', 'Hadron', 'Photon', 'Tachyon', 'Neutrino', 'Graviton', 'Plasma', 'Comet',
   'Meteor', 'Solar', 'Lunar', 'Orbital', 'Nova', 'Hyperspace', 'Warp', 'Rift', 'Paradox', 'Dimensional',
 ];
+// No style here names a colour: a generated beer's colour is picked separately, and a blue
+// "Brown Ale" reads as a mistake.
 const STYLES = [
-  'Stout', 'Porter', 'Bitter', 'Mild', 'Pale Ale', 'IPA', 'Lager', 'Pilsner', 'Saison', 'Dubbel',
+  'Stout', 'Porter', 'Bitter', 'Mild', 'Session Ale', 'IPA', 'Lager', 'Pilsner', 'Saison', 'Dubbel',
   'Tripel', 'Quadrupel', 'Barley Wine', 'Sour', 'Gose', 'Bock', 'Doppelbock', 'Kölsch', 'Märzen', 'Helles',
-  'Wheat Beer', 'Red Ale', 'Brown Ale', 'Old Ale', 'Scotch Ale', 'Golden Ale', 'Black IPA', 'Cream Ale',
+  'Wheat Beer', 'Irish Ale', 'Strong Ale', 'Old Ale', 'Scotch Ale', 'Summer Ale', 'Double IPA', 'Harvest Ale',
   'Smoked Beer', 'Lambic',
 ];
 const SUFFIXES = ['', 'Reserve', 'Grand Cru', 'Double', 'Imperial', 'Cask Edition', 'Vintage', 'Barrel-Aged'];

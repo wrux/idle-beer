@@ -130,31 +130,38 @@ export class StageRenderer implements Renderer {
    */
   private seatCrowd() {
     const spots = crowdSpots();
-    const seated: CrowdFigure[] = [];
+    const seated: (CrowdFigure & { visit: number; local: boolean })[] = [];
     const taken = new Set<number>();
     this.locals.forEach((id, i) => {
       const at = StageRenderer.LOCAL_SPOTS[i % StageRenderer.LOCAL_SPOTS.length];
       taken.add(at);
-      seated.push({ id, ...spots[at] });
+      seated.push({ id, ...spots[at], visit: 0, local: true });
     });
     const free = spots.filter((_, i) => !taken.has(i));
-    crowdPlan(DRINKERS, this.owned).slice(0, free.length).forEach((f, i) => seated.push({ id: f.id, ...free[i] }));
+    crowdPlan(DRINKERS, this.owned).slice(0, free.length).forEach((f, i) => {
+      // Whoever has since taken this spot keeps it, as long as you still have their sort.
+      const now = this.visitors.get(`${free[i].row}:${free[i].x}`);
+      const id = now && this.owned(now.id) > 0 ? now.id : f.id;
+      seated.push({ id, ...free[i], visit: now?.visit ?? 0, local: false });
+    });
 
-    const key = seated.map((f) => `${f.row}:${f.x}:${f.id}`).join('|');
+    const key = seated.map((f) => `${f.row}:${f.x}:${f.id}:${f.visit}`).join('|');
     if (key === this.crowdKey) return;
     this.crowdKey = key;
     const next = new Map<string, Figure>();
+    this.regulars = [];
     let fresh = 0;
     for (const spot of seated) {
-      const id = `${spot.row}:${spot.x}:${spot.id}`;
+      const id = `${spot.row}:${spot.x}:${spot.id}:${spot.visit}`;
       let f = this.figures.get(id);
       if (!f) {
-        f = this.place(spot);
+        f = this.place(spot, spot.visit);
         // Everyone's already here when the game loads; later arrivals pop up one by one.
         if (this.firstCrowd) f.settle();
         else f.arrive(fresh++ * 0.07);
       }
       next.set(id, f);
+      if (!spot.local) this.regulars.push({ spot: `${spot.row}:${spot.x}`, figure: f, visit: spot.visit });
     }
     this.figures = next;
     this.order = [...next.values()].sort((a, b) => b.row - a.row || a.x - b.x);
@@ -162,8 +169,37 @@ export class StageRenderer implements Renderer {
     this.applyTone();
   }
 
-  private place(spot: CrowdFigure): Figure {
-    const seed = Math.floor(hash(spot.x + 1000, spot.row * 7 + spot.id.length) * 1e6) + spot.id.charCodeAt(0);
+  /** Who has taken over which spot since the plan was made, and how many have stood there. */
+  private visitors = new Map<string, { id: string; visit: number }>();
+  private regulars: { spot: string; figure: Figure; visit: number }[] = [];
+  private going: { spot: string; figure: Figure; visit: number } | null = null;
+  private nextChange = 6;
+
+  /**
+   * People come and go. Every few seconds somebody ducks out and somebody else takes their
+   * place: any sort of drinker you have, the numerous ones more often, and never the same face.
+   */
+  private comeAndGo(dt: number) {
+    if (this.going && !this.order.includes(this.going.figure)) this.going = null;
+    if (this.going) {
+      if (!this.going.figure.gone) return;
+      const types = DRINKERS.map((d, tier) => ({ id: d.id, w: Math.sqrt(this.owned(d.id)) * (1 + tier * 0.1) })).filter((d) => d.w > 0);
+      let pick = Math.random() * types.reduce((sum, d) => sum + d.w, 0);
+      const id = types.find((d) => (pick -= d.w) <= 0)?.id ?? types[0]?.id;
+      if (id) this.visitors.set(this.going.spot, { id, visit: this.going.visit + 1 });
+      this.going = null;
+      this.seatCrowd();
+      return;
+    }
+    this.nextChange -= dt;
+    if (this.nextChange > 0 || this.regulars.length < 3) return;
+    this.nextChange = 3.5 + Math.random() * 5;
+    this.going = this.regulars[Math.floor(Math.random() * this.regulars.length)];
+    this.going.figure.leave();
+  }
+
+  private place(spot: CrowdFigure, visit = 0): Figure {
+    const seed = Math.floor(hash(spot.x + 1000, spot.row * 7 + spot.id.length + visit * 131) * 1e6) + spot.id.charCodeAt(0);
     const f = new Figure(spot.id, seed);
     const row = ROWS[spot.row];
     f.row = spot.row;
@@ -311,6 +347,7 @@ export class StageRenderer implements Renderer {
 
   private step(pose: Pose, dt: number) {
     for (const f of this.order) f.update(dt);
+    this.comeAndGo(dt);
     this.hero.update(dt, pose);
 
     // Beer sloshes against the way the glass is moving.

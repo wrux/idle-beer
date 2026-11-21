@@ -525,7 +525,14 @@ and hand → particles → the location's `front` pass (light beams, dust) → v
 - **Locations:** every one has its own motion: rain and a swinging clock at The Red Lion,
   buses and umbrellas on the High Street, the match on the Superpub's screens, fireworks and a
   big wheel at the festival, a steam train over the viaduct in Great Britain, the Earth turning
-  under the Earth Inn, a rover and a rocket on the Moon, planets orbiting in the Solar System.
+  beside the Earth Inn, a rover and a rocket on the Moon, Saturn's rings outside the Social Club,
+  a cow being collected at The Little Green Man, and a pub falling into a black hole at the end.
+
+- **Coming and going:** every few seconds somebody in the crowd ducks out and somebody else
+  takes the spot: any sort of drinker you own (the numerous ones more often), never the same
+  face twice. Locals stay put. In the Multiverse Tavern there is no floor, so everyone floats.
+- **Their drinks:** the level in a drinker's glass goes down while it is at their lips, stays
+  level with the room as the glass tips, sloshes when it moves, and is topped up when empty.
 
 **Characters** are drawn as illustration rather than assembled from primitives: heads turned
 three-quarters with a nose that breaks the silhouette, eyes with whites and lids, shaped torsos

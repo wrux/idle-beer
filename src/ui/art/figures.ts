@@ -374,6 +374,14 @@ export class Figure {
   private blink = 0;
   private blinkIn: number;
   private level = 1;
+  /** A fresh one is being poured. */
+  private topUp = false;
+  /** The drink's surface: how far it has swung off level, and how fast it is swinging. */
+  private slosh = 0;
+  private sloshV = 0;
+  private glassTilt = 0;
+  private lastGlassTilt = 0;
+  private leaving = false;
   private enter = 0;
   private enterDelay = 0;
   private cheerT = -1;
@@ -460,6 +468,16 @@ export class Figure {
     this.enterDelay = delay;
   }
 
+  /** Time to go: duck out the way they came in. */
+  leave() {
+    this.leaving = true;
+  }
+
+  /** Left, and out of sight. */
+  get gone() {
+    return this.leaving && this.enter <= 0;
+  }
+
   /** Already here: no entrance. */
   settle() {
     this.enter = 1;
@@ -471,8 +489,22 @@ export class Figure {
   }
 
   update(dt: number) {
-    if (this.enterDelay > 0) this.enterDelay -= dt;
+    if (this.leaving) this.enter = Math.max(0, this.enter - dt / 0.5);
+    else if (this.enterDelay > 0) this.enterDelay -= dt;
     else this.enter = Math.min(1, this.enter + dt / 0.55);
+
+    // The drink: it goes down while the glass is at the lips, and comes back up when a fresh one
+    // is poured. Its surface swings against the way the glass is moving, then settles.
+    if (this.topUp) {
+      this.level = Math.min(1, this.level + dt / 0.9);
+      if (this.level >= 1) this.topUp = false;
+    } else if (this.sip > 0.8) this.level = Math.max(0, this.level - dt * 0.2);
+    if (dt > 0) {
+      const drive = clamp(((this.glassTilt - this.lastGlassTilt) / dt) * 0.12, -0.5, 0.5);
+      this.lastGlassTilt = this.glassTilt;
+      this.sloshV += (-(this.slosh - drive) * 90 - this.sloshV * 7) * dt;
+      this.slosh = clamp(this.slosh + this.sloshV * dt, -0.5, 0.5);
+    }
 
     // Blink.
     this.blinkIn -= dt;
@@ -508,10 +540,8 @@ export class Figure {
     } else {
       this.actionT += dt;
       if (this.actionT >= this.actionDur) {
-        if (this.action === 'sip') {
-          this.level -= 0.26;
-          if (this.level <= 0.05) this.level = 1; // someone's got the next round in
-        }
+        // Nearly empty: someone's got the next round in.
+        if (this.action === 'sip' && this.level <= 0.12) this.topUp = true;
         this.action = 'idle';
         this.wait = 1 + this.rand() * 5;
       }
@@ -933,7 +963,8 @@ export class Figure {
     ctx.save();
     ctx.translate(grip.gx, grip.gy);
     ctx.scale(DRINK_SCALE, DRINK_SCALE);
-    this.drink(ctx, L, t);
+    this.glassTilt = tilt;
+    this.drink(ctx, L, t, tilt);
     ctx.restore();
     if (grip.stem) {
       // A fist round the stem.
@@ -1857,8 +1888,20 @@ export class Figure {
     }
   }
 
-  private drink(ctx: Ctx, L: Look, t: number) {
+  private drink(ctx: Ctx, L: Look, t: number, tilt = 0) {
     const k = this.k;
+    /**
+     * Fill the (already clipped) glass up to `ly` on its centre line. The surface stays level
+     * with the room however the glass is tipped, give or take a slosh, so it runs up the low side.
+     */
+    const pour = (ly: number, fill: string, head?: string) => {
+      ctx.save();
+      ctx.translate(0, ly);
+      ctx.rotate(-tilt + this.slosh);
+      rect(ctx, -40, 0, 80, 60, fill);
+      if (head) rect(ctx, -40, -2.4, 80, 2.6, head);
+      ctx.restore();
+    };
     const kind = L.drink ?? 'pint';
     const beer = k(L.drinkColour ?? '#e0a030'), beerSh = k(shade(L.drinkColour ?? '#e0a030', 0.22));
     const glassEdge = 'rgba(240,250,255,0.6)';
@@ -1878,7 +1921,7 @@ export class Figure {
       ctx.save();
       poly(ctx, bowl);
       ctx.clip();
-      rect(ctx, -9, lerp(-4, -15.5, lv), 18, 16, beer);
+      if (lv > 0.03) pour(lerp(-4, -15.5, lv), beer);
       if (kind === 'flute') for (let i = 0; i < 3; i++) circle(ctx, -1.6 + i * 1.6, -5 - ((t * 5 + i * 3.3) % 10), 0.5, 'rgba(255,255,255,0.8)');
       ctx.restore();
       poly(ctx, bowl);
@@ -1938,7 +1981,11 @@ export class Figure {
     if (kind === 'shot') {
       const pts = [-2.6, -6, 2.6, -6, 2.1, 3, -2.1, 3];
       poly(ctx, pts, 'rgba(220,240,250,0.3)');
-      poly(ctx, [-2.4, lerp(2, -4.4, lv), 2.4, lerp(2, -4.4, lv), 2.1, 2.4, -2.1, 2.4], alpha(beer, 0.75));
+      ctx.save();
+      poly(ctx, pts);
+      ctx.clip();
+      if (lv > 0.03) pour(lerp(2, -4.4, lv), alpha(beer, 0.75));
+      ctx.restore();
       poly(ctx, pts);
       ctx.strokeStyle = glassEdge;
       ctx.lineWidth = 0.8;
@@ -1962,9 +2009,17 @@ export class Figure {
     poly(ctx, shapePts);
     ctx.clip();
     const ly = lerp(bot - 1.5, top + 2.6, lv);
-    rect(ctx, -hw, ly, hw * 2, bot - ly, beer);
-    rect(ctx, hw * 0.25, ly, hw, bot - ly, beerSh);
-    rect(ctx, -hw, ly - 2.4, hw * 2, 2.6, k('#fbf6e9'));
+    if (lv > 0.03) {
+      pour(ly, beer, k('#fbf6e9'));
+      // Bubbles, rising straight up whatever the glass is doing.
+      if (!mug) {
+        for (let i = 0; i < 3; i++) {
+          const by = bot - 1 - ((t * 4 + i * 4.7 + this.phase * 3) % (bot - ly + 0.01));
+          circle(ctx, -hw * 0.5 + i * hw * 0.45 + Math.sin(t * 3 + i) * 0.4, by, 0.45, 'rgba(255,255,255,0.55)');
+        }
+      }
+    }
+    rect(ctx, hw * 0.3, top, hw, bot - top, alpha(beerSh, lv > 0.03 ? 0.22 : 0));
     if (big) {
       // Dimples.
       for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) circle(ctx, -4.4 + i * 4.4, -6 + j * 5, 1.5, 'rgba(255,255,255,0.14)');
