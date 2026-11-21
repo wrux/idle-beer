@@ -134,7 +134,7 @@ export class LastOrdersPanel {
       el.classList.toggle('affordable', affordable);
       el.disabled = status !== 'available';
       const cost = el.querySelector<HTMLElement>('.ln-cost')!;
-      const text = status === 'owned' ? '✓ Owned' : `${format(node.cost, f)} ${node.cost.eq(1) ? 'mat' : 'mats'}`;
+      const text = status === 'owned' ? '✓ Owned' : `${format(node.cost, f, true)} ${node.cost.eq(1) ? 'mat' : 'mats'}`;
       if (cost.textContent !== text) cost.textContent = text;
     }
 

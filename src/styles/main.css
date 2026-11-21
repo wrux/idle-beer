@@ -294,7 +294,7 @@
 
 .tabs {
   position: sticky;
-  top: 0;
+  top: var(--tabs-top, 0px);
   z-index: 3;
   display: flex;
   gap: 4px;
@@ -1233,17 +1233,39 @@
   transform: rotate(-8deg);
 }
 
-/* ---------- credits ---------- */
+/* ---------- credits: bottom right of the pub, always in view ---------- */
 
 .credits {
+  position: absolute;
+  z-index: 2;
+  right: 18px;
+  bottom: 12px;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
   gap: 5px;
-  padding: 14px 12px 18px;
-  border-top: 1px solid rgba(255, 220, 160, 0.09);
-  color: var(--muted);
+  color: #d9c6a6;
   font-size: 13px;
+  font-weight: 600;
+  text-shadow: var(--shadow-text);
+  white-space: nowrap;
+}
+
+/* Leave it room: the stats wrap before they reach it. */
+.statusbar {
+  padding-right: 190px;
+}
+
+@container (max-width: 700px) {
+  .credits {
+    right: 12px;
+    bottom: 8px;
+    font-size: 12px;
+  }
+  .credits-by {
+    display: none;
+  }
+  .statusbar {
+    padding-right: 140px;
+  }
 }
 
 .credits a,
@@ -1256,4 +1278,228 @@
 .credits a:hover,
 .setting-note a:hover {
   text-decoration: underline;
+}
+
+/* On phones the page scrolls (not the shop), so the tabs stick just under the pinned pub. */
+@media (max-width: 860px) {
+  .store {
+    --tabs-top: max(280px, min(46dvh, 100vw));
+  }
+}
+
+/* ---------- compact shop: a strip of icons, so the pub gets the room on a small laptop ---------- */
+
+.shop-size {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 220, 160, 0.16);
+  color: var(--muted);
+  font-size: 14px;
+  flex: none;
+}
+
+.shop-size:hover {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+.store.compact .shop-size .ico {
+  transform: rotate(180deg);
+}
+
+.section-head h2 {
+  flex: 1;
+}
+
+.tab-ico {
+  display: none;
+}
+
+.layout {
+  transition: grid-template-columns 0.2s ease;
+}
+
+.layout.compact-shop {
+  grid-template-columns: minmax(0, 1fr) 82px;
+}
+
+.store.compact {
+  scrollbar-width: none;
+}
+
+.store.compact .section-head h2,
+.store.compact .beer-now,
+.store.compact .beer-main,
+.store.compact .panel-head,
+.store.compact .d-main,
+.store.compact .u-main,
+.store.compact .p-main,
+.store.compact .p-action,
+.store.compact .tab-label,
+.store.compact .list-empty {
+  display: none;
+}
+
+.store.compact .section-head {
+  justify-content: center;
+  padding: 10px 0 8px;
+}
+
+.store.compact .shop-size {
+  margin: 0;
+}
+
+.store.compact .beer-card,
+.store.compact .drinker,
+.store.compact .upgrade,
+.store.compact .pub {
+  position: relative;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  width: 64px;
+  min-height: 0;
+  height: auto;
+  margin: 0 auto;
+  padding: 7px 0;
+  gap: 0;
+}
+
+.store.compact .beer-card {
+  margin-bottom: 10px;
+}
+
+.store.compact .store-list,
+.store.compact .upgrade-list,
+.store.compact .pub-list {
+  display: flex;
+  padding: 8px 0 14px;
+  gap: 6px;
+}
+
+.store.compact .tabs {
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 9px;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6), inset 0 -1.5px 0 rgba(226, 182, 92, 0.35);
+}
+
+.store.compact .tab {
+  padding: 7px 0;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: var(--font-ui);
+}
+
+.store.compact .tab[aria-selected='true'] {
+  box-shadow: inset 0 0 0 1.5px rgba(226, 182, 92, 0.7);
+}
+
+.store.compact .tab-ico {
+  display: block;
+}
+
+.store.compact .tab-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 17px;
+  padding: 0 4px;
+  font-size: 10.5px;
+  line-height: 17px;
+}
+
+/* How many you own, as a badge on the portrait. */
+.store.compact .d-owned {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  max-width: 58px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #1a0f08;
+  box-shadow: 0 0 0 1.5px rgba(226, 182, 92, 0.6);
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--accent);
+}
+
+.store.compact .d-owned:empty {
+  display: none;
+}
+
+.store.compact .p-thumb,
+.store.compact .p-thumb canvas {
+  width: 50px !important;
+  height: 37px !important;
+}
+
+/* On phones the shop is under the pub already, so there's nothing to gain by shrinking it. */
+@media (max-width: 860px) {
+  .shop-size {
+    display: none;
+  }
+}
+
+/* Hover card for the compact shop: everything the icon alone can't say. */
+.shop-tip {
+  position: fixed;
+  z-index: 20;
+  width: 250px;
+  padding: 10px 13px 11px;
+  border-radius: 13px;
+  background: linear-gradient(rgba(52, 32, 17, 0.98), rgba(34, 20, 11, 0.98));
+  box-shadow: inset 0 0 0 1.5px rgba(226, 182, 92, 0.6), 0 12px 30px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.shop-tip[hidden] {
+  display: none;
+}
+
+.st-name {
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.2;
+  color: #fff3d0;
+}
+
+.st-desc {
+  margin-top: 2px;
+  color: #dccbaa;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.st-cost {
+  margin-top: 6px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.st-cost.short {
+  color: var(--bad);
+}
+
+.st-cost::before {
+  content: '';
+  display: inline-block;
+  width: 0.7em;
+  height: 0.92em;
+  margin-right: 0.32em;
+  vertical-align: -0.08em;
+  background: linear-gradient(#fff8e6 0 24%, #f0b23a 24% 100%);
+  clip-path: polygon(0 0, 100% 0, 84% 100%, 16% 100%);
+}
+
+.st-note {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12.5px;
 }

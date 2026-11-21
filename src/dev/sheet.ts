@@ -1,6 +1,7 @@
 /**
  * Character sheet (dev only): every drinker type, large, plus the player in a few poses.
- * Open /sheet.html on the dev server. `?only=regular,student` narrows it, `?scale=4` zooms.
+ * Open /sheet.html on the dev server. `?only=regular,student` narrows it, `?scale=4` zooms,
+ * `?act=sip|talk|laugh|special|cheer` holds everyone in that pose (`&at=steps` shows a sip in three stages).
  */
 import { newDrinkState } from '../core/drinking';
 import { BEERS } from '../data/beers';
@@ -15,7 +16,7 @@ const q = new URLSearchParams(location.search);
 const only = q.get('only')?.split(',');
 const S = Number(q.get('scale')) || 2.6;
 const types = DRINKERS.filter((d) => !only || only.includes(d.id));
-const PER = 3, CW = 62, CH = 104;
+const PER = 3, CW = 70, CH = 124;
 const showHero = !only || only.includes('hero');
 const cols = Math.min(types.length * PER, 9) || 1;
 const rows = Math.ceil((types.length * PER) / cols);
@@ -33,9 +34,13 @@ const figures = types.flatMap((d, ti) => Array.from({ length: PER }, (_, k) => {
   const f = new Figure(d.id, k * 17 + 3);
   const i = ti * PER + k;
   f.x = (i % cols) * CW + CW / 2;
-  f.headY = Math.floor(i / cols) * CH + 44;
+  f.headY = Math.floor(i / cols) * CH + 62;
   f.flip = k === 2 ? -1 : 1;
   f.settle();
+  f.held = (q.get('act') as typeof f.held) ?? null;
+  // `?act=sip&at=steps` shows the lift in three stages across each type's three figures.
+  f.holdAt = q.get('at') === 'steps' ? [0.3, 0.6, 1][k] : Number(q.get('at') ?? 1);
+  if (q.get('at') === 'steps') f.flip = 1;
   return f;
 }));
 
@@ -58,7 +63,7 @@ function frame(now: number) {
     f.update(dt);
     ctx.save();
     ctx.beginPath();
-    ctx.rect(f.x - CW / 2, f.headY - 44, CW, CH);
+    ctx.rect(f.x - CW / 2, f.headY - 62, CW, CH);
     ctx.clip();
     f.draw(ctx, t);
     ctx.restore();

@@ -55,9 +55,16 @@ function formatExponent(e: number): string {
   return `${m.toFixed(2)}e${x2}`;
 }
 
-export function format(value: Decimal, fmt: NumberFormat = 'short'): string {
+/**
+ * Format a number for display.
+ *
+ * Named numbers keep three decimals ("1.500 million") so a counter that's changing doesn't
+ * jiggle in width. Pass `tidy` for numbers that sit still (prices, targets) to drop the
+ * trailing zeros: "100 million", "1.5 billion".
+ */
+export function format(value: Decimal, fmt: NumberFormat = 'short', tidy = false): string {
   if (Number.isNaN(value.mantissa) || Number.isNaN(value.exponent)) return 'NaN';
-  if (value.sign() < 0) return '-' + format(value.neg(), fmt);
+  if (value.sign() < 0) return '-' + format(value.neg(), fmt, tidy);
   if (value.exponent >= 9e15) return '∞';
   if (value.lt(PLAIN_LIMIT)) return formatSmall(value.toNumber());
 
@@ -72,7 +79,7 @@ export function format(value: Decimal, fmt: NumberFormat = 'short'): string {
     const scaled = m * Math.pow(10, e - group * 3);
     const [r, e2] = roundCarry(scaled, group * 3, 3, 3);
     const suffix = groupSuffix(e2 / 3);
-    if (suffix !== null) return `${r.toFixed(3)} ${suffix}`;
+    if (suffix !== null) return `${tidy ? String(Number(r.toFixed(3))) : r.toFixed(3)} ${suffix}`;
     // fall through to scientific past centillion
   }
 

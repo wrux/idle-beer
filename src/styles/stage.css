@@ -721,10 +721,21 @@ select:focus-visible,
     height: auto;
     grid-template-columns: 1fr;
   }
+  /* The pub stays pinned to the top while the shop scrolls under it, so you can drink and shop at once. */
   .stage {
-    height: min(62dvh, 112vw);
-    min-height: 330px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    height: min(46dvh, 100vw);
+    min-height: 280px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
   }
+}
+
+/* Keep the HUD clear of notches and rounded corners when installed or full screen. */
+.hud-top {
+  padding-top: max(14px, env(safe-area-inset-top));
+  padding-left: max(18px, env(safe-area-inset-left));
 }
 
 @media (prefers-reduced-motion: reduce) {

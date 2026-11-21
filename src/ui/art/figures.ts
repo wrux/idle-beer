@@ -192,6 +192,23 @@ export interface Tone {
 type Action = 'idle' | 'sip' | 'talk' | 'laugh' | 'special';
 
 const HEAD_Y = -62;
+
+/** Drinks are drawn this much bigger than their own coordinates. */
+const DRINK_SCALE = 1.4;
+
+/**
+ * How each kind of drink is held, relative to the hand: where the middle of the glass sits
+ * (gx, gy), its half-width and the height of its rim, all in figure units.
+ */
+const GRIPS: Record<Drink, { gx: number; gy: number; half: number; top: number; stem?: boolean; handle?: boolean }> = {
+  pint: { gx: -5.6, gy: -1, half: 7, top: -15.4 },
+  tasting: { gx: -3.8, gy: -1, half: 5, top: -11.2 },
+  can: { gx: -4.4, gy: -1, half: 5.6, top: -12.6 },
+  // The tankard's handle is on the arm's side, and that's what gets held.
+  tankard: { gx: -13.6, gy: -1, half: 7.8, top: -15.4, handle: true },
+  flute: { gx: 0, gy: 1.5, half: 4.8, top: -23.8, stem: true },
+  cocktail: { gx: 0, gy: 1.5, half: 10.5, top: -21, stem: true },
+};
 const UPPER = 21, FORE = 20;
 
 /** Where a steady elbow settles when the hand is tucked in by the shoulder (radians, 0 = forwards, positive = down). */
@@ -201,28 +218,28 @@ const STEADY_ELBOW = 0.7;
  * Two-bone IK. Of the two ways the arm could bend, pick the one whose elbow is further out
  * (`side` = ±1) and lower.
  *
- * With `steady`, always bend the same way round instead (clockwise from shoulder to hand: below
- * a forward reach, out in front of a raised hand). Picking "the lower one" each frame flips
- * between the two bends as the hand passes over the shoulder, which makes a moving arm flop.
+ * With `steady`, always bend the same way round instead (1 = clockwise from shoulder to hand,
+ * -1 = anticlockwise). Picking "the lower one" each frame flips between the two bends as the
+ * hand passes the shoulder, which makes a moving arm flop, or leaves a drinker's elbow in the air.
  */
-function elbow(sx: number, sy: number, hx: number, hy: number, side: number, steady = false): [number, number] {
+function elbow(sx: number, sy: number, hx: number, hy: number, side: number, steady: -1 | 0 | 1 = 0): [number, number] {
   const dx = hx - sx, dy = hy - sy;
   const d = clamp(Math.hypot(dx, dy), 0.01, UPPER + FORE - 0.01);
   const base = Math.atan2(dy, dx);
   const a = Math.acos(clamp((UPPER * UPPER + d * d - FORE * FORE) / (2 * UPPER * d), -1, 1));
-  const e1: [number, number] = [sx + UPPER * Math.cos(base + a), sy + UPPER * Math.sin(base + a)];
   if (steady) {
-    // With the hand almost on the shoulder (a full glass at the lips) the bend direction is
-    // barely defined and swings wildly as the hand shifts, so ease towards a fixed, natural
-    // angle there: elbow out in front and down.
+    // With the hand almost on the shoulder (a glass at the lips) the bend direction is barely
+    // defined and swings wildly as the hand shifts, so ease towards a fixed, natural angle
+    // there: elbow out in front and down.
     const w = smooth((16 - d) / 12);
-    if (w <= 0) return e1;
-    const ik = base + a;
+    const ik = base + a * steady;
+    if (w <= 0) return [sx + UPPER * Math.cos(ik), sy + UPPER * Math.sin(ik)];
     let diff = STEADY_ELBOW - ik;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     const th = ik + diff * w;
     return [sx + UPPER * Math.cos(th), sy + UPPER * Math.sin(th)];
   }
+  const e1: [number, number] = [sx + UPPER * Math.cos(base + a), sy + UPPER * Math.sin(base + a)];
   const e2: [number, number] = [sx + UPPER * Math.cos(base - a), sy + UPPER * Math.sin(base - a)];
   return (e1[0] - e2[0]) * side + (e1[1] - e2[1]) * 0.6 > 0 ? e1 : e2;
 }
@@ -320,6 +337,11 @@ export class Figure {
 
   private flush = 0;
 
+  /** Dev: hold one pose indefinitely. */
+  held: Action | 'cheer' | null = null;
+  /** Dev: how far through a held sip (0 = glass at rest, 1 = at the lips). */
+  holdAt = 1;
+
   /** Start hidden and pop up after `delay` seconds. */
   arrive(delay: number) {
     this.enter = 0;
@@ -347,6 +369,18 @@ export class Figure {
       this.blinkIn = 1.6 + this.rand() * 4.5;
     }
     this.blink = Math.max(0, this.blink - dt / 0.16);
+
+    if (this.held) {
+      // Held in one pose (for checking the art): keep the action at its midpoint.
+      this.action = this.held === 'cheer' ? 'idle' : this.held;
+      this.actionDur = 2.6;
+      this.actionT = this.held === 'special' ? 0.9 + ((this.actionT + dt) % 1.2) : 1.3;
+      this.wait = 9;
+      if (this.held === 'cheer') {
+        this.cheerT = 0.5;
+        this.cheerDelay = 0;
+      }
+    }
 
     // Pick something to do.
     if (this.action === 'idle') {
@@ -376,6 +410,7 @@ export class Figure {
       if (this.cheerDelay > 0) this.cheerDelay -= dt;
       else {
         this.cheerT += dt;
+        if (this.held === 'cheer') this.cheerT = 0.5;
         cheer = this.cheerT < 1.5 ? 1 : 0;
         if (this.cheerT > 1.5) this.cheerT = -1;
       }
@@ -390,6 +425,7 @@ export class Figure {
     this.special = approach(this.special, cheer ? 0 : on('special'), 9, dt);
     this.cheerV = approach(this.cheerV, cheer, cheer ? 16 : 6, dt);
     this.gaze = approach(this.gaze, this.gazeTarget, 4, dt);
+    if (this.held === 'sip') this.sip = this.holdAt;
   }
 
   /** Colour as seen through this figure's distance and the room's light. */
@@ -514,7 +550,18 @@ export class Figure {
     // ----- arms: work out where the hands are -----
     // He faces +x: the drinking arm is the far one (front of the picture plane is his near side).
     const sRx = w - 3.5, sLx = -w + 3, sY = -38.5 + breath;
-    let hx = lerp(w - 4, 9.5, sip), hy = lerp(-15, -47.5, sip), tilt = -1.0 * sip;
+    // The hand holds the glass by its side (or its handle, or its stem), so the glass sits
+    // beside the hand, not on top of it. To drink, the hand goes wherever puts the near edge of
+    // the rim on the lips. Astronauts can only get as far as the visor.
+    const grip = GRIPS[L.drink ?? 'pint'];
+    const visor = L.hat === 'helmet';
+    const sipTilt = visor ? -0.5 : -1.0;
+    const lipX = grip.gx - grip.half * 0.7, lipY = grip.gy + grip.top;
+    const mouthX = visor ? 22 : 9.5, mouthY = visor ? -50 : -50.5;
+    const sipX = mouthX - (lipX * Math.cos(sipTilt) - lipY * Math.sin(sipTilt));
+    const sipY = mouthY - (lipX * Math.sin(sipTilt) + lipY * Math.cos(sipTilt));
+    // At rest the glass is held out in front, at chest height.
+    let hx = lerp(w + 7, sipX, sip), hy = lerp(-24, sipY, sip), tilt = sipTilt * sip;
     hx = lerp(hx, w + 8, cheer);
     hy = lerp(hy, -90 + Math.sin(t * 7 + ph) * 3, cheer);
     tilt = lerp(tilt, 0.22, cheer);
@@ -544,14 +591,17 @@ export class Figure {
         up(-w - 8 + Math.sin(t * 5 + ph) * 7, -86 + Math.cos(t * 5 + ph) * 3, special);
         prop = sp;
       } else if (sp === 'camera') {
-        up(3, -60, special);
+        up(10, -57, special);
         prop = 'camera';
       } else if (sp === 'dance') {
         up(-w - 8, -70 + Math.sin(t * 6.5 + ph) * 8, special);
       }
     }
-    // The player's arm travels a long way, so it keeps one bend throughout: elbow below the reach.
-    const [eRx, eRy] = elbow(sRx, sY, hx, hy, 1, !!pup);
+    // The drinking arm keeps one bend throughout (clockwise from shoulder to hand), for the crowd
+    // and the player alike. At rest that hangs the upper arm down the body with the forearm out
+    // in front; as the glass comes up the elbow swings forward and stays below the hand.
+    // Bending the other way puts the elbow up by the ear with the forearm across the face.
+    const [eRx, eRy] = elbow(sRx, sY, hx, hy, 1, 1);
     const [eLx, eLy] = elbow(sLx, sY, ox, oy, -1);
     const short = !!L.shortSleeves;
 
@@ -641,13 +691,12 @@ export class Figure {
     }
     // Shade under the chin and down the far side; a little light on the near shoulder.
     ellipse(ctx, 1.5, -46.5, 9.5, 4.2, alpha('#190a26', 0.2));
-    ctx.fillStyle = alpha('#190a26', 0.12);
-    ctx.beginPath();
-    ctx.moveTo(w * 0.42, -60);
-    ctx.bezierCurveTo(w * 0.7, -20, w * 0.5 + belly, 30, w * 0.55 + belly, 80);
-    ctx.lineTo(w + 20, 80);
-    ctx.lineTo(w + 20, -60);
-    ctx.fill();
+    // A soft falloff, not a hard-edged wedge: on white clothes a wedge reads as a tear in the cloth.
+    const far = ctx.createLinearGradient(w * 0.1, 0, w + belly + 2, 0);
+    far.addColorStop(0, 'rgba(25,10,38,0)');
+    far.addColorStop(1, 'rgba(25,10,38,0.26)');
+    ctx.fillStyle = far;
+    ctx.fillRect(w * 0.1, -60, w + 20, 140);
     curve(ctx, [-w + 2.6, -39 + breath, -w + 6, -43.8 + breath, -8, -45.6 + breath], alpha(k(tint(top, 0.5)), 0.5), 1.1);
     ctx.restore();
 
@@ -710,8 +759,10 @@ export class Figure {
     }
     if (prop === 'scarf' && L.scarf) {
       // Held aloft between both hands, sagging and swaying.
-      const sag = 6 + Math.sin(t * 3 + ph) * 2;
-      const midX = (ox + hx) / 2, midY = (oy + hy) / 2 + sag;
+      // Arms only reach so high, so the scarf bows up over the head between them rather than
+      // sagging across the face.
+      const sag = -16 + Math.sin(t * 3 + ph) * 2;
+      const midX = (ox + hx) / 2, midY = Math.min(oy, hy) + sag;
       const band = () => {
         ctx.beginPath();
         ctx.moveTo(ox, oy);
@@ -762,15 +813,29 @@ export class Figure {
     ctx.translate(hx, hy);
     ctx.rotate(tilt);
     ctx.save();
-    ctx.translate(0, 1.5);
-    ctx.scale(1.4, 1.4);
+    ctx.translate(grip.gx, grip.gy);
+    ctx.scale(DRINK_SCALE, DRINK_SCALE);
     this.drink(ctx, L, t);
     ctx.restore();
-    // Fingers round the glass.
-    ctx.beginPath();
-    ctx.roundRect(-7, -1.6, 11, 9, 4);
-    this.ink(ctx, skin, eSkin);
-    for (let i = 0; i < 3; i++) line(ctx, -6.2, 0.8 + i * 2.2, 0.6, 0.6 + i * 2.2, eSkin, 0.6);
+    if (grip.stem) {
+      // A fist round the stem.
+      ctx.beginPath();
+      ctx.roundRect(-5.4, -0.6, 10.8, 8.6, 4);
+      this.ink(ctx, skin, eSkin);
+      for (let i = 0; i < 3; i++) line(ctx, -4.4, 1.7 + i * 2.2, 1.6, 1.5 + i * 2.2, eSkin, 0.6);
+    } else {
+      // The hand comes in from the arm's side: the heel of it beside the glass, the fingers
+      // wrapping across the front (or round the handle of a tankard).
+      const reach = grip.handle ? 4.6 : Math.min(8.4, grip.half * 1.25);
+      ctx.beginPath();
+      ctx.ellipse(1.8, 1, 4, 5.4, 0, 0, TAU);
+      this.ink(ctx, skinSh, eSkin);
+      for (let i = 0; i < 4; i++) {
+        const y = -3.4 + i * 2.75;
+        capsule(ctx, 1.4, y, -reach + Math.abs(i - 1.4) * 0.8, y + 0.2, 1.65, 1.5);
+        this.ink(ctx, skin, eSkin, 0.75);
+      }
+    }
     ctx.restore();
   }
 

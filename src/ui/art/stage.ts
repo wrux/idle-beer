@@ -27,14 +27,14 @@ const MIN_W = 270;
 const MAX_W = 760;
 const BAR_BACK = 204;
 const BAR_LIP = 220;
-export const LAYOUT: PoseLayout = { glassScale: 1, restX: 243, barTop: 212, mouth: { x: 167, y: 120.5 }, mouthTipsBack: false };
+export const LAYOUT: PoseLayout = { glassScale: 1, restX: 243, barTop: 212, mouth: { x: 165, y: 120.5 }, mouthTipsBack: false };
 const DISPLAY_FONT = '"Abril Fatface", "Baloo 2", Georgia, serif';
 
 /** Size, height and haze of each crowd row, front to back. */
 const ROWS = [
-  { scale: 1, headY: 152, haze: 0.5 },
-  { scale: 0.84, headY: 141, haze: 1.5 },
-  { scale: 0.7, headY: 131, haze: 2.5 },
+  { scale: 1, headY: 146, haze: 0.5 },
+  { scale: 0.84, headY: 137, haze: 1.5 },
+  { scale: 0.7, headY: 128, haze: 2.5 },
 ];
 
 interface Particle {

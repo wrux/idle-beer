@@ -201,6 +201,37 @@ const settings = new SettingsPanel(() => state, {
 const achievementsPanel = new AchievementsPanel(() => state);
 const statsPanel = new StatsPanel(() => state);
 
+// ---------- full screen ----------
+
+type FsDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void; webkitFullscreenEnabled?: boolean };
+type FsEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+const fsDoc = document as FsDoc;
+const fsRoot = document.documentElement as FsEl;
+const fullscreenButton = $<HTMLButtonElement>('fullscreen-toggle');
+const canFullscreen = !!(document.fullscreenEnabled || fsDoc.webkitFullscreenEnabled) && !!(fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen);
+const isFullscreen = () => !!(document.fullscreenElement || fsDoc.webkitFullscreenElement);
+
+function toggleFullscreen() {
+  if (!canFullscreen) return;
+  try {
+    if (isFullscreen()) void (document.exitFullscreen ? document.exitFullscreen() : fsDoc.webkitExitFullscreen?.());
+    else void (fsRoot.requestFullscreen ? fsRoot.requestFullscreen({ navigationUI: 'hide' }) : fsRoot.webkitRequestFullscreen?.());
+  } catch {
+    /* refused (not a user gesture, or blocked by the page embedding us): nothing to do */
+  }
+}
+function showFullscreen() {
+  const on = isFullscreen();
+  fullscreenButton.classList.toggle('muted', on); // shows the "leave" icon
+  fullscreenButton.setAttribute('aria-pressed', String(on));
+  fullscreenButton.title = on ? 'Leave full screen (F)' : 'Full screen (F)';
+}
+// Only offer it where it works (it doesn't on an iPhone: there, add the game to the home screen).
+fullscreenButton.hidden = !canFullscreen;
+fullscreenButton.addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', showFullscreen);
+document.addEventListener('webkitfullscreenchange', showFullscreen);
+
 // Audio can only start after a user gesture.
 window.addEventListener('pointerdown', () => sound.unlock(), { capture: true });
 window.addEventListener('keydown', () => sound.unlock(), { capture: true });
@@ -239,6 +270,17 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => {
   if (isSpace(e)) keyHeld = false;
+});
+
+// Shortcuts: F for full screen, M for sound, 1 / 2 / 3 for the shop's tabs.
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  const tag = (e.target as HTMLElement | null)?.tagName;
+  if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA' || document.querySelector('dialog[open]')) return;
+  const key = e.key.toLowerCase();
+  if (key === 'f') toggleFullscreen();
+  else if (key === 'm') setSound(!state.settings.sound);
+  else if (key === '1' || key === '2' || key === '3') store.showTab((['drinkers', 'upgrades', 'pubs'] as const)[Number(key) - 1]);
 });
 window.addEventListener('blur', () => {
   pointerHeld = false;
@@ -284,6 +326,9 @@ function setText(el: HTMLElement, text: string) {
   lastText.set(el, text);
   el.textContent = text;
 }
+
+// Say how to drink in the words that fit the device.
+hud.hint.textContent = matchMedia('(pointer: coarse)').matches ? 'Touch and hold to drink' : 'Click and hold to drink (or hold Space)';
 
 const cycleSeconds = () => drinkCycle(drinkTime(state), refillTime(state));
 
@@ -530,6 +575,10 @@ startLoop((elapsed, now) => {
   if (now - lastAutoBuy > 1000) {
     lastAutoBuy = now;
     autoBuy();
+    // Pints in the tab title, so you can keep an eye on the pub from another tab.
+    const shown = state.pints.floor();
+    const title = `${format(shown, state.settings.numberFormat)} ${pintsWord(shown)} · idle.beer`;
+    if (document.title !== title) document.title = title;
   }
   if (now - lastStoreUpdate > 200) {
     lastStoreUpdate = now;

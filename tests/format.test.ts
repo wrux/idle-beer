@@ -71,3 +71,19 @@ describe('format: absurdly big numbers', () => {
     expect(format(D(-2.5e6))).toBe('-2.500 million');
   });
 });
+
+describe('tidy numbers (prices and targets)', () => {
+  it('drop trailing zeros from named numbers', () => {
+    expect(format(D(1e8), 'short', true)).toBe('100 million');
+    expect(format(D(1.5e9), 'short', true)).toBe('1.5 billion');
+    expect(format(D(1_234_567), 'short', true)).toBe('1.235 million');
+    expect(format(D(1e36), 'short', true)).toBe('1 UDc');
+    expect(format(D(999_999_999), 'short', true)).toBe('1 billion');
+  });
+
+  it('leave everything else alone', () => {
+    expect(format(D(1e8), 'short')).toBe('100.000 million');
+    expect(format(D(12_345), 'short', true)).toBe('12,345');
+    expect(format(D(1e8), 'scientific', true)).toBe('1.00e8');
+  });
+});

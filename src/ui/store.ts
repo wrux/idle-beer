@@ -6,7 +6,7 @@ import {
   availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach,
   nextRound, priceOf, pubBonus, pubCooldownLeft, pubStatuses, quantityFor, selectPub, storeVisibility,
 } from '../core/economy';
-import { format } from '../core/format';
+import { format as formatNumber, type NumberFormat } from '../core/format';
 import { D, type Decimal } from '../core/num';
 import { owned, type BuyMode, type GameState } from '../core/state';
 import { beerAt } from '../data/beers';
@@ -15,6 +15,9 @@ import { LOCATIONS } from '../data/locations';
 import type { Upgrade } from '../data/upgrades';
 import { beerIcon, drinkerPortrait, pubThumb } from './art/icons';
 import { icon } from './glyphs';
+
+/** Prices and targets sit still, so they're shown without trailing zeros ("100 million", not "100.000 million"). */
+const format = (v: Decimal, f: NumberFormat) => formatNumber(v, f, true);
 
 const MODES: BuyMode[] = [1, 10, 100, 'max'];
 const modeLabel = (m: BuyMode) => (m === 'max' ? 'Max' : `×${m}`);
@@ -43,6 +46,26 @@ function setProgress(el: HTMLElement, have: Decimal, cost: Decimal) {
     el.style.setProperty('--p', v);
   }
 }
+
+/** Name something for screen readers (and, for plain buttons, as a native tooltip). */
+function describe(el: HTMLElement, text: string, tooltip = false) {
+  if (el.getAttribute('aria-label') === text) return;
+  el.setAttribute('aria-label', text);
+  if (tooltip) el.title = text;
+}
+
+/** What the compact shop's hover card says about a row. */
+interface Tip {
+  name: string;
+  desc: string;
+  /** A price in pints, if it has one. */
+  cost?: string;
+  affordable?: boolean;
+  /** A line of small print: what it earns, how many you own, where you stand. */
+  note?: string;
+}
+
+const COMPACT_KEY = 'idleBeer.compactShop';
 
 /** A quick flash on something you've just bought. */
 function flash(el: HTMLElement) {
@@ -88,6 +111,11 @@ export class StoreView {
   private upgradeRows = new Map<string, { el: HTMLButtonElement; cost: HTMLElement }>();
   private upgradeKey = '';
 
+  // Hover card for the compact shop, where rows are icons only.
+  private tip = document.createElement('div');
+  private tips = new Map<HTMLElement, () => Tip>();
+  private tipRow: HTMLElement | null = null;
+
   // Pubs
   private pubCount: HTMLElement;
   private pubRows: {
@@ -95,8 +123,38 @@ export class StoreView {
     drawn: boolean;
   }[] = [];
 
-  constructor(root: HTMLElement, private getState: () => GameState, private events: StoreEvents) {
+  constructor(private root: HTMLElement, private getState: () => GameState, private events: StoreEvents) {
     const q = <T extends HTMLElement>(s: string) => root.querySelector<T>(s)!;
+
+    // ----- size: full, or a narrow strip of icons that leaves more room for the pub -----
+    const sizeButton = q<HTMLButtonElement>('.shop-size');
+    // Only on a wide window: on a phone the shop sits under the pub and should stay full.
+    const wide = matchMedia('(min-width: 861px)');
+    let wantCompact = false;
+    try {
+      wantCompact = localStorage.getItem(COMPACT_KEY) === '1';
+    } catch {
+      /* private browsing: it just won't be remembered */
+    }
+    const applySize = () => {
+      const on = wantCompact && wide.matches;
+      root.classList.toggle('compact', on);
+      root.parentElement?.classList.toggle('compact-shop', on);
+      sizeButton.setAttribute('aria-pressed', String(on));
+      describe(sizeButton, on ? 'Show the full shop' : 'Shrink the shop to icons', true);
+      if (!on) this.hideTip();
+    };
+    applySize();
+    wide.addEventListener('change', applySize);
+    sizeButton.addEventListener('click', () => {
+      wantCompact = !wantCompact;
+      try {
+        localStorage.setItem(COMPACT_KEY, wantCompact ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      applySize();
+    });
 
     // ----- tabs -----
     this.tabButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('.tab'));
@@ -110,6 +168,14 @@ export class StoreView {
     this.beerDesc = q('.beer-desc');
     this.beerCost = q('.beer-cost');
     this.beerIconEl = q('.beer-icon');
+    this.tip.className = 'shop-tip';
+    this.tip.hidden = true;
+    document.body.appendChild(this.tip);
+    const text = (el: HTMLElement) => el.textContent ?? '';
+    this.addTip(this.beerCard, () => ({
+      name: text(this.beerName), desc: text(this.beerDesc), cost: text(this.beerCost) || undefined,
+      affordable: this.beerCard.classList.contains('affordable'),
+    }));
     this.beerCard.addEventListener('click', () => {
       if (buyNextRound(this.getState())) {
         this.events.onBought();
@@ -164,6 +230,11 @@ export class StoreView {
         el, name: r('.d-name'), owned: r('.d-owned'),
         flavour: r('.d-flavour'), cost: r('.d-cost'), pps: r('.d-pps'),
       });
+      this.addTip(el, () => ({
+        name: text(r('.d-name')), desc: text(r('.d-flavour')), cost: el.classList.contains('mystery') ? undefined : text(r('.d-cost')),
+        affordable: el.classList.contains('affordable'),
+        note: [text(r('.d-pps')), text(r('.d-owned')) && `${text(r('.d-owned'))} in the pub`].filter(Boolean).join(' · '),
+      }));
     }
 
     // ----- pubs -----
@@ -197,8 +268,21 @@ export class StoreView {
         el, thumb: r('.p-thumb'), name: r('.p-name'), perk: r('.p-perk'), bonus: r('.p-bonus'), action: r('.p-action'),
         drawn: false,
       });
+      this.addTip(el, () => {
+        const forSale = el.classList.contains('forSale');
+        return {
+          name: text(r('.p-name')), desc: text(r('.p-perk')), cost: forSale ? text(r('.p-action')) : undefined,
+          affordable: el.classList.contains('affordable'),
+          note: [text(r('.p-bonus')), forSale ? '' : text(r('.p-action'))].filter(Boolean).join(' · '),
+        };
+      });
     }
     this.update();
+  }
+
+  /** Switch tab (also bound to the 1, 2 and 3 keys). */
+  showTab(tab: Tab) {
+    this.show(tab);
   }
 
   private show(tab: Tab) {
@@ -213,6 +297,59 @@ export class StoreView {
     this.updateUpgrades();
     this.updatePubs();
     if (this.tab === 'drinkers') this.updateDrinkers();
+    this.refreshTip();
+  }
+
+  // ---------- hover card (compact shop) ----------
+
+  private addTip(row: HTMLElement, get: () => Tip) {
+    this.tips.set(row, get);
+    row.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'mouse' || !this.root.classList.contains('compact')) return;
+      this.tipRow = row;
+      this.refreshTip();
+    });
+    row.addEventListener('pointerleave', () => {
+      if (this.tipRow === row) this.hideTip();
+    });
+  }
+
+  private hideTip() {
+    this.tipRow = null;
+    this.tip.hidden = true;
+  }
+
+  /** Fill and place the card beside the row it describes. Called on every refresh, so prices stay live. */
+  private refreshTip() {
+    const row = this.tipRow;
+    if (!row) return;
+    const get = this.tips.get(row);
+    if (!get || !row.isConnected || row.hidden || !this.root.classList.contains('compact')) {
+      this.hideTip();
+      return;
+    }
+    const t = get();
+    const el = (cls: string, content: string) => {
+      const d = document.createElement('div');
+      d.className = cls;
+      d.textContent = content;
+      return d;
+    };
+    const parts = [el('st-name', t.name), el('st-desc', t.desc)];
+    if (t.cost) parts.push(el(`st-cost${t.affordable ? '' : ' short'}`, t.cost));
+    if (t.note) parts.push(el('st-note', t.note));
+    const key = parts.map((p) => `${p.className}:${p.textContent}`).join('|');
+    if (this.tip.dataset.key !== key) {
+      this.tip.dataset.key = key;
+      this.tip.replaceChildren(...parts);
+    }
+    this.tip.hidden = false;
+    // To the left of the strip, level with the row, kept on screen.
+    const r = row.getBoundingClientRect();
+    const h = this.tip.offsetHeight;
+    const top = Math.max(8, Math.min(window.innerHeight - h - 8, r.top + r.height / 2 - h / 2));
+    this.tip.style.top = `${Math.round(top)}px`;
+    this.tip.style.right = `${Math.round(window.innerWidth - this.root.getBoundingClientRect().left + 10)}px`;
   }
 
   // ---------- beer ----------
@@ -237,6 +374,7 @@ export class StoreView {
       this.beerCard.classList.remove('affordable');
       this.beerCard.classList.add('mystery');
       this.set(this.beerName, '???');
+      describe(this.beerCard, `The next beer is revealed at ${format(next.cost.mul(0.5), f)} lifetime pints.`);
       this.set(this.beerDesc, `Revealed at ${format(next.cost.mul(0.5), f)} lifetime pints.`);
       this.set(this.beerCost, '');
       return;
@@ -247,6 +385,7 @@ export class StoreView {
     this.beerCard.classList.toggle('affordable', affordable);
     setProgress(this.beerCard, state.pints, offer.cost);
     this.set(this.beerName, offer.beer.name);
+    describe(this.beerCard, `${offer.beer.name}: ${multText(offer.mult)} everything. ${format(offer.cost, f)} pints.`);
     this.set(this.beerDesc, `${multText(offer.mult)} everything. ${offer.beer.flavour}`);
     this.set(this.beerCost, format(offer.cost, f));
   }
@@ -268,6 +407,7 @@ export class StoreView {
       row.el.classList.toggle('affordable', affordable);
       setProgress(row.el, state.pints, u.cost);
       this.set(row.cost, format(u.cost, f));
+      describe(row.el, `${u.name}. ${u.desc} ${format(u.cost, f)} pints.`);
     }
     // The badge counts what you can buy right now, so it's worth a look when it lights up.
     this.set(this.upgradeCount, ready ? String(ready) : '');
@@ -275,6 +415,8 @@ export class StoreView {
 
   private rebuildUpgrades(list: Upgrade[]) {
     this.upgradeKey = list.map((u) => u.id).join(',');
+    for (const row of this.upgradeRows.values()) this.tips.delete(row.el);
+    if (this.tipRow && !this.tipRow.classList.contains('drinker') && !this.tipRow.classList.contains('pub') && this.tipRow !== this.beerCard) this.hideTip();
     this.upgradeRows.clear();
     this.upgradeList.replaceChildren();
     if (!list.length) {
@@ -308,6 +450,10 @@ export class StoreView {
       });
       this.upgradeList.appendChild(b);
       this.upgradeRows.set(u.id, { el: b, cost: r('.u-cost') });
+      this.addTip(b, () => ({
+        name: u.name, desc: u.desc, cost: r('.u-cost').textContent ?? '', affordable: b.classList.contains('affordable'),
+        note: GROUP_LABEL[u.group],
+      }));
     }
   }
 
@@ -343,8 +489,8 @@ export class StoreView {
       this.set(row.perk, mystery ? `Word gets round at ${format(l.threshold.mul(0.1), f)} lifetime pints.` : l.perk);
       this.set(row.bonus, mystery || !bonus ? '' : `+${bonus}% everything`);
       this.set(row.action, st === 'here' ? "You're here" : st === 'open' ? (settling ? waitText : 'Move here') : mystery ? '' : format(l.threshold, f));
-      row.el.setAttribute(
-        'aria-label',
+      describe(
+        row.el,
         mystery ? 'Unknown pub' : `${l.name}. ${l.perk} ${st === 'here' ? 'You are here.' : st === 'open' ? (settling ? `${waitText}.` : 'Move here.') : `Open for ${format(l.threshold, f)} pints.`}`,
       );
     });
@@ -382,8 +528,8 @@ export class StoreView {
       this.set(row.owned, have > 0 ? format(D(have), f) : '');
       this.set(row.cost, `${format(cost, f)}${qty > 1 ? ` for ${format(D(qty), f)}` : ''}`);
       this.set(row.pps, mystery ? '' : `+${format(drinkerPpsEach(state, d), f)}/s each`);
-      row.el.setAttribute(
-        'aria-label',
+      describe(
+        row.el,
         mystery ? 'Unknown drinker' : `${d.name}, owned ${have}. Buy ${qty} for ${format(cost, f)} pints.`,
       );
     });

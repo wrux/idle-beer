@@ -2,7 +2,7 @@
 <html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>idle.beer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -10,7 +10,16 @@
       href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Baloo+2:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>" />
+    <meta name="description" content="A UK pub incremental game. Hold to drink." />
+    <meta name="theme-color" content="#120b08" />
+    <!-- Installed to a home screen, the game runs full screen (the only way to get that on an iPhone). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="idle.beer" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
   </head>
   <body>
     <svg width="0" height="0" style="position: absolute" aria-hidden="true">
@@ -20,6 +29,10 @@
         <symbol id="i-cog" viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.6"/><circle cx="8" cy="17" r="2.6"/></symbol>
         <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h3l5-4v14l-5-4H4Z" fill="currentColor"/><path d="M16 9a4 4 0 0 1 0 6M18.500 6.500a8 8 0 0 1 0 11"/></symbol>
         <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h3l5-4v14l-5-4H4Z" fill="currentColor"/><path d="M16.500 9.500l5 5M21.500 9.500l-5 5"/></symbol>
+        <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+        <symbol id="i-unfull" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+        <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V6M6 11l6-6 6 6"/></symbol>
         <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2Z" fill="currentColor"/><path d="M10 21h4M12 3v2"/></symbol>
         <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" fill="currentColor"/><circle cx="17" cy="9" r="2.400" fill="currentColor"/><path d="M3 20a6 6 0 0 1 12 0Z" fill="currentColor"/><path d="M16 14.500a4.500 4.500 0 0 1 5 5"/></symbol>
         <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6-6.500-6-11a6 6 0 0 1 12 0c0 4.500-6 11-6 11Z"/><circle cx="12" cy="10" r="2" fill="currentColor"/></symbol>
@@ -49,6 +62,9 @@
               </button>
               <button type="button" id="open-stats" class="icon-button" aria-label="Stats" title="Stats"><svg class="ico"><use href="#i-stats" /></svg></button>
               <button type="button" id="open-settings" class="icon-button" aria-label="Settings" title="Settings"><svg class="ico"><use href="#i-cog" /></svg></button>
+              <button type="button" id="fullscreen-toggle" class="icon-button" aria-pressed="false" aria-label="Full screen" title="Full screen (F)" hidden>
+                <svg class="ico ico-on"><use href="#i-full" /></svg><svg class="ico ico-off"><use href="#i-unfull" /></svg>
+              </button>
               <button type="button" id="sound-toggle" class="icon-button" aria-pressed="true" aria-label="Sound">
                 <svg class="ico ico-on"><use href="#i-sound" /></svg><svg class="ico ico-off"><use href="#i-mute" /></svg>
               </button>
@@ -63,8 +79,15 @@
           </div>
           <div class="popups" id="popups"></div>
           <div class="free-rounds" id="free-rounds"></div>
-          <div class="hint" id="hint">Click and hold to drink</div>
+          <div class="hint" id="hint">Hold to drink</div>
           <div class="toasts" id="toasts" aria-live="polite"></div>
+
+          <div class="credits">
+            <span class="credits-by">Made by</span>
+            <a href="https://wrux.com" target="_blank" rel="noopener">wrux.com</a>
+            <span aria-hidden="true">·</span>
+            <a href="https://www.instagram.com/etocallum" target="_blank" rel="nofollow noopener noreferrer">@etocallum</a>
+          </div>
 
           <div class="hud-bottom">
             <div class="hud-tags">
@@ -83,6 +106,9 @@
         <aside class="store" id="store" aria-label="Shop">
           <section class="store-section" aria-label="Beer">
             <div class="section-head">
+              <button type="button" id="shop-size" class="shop-size" aria-pressed="false" aria-label="Shrink the shop to icons" title="Shrink the shop to icons">
+                <svg class="ico"><use href="#i-chevron" /></svg>
+              </button>
               <h2>Next round</h2>
               <span class="beer-now"></span>
             </div>
@@ -97,9 +123,9 @@
           </section>
 
           <div class="tabs" role="tablist" aria-label="Shop">
-            <button type="button" role="tab" class="tab" data-tab="drinkers" aria-selected="true">Drinkers</button>
-            <button type="button" role="tab" class="tab" data-tab="upgrades" aria-selected="false">Upgrades<span class="tab-badge upgrade-count"></span></button>
-            <button type="button" role="tab" class="tab" data-tab="pubs" aria-selected="false">Pubs<span class="tab-badge pub-count"></span></button>
+            <button type="button" role="tab" class="tab" data-tab="drinkers" aria-selected="true" title="Drinkers (1)"><svg class="ico tab-ico"><use href="#i-people" /></svg><span class="tab-label">Drinkers</span></button>
+            <button type="button" role="tab" class="tab" data-tab="upgrades" aria-selected="false" title="Upgrades (2)"><svg class="ico tab-ico"><use href="#i-up" /></svg><span class="tab-label">Upgrades</span><span class="tab-badge upgrade-count"></span></button>
+            <button type="button" role="tab" class="tab" data-tab="pubs" aria-selected="false" title="Pubs (3)"><svg class="ico tab-ico"><use href="#i-pin" /></svg><span class="tab-label">Pubs</span><span class="tab-badge pub-count"></span></button>
           </div>
 
           <section class="tab-panel" data-panel="drinkers" aria-label="Drinkers">
@@ -119,12 +145,6 @@
             <div class="panel-head"><span class="panel-note">Open a pub, then drink wherever suits. Only the pub you're in counts, and once you move you stay put for 5 minutes.</span></div>
             <div class="pub-list"></div>
           </section>
-          <footer class="credits">
-            <span>Made by</span>
-            <a href="https://wrux.com" target="_blank" rel="noopener">wrux.com</a>
-            <span aria-hidden="true">·</span>
-            <a href="https://www.instagram.com/etocallum" target="_blank" rel="noopener">@etocallum</a>
-          </footer>
         </aside>
       </div>
 
@@ -207,7 +227,7 @@
           <h3>Credits</h3>
           <p class="setting-note">
             idle.beer is made by <a href="https://wrux.com" target="_blank" rel="noopener">wrux.com</a>.
-            Say hello on Instagram: <a href="https://www.instagram.com/etocallum" target="_blank" rel="noopener">@etocallum</a>.
+            Say hello on Instagram: <a href="https://www.instagram.com/etocallum" target="_blank" rel="nofollow noopener noreferrer">@etocallum</a>.
           </p>
 
           <h3>Danger zone</h3>
