@@ -1,7 +1,7 @@
 /**
  * First thing to run. Works out which language this address is in, loads its translations,
- * puts the page's own text into it, and only then starts the game, so nothing is ever built in
- * the wrong language.
+ * makes sure the page's own text is in it, and only then starts the game, so nothing is ever
+ * built in the wrong language.
  */
 import { activate, localeFromPath, translatePage, type Messages } from './i18n';
 
@@ -21,7 +21,11 @@ void (async () => {
     await import('./i18n/data');
     activate(locale, table);
   }
-  document.documentElement.lang = locale.lang;
-  translatePage();
+  // A page built for this language already has its text in it (vite.config.ts), and says so in
+  // `<html lang>`. Only a page that arrived in another language needs putting into this one.
+  if (document.documentElement.lang !== locale.lang) {
+    document.documentElement.lang = locale.lang;
+    translatePage();
+  }
   await import('./main');
 })();

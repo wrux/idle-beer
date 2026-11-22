@@ -11,8 +11,10 @@
 import { setNumberLocale } from '../core/format';
 
 import { LOCALES, type Locale, type Messages } from './locales';
+import { squash } from './markup';
 
 export { LOCALES, localeUrl, type Locale, type Messages } from './locales';
+export { squash } from './markup';
 
 let messages: Messages = {};
 let current: Locale = LOCALES[0];
@@ -73,7 +75,8 @@ export function trn(n: number, one: string, other: string, params?: Record<strin
 }
 
 /**
- * Put the page's own text (index.html) into the active language. An element marked
+ * Put the page's own text (index.html) into the active language. A built page arrives already
+ * translated (vite.config.ts), so this is for a page that arrives in English. An element marked
  * `data-i18n` has its text translated; `data-i18n="html"` its markup; and `data-i18n-attr`
  * lists attributes to translate ("aria-label title").
  */
@@ -89,6 +92,3 @@ export function translatePage(root: ParentNode = document): void {
     }
   }
 }
-
-/** Text as written in the HTML source wraps and indents; the key is the sentence on one line. */
-export const squash = (text: string): string => text.replace(/\s+/g, ' ').trim();

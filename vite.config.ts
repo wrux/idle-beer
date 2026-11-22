@@ -2,9 +2,10 @@
  * One page per language.
  *
  * English is the page at the root. Every other language is the same page at its own address
- * (/fr/, /de/, /jp/ …) with its own `<html lang>`, title, descriptions and sharing tags, so a
- * search engine or a shared link sees the right language without running the game. The game
- * itself reads the address and loads that language's text (src/boot.ts).
+ * (/fr/, /de/, /jp/ …) with its own `<html lang>`, title, descriptions, sharing tags and page
+ * text, so a search engine, a shared link or "view source" sees the right language without
+ * running the game. The game itself reads the address and loads that language's text for
+ * everything it draws (src/boot.ts).
  *
  * In development the dev server answers those addresses from index.html; a build writes a
  * dist/<language>/index.html for each, and a sitemap that lists them all as alternates.
@@ -13,9 +14,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { LOCALES, localeUrl, type Locale, type Messages } from './src/i18n/locales';
+import { squash, translateMarkup } from './src/i18n/markup';
 
 const SITE = 'https://idle.beer';
-const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 
 function messagesFor(locale: Locale): Messages {
   const file = path.resolve(__dirname, 'src/i18n/locales', `${locale.path}.json`);
@@ -39,6 +40,8 @@ function localise(html: string, locale: Locale): string {
     const found = table[squash(english)];
     return typeof found === 'string' && found ? found : english;
   };
+  // The page's own text first (everything marked data-i18n), then the tags in its head.
+  if (locale.path) html = translateMarkup(html, say);
   const attr = (text: string) => text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   const url = `${SITE}${localeUrl(locale)}`;
   let out = html

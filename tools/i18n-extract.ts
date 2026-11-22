@@ -9,9 +9,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dataSlots } from '../src/i18n/data';
+import { squash, translateMarkup } from '../src/i18n/markup';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 const unescape = (text: string) => text.replace(/\\(['"\\])/g, '$1').replace(/\\n/g, '\n');
 const STRING = `'((?:[^'\\\\]|\\\\.)*)'|"((?:[^"\\\\]|\\\\.)*)"`;
 
@@ -53,13 +53,7 @@ export function extract(): Record<string, string | Record<string, string>> {
   }
 
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  for (const m of html.matchAll(/<(\w+)\b[^<>]*\sdata-i18n(?:="html")?(?=[\s>])[^<>]*>([\s\S]*?)<\/\1>/g)) strings.add(squash(m[2]));
-  for (const tag of html.match(/<\w+\b[^<>]*\sdata-i18n-attr="[^"]*"[^<>]*>/g) ?? []) {
-    for (const attr of /data-i18n-attr="([^"]*)"/.exec(tag)![1].split(/\s+/)) {
-      const value = new RegExp(`\\s${attr}="([^"]*)"`).exec(tag);
-      if (value) strings.add(squash(value[1]));
-    }
-  }
+  translateMarkup(html, (english) => (strings.add(english), english));
   for (const s of metaStrings(html)) strings.add(s);
 
   const out: Record<string, string | Record<string, string>> = {};
