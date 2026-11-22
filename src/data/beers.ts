@@ -1,7 +1,28 @@
 import { D, Decimal } from '../core/num';
 
-export type GlassShape = 'nonic' | 'tulip' | 'snifter' | 'tankard';
-export type BeerEffect = 'none' | 'glow' | 'shimmer' | 'void' | 'sparkle' | 'singularity';
+export type GlassShape =
+  | 'nonic' | 'tulip' | 'snifter' | 'tankard'
+  /** A half-pint tumbler, a small straight Kölsch glass, a tall wheat-beer glass. */
+  | 'half' | 'stange' | 'weizen'
+  /** A stemmed chalice, a thistle, a litre stein, a yard glass, a drinking horn. */
+  | 'goblet' | 'thistle' | 'mass' | 'yard' | 'horn';
+
+export type BeerEffect =
+  | 'none' | 'glow' | 'shimmer' | 'void' | 'sparkle' | 'singularity'
+  /** A stout settling: pale streaks sinking down the inside of the glass. */
+  | 'cascade'
+  /** The whole glass is head, with a little beer underneath. */
+  | 'allfoam'
+  /** A shot glass sunk in the beer. */
+  | 'shot'
+  /** Wisps rising off the top: steam, or smoke. */
+  | 'steam' | 'smoke'
+  /** Blobs of beer drifting up out of the glass. */
+  | 'float'
+  /** Bubbles that go down instead of up. */
+  | 'sink'
+  /** There one moment, not the next. */
+  | 'flicker';
 
 /** How a beer looks in the glass. */
 export interface BeerLook {
@@ -15,6 +36,10 @@ export interface BeerLook {
   effect: BeerEffect;
   /** Colour for glows, shimmer and sparkles. */
   effectColour?: string;
+  /** How big the glass is next to a pint (a half is smaller, a Maß bigger). */
+  size?: number;
+  /** What it's made of, if it isn't glass (horn, pewter, stone): you can't see the beer through it. */
+  vessel?: string;
 }
 
 export interface Beer {
@@ -33,12 +58,16 @@ const look = (
   extra: Partial<BeerLook> = {},
 ): BeerLook => ({ liquid, liquidShade, foam, foamShade, foamScale: 1, glass: 'nonic', effect: 'none', ...extra });
 
-/** Bought in order. See DESIGN.md §4. */
+/**
+ * Bought in order: what you'd find in a pub, then what you'd find abroad, then what you'd find
+ * nowhere at all. Twenty-seven beers, each in its own glass or with its own trick, and then no
+ * more: The Final Pint is the last one.
+ */
 export const BEERS: Beer[] = [
   {
-    id: 'lager', name: 'Warm Watery Lager', cost: D(0), mult: 1,
-    flavour: "It's wet. That's about all you can say for it.",
-    look: look('#f3d36b', '#ddb44a', '#fbf6e9', '#e6dcc2', { foamScale: 0.6 }),
+    id: 'shandy', name: 'Half of Shandy', cost: D(0), mult: 1,
+    flavour: 'Half lemonade, in a half-pint glass. Everybody starts somewhere.',
+    look: look('#f6e08a', '#e6c95e', '#ffffff', '#ece6d2', { glass: 'half', size: 0.78, foamScale: 0.5 }),
   },
   {
     id: 'bitter', name: 'Pint of Bitter', cost: D(100), mult: 1.5,
@@ -46,245 +75,138 @@ export const BEERS: Beer[] = [
     look: look('#d9822b', '#b4651c', '#f8efd9', '#e3d3b0'),
   },
   {
-    id: 'best', name: 'Best Bitter', cost: D(2e4), mult: 2,
-    flavour: 'Like bitter, but it went to grammar school.',
-    look: look('#b8621b', '#93480f', '#f6ead0', '#dfcca6'),
+    id: 'mild', name: 'Pint of Mild', cost: D(2e4), mult: 2,
+    flavour: 'Dark, flat and four per cent. The old boys swear by it.',
+    look: look('#5a2f1a', '#3f1f10', '#e8d9b8', '#cdbb94', { foamScale: 0.45 }),
   },
   {
-    id: 'realale', name: 'Proper Real Ale', cost: D(2e6), mult: 2,
-    flavour: 'Hand-pulled from the cask. Comes with a beard.',
-    look: look('#c46f22', '#9d5416', '#f6ecd4', '#e2d2ad', { foamScale: 1.2, glass: 'tankard' }),
+    id: 'nitro', name: 'Nitro Stout', cost: D(2e6), mult: 2,
+    flavour: 'Black, with a head like cream. Wait for it to settle.',
+    look: look('#1a1210', '#0c0807', '#f0e2c4', '#d8c7a2', { foamScale: 1.35, effect: 'cascade' }),
   },
   {
-    id: 'ipa', name: 'Session IPA', cost: D(2e8), mult: 2,
-    flavour: 'Hazy, hoppy and smells faintly of grapefruit.',
-    look: look('#e9b54a', '#cf9733', '#fffaf0', '#ece2cc'),
+    id: 'hazy', name: 'Hazy IPA', cost: D(2e8), mult: 2,
+    flavour: 'Looks like orange juice. Smells like a fruit bowl. Costs like a mortgage.',
+    look: look('#f0a53a', '#d98a22', '#fbf3df', '#e6d8b6', { glass: 'tulip', foamScale: 0.9 }),
   },
   {
-    id: 'stout', name: 'Irish-style Stout', cost: D(2e10), mult: 3,
-    flavour: 'Black as night, with a head you could stand a spoon in.',
-    look: look('#1d1310', '#0e0907', '#efe3c8', '#d9c9a5', { foamScale: 1.6 }),
+    id: 'kolsch', name: 'Kölsch', cost: D(2e10), mult: 3,
+    flavour: 'A tiny glass, gone in two sips, replaced before you can say no.',
+    look: look('#f4dc78', '#e0c456', '#ffffff', '#ebe5d0', { glass: 'stange', size: 0.9, foamScale: 0.8 }),
   },
   {
-    id: 'dipa', name: 'Craft Double IPA', cost: D(2e12), mult: 3,
-    flavour: 'Eight per cent, nine quid, served in a tulip.',
-    look: look('#f2a33a', '#d4861f', '#fff6e2', '#eadbbd', { glass: 'tulip' }),
+    id: 'hladinka', name: 'Czech Hladinka', cost: D(2e12), mult: 3,
+    flavour: 'The proper pour: golden lager under three fingers of dense, wet foam.',
+    look: look('#eab93a', '#cf9c22', '#fffdf4', '#ece2c4', { glass: 'tankard', foamScale: 2.4 }),
   },
   {
-    id: 'barleywine', name: 'Barley Wine', cost: D(2e14), mult: 4,
-    flavour: 'Ruby red and dangerously warming. Sip it. Or don\'t.',
-    look: look('#8e2a1e', '#6a1c13', '#f1dcc4', '#d8bea0', { foamScale: 0.5, glass: 'snifter' }),
+    id: 'mliko', name: 'Czech Mlíko', cost: D(2e14), mult: 4,
+    flavour: 'A whole glass of sweet foam, with a rumour of beer at the bottom. Down in one.',
+    look: look('#eab93a', '#cf9c22', '#fffaea', '#efe3c4', { glass: 'tankard', foamScale: 1.6, effect: 'allfoam' }),
   },
   {
-    id: 'reserve', name: "Landlord's Secret Reserve", cost: D(5e16), mult: 5,
-    flavour: 'Kept under the bar. Glows slightly. Nobody asks why.',
-    look: look('#e0a43c', '#bf8424', '#fff3d6', '#efd9a8', { glass: 'tankard', effect: 'glow', effectColour: '#ffd36b' }),
+    id: 'hefeweizen', name: 'Hefeweizen', cost: D(1e17), mult: 5,
+    flavour: 'Cloudy, tall, and tastes of banana, apparently on purpose.',
+    look: look('#f2c14e', '#dba636', '#fffdf2', '#eee2c0', { glass: 'weizen', size: 1.16, foamScale: 1.9 }),
   },
   {
-    id: 'moonmead', name: 'Moon Mead', cost: D(1e20), mult: 6,
-    flavour: 'Brewed in low gravity. Pours upwards if you let it.',
-    look: look('#cfd6e6', '#a9b3c9', '#ffffff', '#e1e6f2', { glass: 'tulip', effect: 'shimmer', effectColour: '#ffffff' }),
+    id: 'mass', name: 'German Maß', cost: D(1e20), mult: 6,
+    flavour: 'A litre. One hand. No excuses.',
+    look: look('#f0b23a', '#d6962a', '#fffbec', '#ecdfbe', { glass: 'mass', size: 1.22, foamScale: 1.5 }),
   },
   {
-    id: 'darkmatter', name: 'Dark Matter Porter', cost: D(1e23), mult: 8,
+    id: 'tripel', name: 'Trappist Tripel', cost: D(1e23), mult: 8,
+    flavour: 'Brewed by monks. Nine per cent. They know what they are doing.',
+    look: look('#f0c040', '#d6a428', '#fffdf4', '#efe4c2', { glass: 'goblet', foamScale: 1.4 }),
+  },
+  {
+    id: 'heavy', name: 'Scotch Heavy', cost: D(1e27), mult: 10,
+    flavour: 'Copper-coloured, malty, and served with a look that dares you to ask for ice.',
+    look: look('#a8481c', '#84330f', '#f3e3c2', '#d9c69c', { glass: 'thistle' }),
+  },
+  {
+    id: 'warmer', name: 'Cask Winter Warmer', cost: D(1e32), mult: 12,
+    flavour: 'Ruby dark and served by the fire. There is always a fire.',
+    look: look('#6a1f1a', '#4a120e', '#f0dcc0', '#d6bf9a', { glass: 'tankard', effect: 'steam', effectColour: '#f3efe4' }),
+  },
+  {
+    id: 'somaek', name: 'Somaek', cost: D(1e37), mult: 20,
+    flavour: 'A shot of soju, dropped in the beer. One shot!',
+    look: look('#f3d36b', '#ddb44a', '#fbf6e9', '#e6dcc2', { effect: 'shot', effectColour: '#dff4e6' }),
+  },
+  {
+    id: 'sakebomb', name: 'Sake Bomb', cost: D(1e42), mult: 25,
+    flavour: 'Bang the table. The cup falls in. Everybody drinks.',
+    look: look('#f0c860', '#d8ac40', '#fffdf4', '#ece2c4', { foamScale: 1.4, effect: 'shot', effectColour: '#ffffff' }),
+  },
+  {
+    id: 'yard', name: 'Yard of Ale', cost: D(1e47), mult: 25,
+    flavour: 'Three feet of glass with a bulb at the end. It all arrives at once.',
+    look: look('#d9822b', '#b4651c', '#f8efd9', '#e3d3b0', { glass: 'yard', size: 1.42, foamScale: 0.7 }),
+  },
+  {
+    id: 'mead', name: 'Viking Mead', cost: D(1e53), mult: 30,
+    flavour: 'Honey, water and time, drunk from the horn of something large.',
+    look: look('#f2b23c', '#d4922a', '#fff6dc', '#e8d8ac', { glass: 'horn', foamScale: 0.6, vessel: '#e9dcc0' }),
+  },
+  {
+    id: 'grog', name: 'Grog', cost: D(1e59), mult: 35,
+    flavour: 'Rum, water and whatever was in the barrel before. Do not look into the tankard.',
+    look: look('#6a4a2a', '#4a321a', '#d8c8a8', '#b8a684', { glass: 'tankard', foamScale: 0.5, vessel: '#8d9299' }),
+  },
+  {
+    id: 'dwarven', name: 'Dwarven Stout', cost: D(1e66), mult: 40,
+    flavour: 'Mined, not brewed. The head has to be chiselled.',
+    look: look('#120c0a', '#080504', '#e0c89a', '#bfa678', { glass: 'tankard', foamScale: 1.5, vessel: '#77716c' }),
+  },
+  {
+    id: 'fairy', name: 'Fairy Cider', cost: D(1e73), mult: 45,
+    flavour: 'A thimbleful. It is stronger than it looks, and it is watching you.',
+    look: look('#c8f08a', '#a6d466', '#fdfff2', '#e2edc8', { glass: 'tulip', size: 0.7, effect: 'sparkle', effectColour: '#ffd6fa' }),
+  },
+  {
+    id: 'dragon', name: "Dragon's Breath Ale", cost: D(1e81), mult: 50,
+    flavour: 'Served smoking. Sip, do not sniff.',
+    look: look('#e0401a', '#b02a0c', '#ffe0a8', '#e8b878', { glass: 'snifter', effect: 'smoke', effectColour: '#ff7a2a' }),
+  },
+  {
+    id: 'moonmead', name: 'Moon Mead', cost: D(1e90), mult: 60,
+    flavour: 'Brewed in one-sixth gravity. It keeps trying to leave the glass.',
+    look: look('#c8d8f0', '#9fb6dc', '#ffffff', '#dfe8f6', { glass: 'snifter', effect: 'float', effectColour: '#dfeaff' }),
+  },
+  {
+    id: 'alien', name: 'Alien Lager', cost: D(1e100), mult: 70,
+    flavour: 'Luminous. The bubbles go down. The label says not to worry.',
+    look: look('#7dff5a', '#4fd838', '#f2ffe8', '#cdeebc', { effect: 'sink', effectColour: '#b8ff7a' }),
+  },
+  {
+    id: 'darkmatter', name: 'Dark Matter Porter', cost: D(1e112), mult: 80,
     flavour: 'Makes up 85% of all beer in the universe. Nobody has ever seen it.',
     look: look('#0b0b16', '#241a3d', '#5b4a86', '#3d3160', { effect: 'void', effectColour: '#7a5cff' }),
   },
   {
-    id: 'nectar', name: 'Nectar of the Gods', cost: D(1e27), mult: 10,
-    flavour: 'Previously reserved for Olympus. They got barred.',
-    look: look('#ffcf40', '#f0ad1c', '#fffbe8', '#fbecc0', { glass: 'snifter', effect: 'sparkle', effectColour: '#fff7c2' }),
+    id: 'schrodinger', name: "Schrödinger's Pint", cost: D(1e123), mult: 90,
+    flavour: 'Both full and empty until somebody drinks it.',
+    look: look('#e0a030', '#bd8220', '#fbf6e9', '#e6dcc2', { effect: 'flicker', effectColour: '#9fe7ff' }),
   },
   {
-    id: 'singularity', name: 'Singularity Stout', cost: D(1e32), mult: 15,
+    id: 'singularity', name: 'Singularity Stout', cost: D(1e134), mult: 100,
     flavour: 'Infinitely dense. The glass bends the light around it.',
     look: look('#05050a', '#16102a', '#2a2140', '#1a1430', { effect: 'singularity', effectColour: '#b48cff' }),
   },
   {
-    id: 'quasar', name: 'Quasar Quadrupel', cost: D(1e37), mult: 15,
-    flavour: 'Outshines entire galaxies. Also your judgement.',
-    look: look('#c2571d', '#93400f', '#fff1dc', '#f2d9b4', { glass: 'tulip', effect: 'glow', effectColour: '#ffe1a8' }),
-  },
-  {
-    id: 'pulsar', name: 'Pulsar Pilsner', cost: D(1e42), mult: 16,
-    flavour: 'Crisp, clean, and blinks 700 times a second.',
-    look: look('#f6e27a', '#dfc552', '#ffffff', '#e9eef7', { effect: 'shimmer', effectColour: '#cfe8ff' }),
-  },
-  {
-    id: 'nebula', name: 'Nebula Hazy IPA', cost: D(1e47), mult: 16,
-    flavour: 'Hazier than a nebula, which is saying something.',
-    look: look('#e88fb4', '#b65f93', '#fff0f6', '#efd3e2', { glass: 'tulip', effect: 'sparkle', effectColour: '#ffd6f0' }),
-  },
-  {
-    id: 'supernova', name: 'Supernova Saison', cost: D(1e52), mult: 17,
-    flavour: 'Goes out with a bang. So will you.',
-    look: look('#ff9a2e', '#e0661b', '#fff3d1', '#f6d79a', { effect: 'glow', effectColour: '#ffb347' }),
-  },
-  {
-    id: 'wormhole', name: 'Wormhole Wheat Beer', cost: D(1e57), mult: 17,
-    flavour: "You've finished it before you've ordered it.",
-    look: look('#f0c96a', '#d1a443', '#fffaf0', '#efe4cb', { glass: 'tulip', effect: 'void', effectColour: '#57c7ff' }),
-  },
-  {
-    id: 'antimatter', name: 'Antimatter Ale', cost: D(1e62), mult: 18,
-    flavour: "Don't let it touch the normal beer.",
-    look: look('#e9f6ff', '#b8d8f0', '#2b2b38', '#1c1c26', { glass: 'snifter', effect: 'glow', effectColour: '#9fe7ff' }),
-  },
-  {
-    id: 'bigbang', name: 'Big Bang Bitter', cost: D(1e68), mult: 18,
-    flavour: 'Where every other pint came from.',
-    look: look('#d9822b', '#b4651c', '#fff6e0', '#ecd8b2', { effect: 'sparkle', effectColour: '#fff2b3' }),
-  },
-  {
-    id: 'entropy', name: 'Entropy Export Stout', cost: D(1e74), mult: 19,
-    flavour: 'Only ever gets more disordered. Like the pub at closing time.',
-    look: look('#120c0a', '#2a1a12', '#d9cdb4', '#b9aa8c', { foamScale: 1.5, glass: 'tankard', effect: 'void', effectColour: '#ff7a59' }),
-  },
-  {
-    id: 'higgs', name: 'Higgs Barley Wine', cost: D(1e80), mult: 19,
-    flavour: 'Gives everything else its body.',
-    look: look('#7d1e2a', '#5a131d', '#f3d9cf', '#d9b8ab', { foamScale: 0.5, glass: 'snifter', effect: 'shimmer', effectColour: '#ffc2d1' }),
-  },
-  {
-    id: 'darkenergy', name: 'Dark Energy Dubbel', cost: D(1e86), mult: 20,
-    flavour: 'Pushes the universe apart. Pulls the pub together.',
-    look: look('#3a1424', '#240c16', '#c9a6b8', '#a3839a', { glass: 'tulip', effect: 'void', effectColour: '#ff5ca8' }),
-  },
-  {
-    id: 'cosmicstring', name: 'Cosmic String Sour', cost: D(1e92), mult: 20,
-    flavour: 'Puckering on eleven dimensions at once.',
-    look: look('#d6e86a', '#aebf3f', '#fbffe6', '#e5ecc0', { glass: 'tulip', effect: 'shimmer', effectColour: '#f5ff9e' }),
-  },
-  {
-    id: 'heatdeath', name: 'Heat Death Helles', cost: D(1e99), mult: 22,
-    flavour: 'Served at exactly absolute zero.',
-    look: look('#f4efd6', '#d9d1ae', '#ffffff', '#eef0f4', { effect: 'shimmer', effectColour: '#e6f4ff' }),
-  },
-  {
-    id: 'schrodinger', name: "Schrödinger's Shandy", cost: D(1e106), mult: 22,
-    flavour: "Both full and empty until you look. Don't look.",
-    look: look('#f7d98b', '#dcb75e', '#ffffff', '#eae6dc', { effect: 'void', effectColour: '#7fffd4' }),
-  },
-  {
-    id: 'planck', name: 'Planck-Length Porter', cost: D(1e113), mult: 24,
-    flavour: 'The smallest possible measure. Somehow still a pint.',
-    look: look('#2a1710', '#170c07', '#e8dcc4', '#c9b89a', { foamScale: 1.3, glass: 'tankard', effect: 'sparkle', effectColour: '#ffe9c2' }),
-  },
-  {
-    id: 'paradox', name: 'Paradox Pale Ale', cost: D(1e120), mult: 24,
-    flavour: 'You drank it tomorrow. It was lovely.',
-    look: look('#f2b84b', '#d39430', '#fff8e6', '#eedfbd', { glass: 'snifter', effect: 'singularity', effectColour: '#8cf2ff' }),
-  },
-  {
-    id: 'omniverse', name: 'Omniverse Old Ale', cost: D(1e128), mult: 25,
-    flavour: 'Aged in every barrel that could ever exist.',
-    look: look('#6e2c14', '#4d1d0b', '#f0dcc4', '#d4bb9c', { glass: 'tankard', effect: 'glow', effectColour: '#ffcf8a' }),
-  },
-  {
-    id: 'eternity', name: 'Eternity Lager', cost: D(1e136), mult: 25,
-    flavour: 'Never warms up. Never goes flat. Never ends.',
-    look: look('#fff0a8', '#e8d277', '#ffffff', '#f2f2ea', { effect: 'sparkle', effectColour: '#ffffff' }),
-  },
-  {
-    id: 'finalpint', name: 'The Final Pint', cost: D(1e145), mult: 30,
-    flavour: "There's always one more.",
-    look: look('#ffd24a', '#f0ad1c', '#fffdf2', '#fbefc6', { glass: 'tankard', effect: 'singularity', effectColour: '#ffe27a' }),
+    id: 'final', name: 'The Final Pint', cost: D(1e145), mult: 150,
+    flavour: 'After all that: a perfectly ordinary, perfectly poured pint. It was this all along.',
+    look: look('#f6b93a', '#dc9a22', '#fffdf4', '#ece2c4', { foamScale: 1.1, effect: 'glow', effectColour: '#ffe27a' }),
   },
 ];
 
-// ---------- endless beers after the hand-written ones ----------
-
-/** Each generated beer costs this many times the last and multiplies everything by GENERATED_MULT. */
-export const GENERATED_COST_STEP = 1e8;
-export const GENERATED_MULT = 3;
-
-const PREFIXES = [
-  'Hyper', 'Ultra', 'Omni', 'Quantum', 'Astral', 'Celestial', 'Primordial', 'Transcendent', 'Fractal', 'Chrono',
-  'Void', 'Prism', 'Aurora', 'Zenith', 'Infinity', 'Eternal', 'Mythic', 'Radiant', 'Spectral', 'Stellar',
-  'Galactic', 'Abyssal', 'Ethereal', 'Hadron', 'Photon', 'Tachyon', 'Neutrino', 'Graviton', 'Plasma', 'Comet',
-  'Meteor', 'Solar', 'Lunar', 'Orbital', 'Nova', 'Hyperspace', 'Warp', 'Rift', 'Paradox', 'Dimensional',
-];
-// No style here names a colour: a generated beer's colour is picked separately, and a blue
-// "Brown Ale" reads as a mistake.
-const STYLES = [
-  'Stout', 'Porter', 'Bitter', 'Mild', 'Session Ale', 'IPA', 'Lager', 'Pilsner', 'Saison', 'Dubbel',
-  'Tripel', 'Quadrupel', 'Barley Wine', 'Sour', 'Gose', 'Bock', 'Doppelbock', 'Kölsch', 'Märzen', 'Helles',
-  'Wheat Beer', 'Irish Ale', 'Strong Ale', 'Old Ale', 'Scotch Ale', 'Summer Ale', 'Double IPA', 'Harvest Ale',
-  'Smoked Beer', 'Lambic',
-];
-const SUFFIXES = ['', 'Reserve', 'Grand Cru', 'Double', 'Imperial', 'Cask Edition', 'Vintage', 'Barrel-Aged'];
-const FLAVOURS = [
-  'Brewed somewhere that technically does not exist.',
-  'Tasting notes include "yes" and "more".',
-  'The landlord swears it is the last one. It is not.',
-  'Pairs well with an expanding universe.',
-  'Awarded five stars by a civilisation of stars.',
-  'Smells faintly of tomorrow.',
-  'Served in a glass made of folded time.',
-  'Nobody remembers ordering it. Everybody wants another.',
-];
-const GLASSES: GlassShape[] = ['nonic', 'tulip', 'snifter', 'tankard'];
-const EFFECTS: BeerEffect[] = ['glow', 'shimmer', 'void', 'sparkle', 'singularity'];
-
-/** Small deterministic hash so each generated beer always looks the same. */
-function hash(n: number): number {
-  let x = (n + 0x9e3779b9) | 0;
-  x = Math.imul(x ^ (x >>> 16), 0x85ebca6b);
-  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35);
-  return (x ^ (x >>> 16)) >>> 0;
-}
-
-function hsl(h: number, s: number, l: number): string {
-  const a = s * Math.min(l, 1 - l);
-  const f = (k: number) => {
-    const t = (k + h / 30) % 12;
-    const c = l - a * Math.max(-1, Math.min(t - 3, 9 - t, 1));
-    return Math.round(c * 255).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-/** Name for the n-th generated beer. Every combination is used before any repeats. */
-export function generatedBeerName(n: number): string {
-  const total = PREFIXES.length * STYLES.length * SUFFIXES.length;
-  const k = n % total;
-  // Stride through prefixes and styles so neighbouring beers don't share words.
-  const prefix = PREFIXES[(k * 7) % PREFIXES.length];
-  // 11·(k + ⌊k/40⌋) mod 30 hits every style exactly once for each prefix, so names never collide.
-  const style = STYLES[(11 * (k + Math.floor(k / PREFIXES.length))) % STYLES.length];
-  const suffix = SUFFIXES[Math.floor(k / (PREFIXES.length * STYLES.length)) % SUFFIXES.length];
-  const lap = Math.floor(n / total);
-  return [prefix, style, suffix, lap > 0 ? `Mk ${lap + 1}` : ''].filter(Boolean).join(' ');
-}
-
-function generatedBeer(n: number): Beer {
-  const h = hash(n);
-  const hue = h % 360;
-  const dark = (h >>> 9) % 4 === 0;
-  const liquid = hsl(hue, 0.7, dark ? 0.12 : 0.55);
-  return {
-    id: `gen-${n}`,
-    name: generatedBeerName(n),
-    flavour: FLAVOURS[(h >>> 12) % FLAVOURS.length],
-    cost: BEERS[BEERS.length - 1].cost.mul(Decimal.pow(GENERATED_COST_STEP, n + 1)),
-    mult: GENERATED_MULT,
-    look: look(liquid, hsl(hue, 0.7, dark ? 0.06 : 0.42), hsl(hue, 0.3, 0.95), hsl(hue, 0.25, 0.82), {
-      glass: GLASSES[(h >>> 5) % GLASSES.length],
-      effect: EFFECTS[(h >>> 7) % EFFECTS.length],
-      effectColour: hsl((hue + 40) % 360, 0.9, 0.75),
-      foamScale: dark ? 1.4 : 1,
-    }),
-  };
-}
-
-/** The beer at any index: hand-written first, then generated forever. */
+/** The beer at an index. Past the end of the list there is only The Final Pint. */
 export function beerAt(index: number): Beer {
-  return index < BEERS.length ? BEERS[index] : generatedBeer(index - BEERS.length);
+  return BEERS[Math.max(0, Math.min(index, BEERS.length - 1))];
 }
 
 /** Product of every beer's multiplier up to and including `index`. */
 export function beerMultUpTo(index: number): Decimal {
-  const hand = BEERS.slice(0, Math.min(index, BEERS.length - 1) + 1).reduce((m, b) => m * b.mult, 1);
-  const generated = Math.max(0, index - (BEERS.length - 1));
-  return D(hand).mul(Decimal.pow(GENERATED_MULT, generated));
+  return D(BEERS.slice(0, Math.min(index, BEERS.length - 1) + 1).reduce((m, b) => m * b.mult, 1));
 }

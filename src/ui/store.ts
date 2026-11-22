@@ -9,7 +9,8 @@ import {
 import { format as formatNumber, type NumberFormat } from '../core/format';
 import { D, type Decimal } from '../core/num';
 import { owned, type BuyMode, type GameState } from '../core/state';
-import { beerAt } from '../data/beers';
+import { BEERS, beerAt } from '../data/beers';
+import { tr } from '../i18n';
 import { DRINKERS } from '../data/drinkers';
 import { LOCATIONS } from '../data/locations';
 import type { Upgrade } from '../data/upgrades';
@@ -20,12 +21,13 @@ import { icon } from './glyphs';
 const format = (v: Decimal, f: NumberFormat) => formatNumber(v, f, true);
 
 const MODES: BuyMode[] = [1, 10, 100, 'max'];
-const modeLabel = (m: BuyMode) => (m === 'max' ? 'Max' : `×${m}`);
+const modeLabel = (m: BuyMode) => (m === 'max' ? tr('Max') : `×${m}`);
 type Tab = 'drinkers' | 'upgrades' | 'pubs';
 
-const GROUP_LABEL: Record<Upgrade['group'], string> = {
-  drinker: 'Drinkers', drinking: 'Drinking', synergy: 'Teamwork', pub: 'The pub', reputation: 'Reputation',
-};
+/** The label on an upgrade saying what sort it is. */
+const groupLabel = (group: Upgrade['group']): string => ({
+  drinker: tr('Drinkers'), drinking: tr('Drinking'), synergy: tr('Teamwork'), pub: tr('The pub'), reputation: tr('Reputation'),
+})[group];
 
 /** Only touch the DOM when text actually changes. */
 function textSetter() {
@@ -141,7 +143,7 @@ export class StoreView {
       root.classList.toggle('compact', on);
       root.parentElement?.classList.toggle('compact-shop', on);
       sizeButton.setAttribute('aria-pressed', String(on));
-      describe(sizeButton, on ? 'Show the full shop' : 'Shrink the shop to icons', true);
+      describe(sizeButton, on ? tr('Show the full shop') : tr('Shrink the shop to icons'), true);
       if (!on) this.hideTip();
     };
     applySize();
@@ -233,7 +235,7 @@ export class StoreView {
       this.addTip(el, () => ({
         name: text(r('.d-name')), desc: text(r('.d-flavour')), cost: el.classList.contains('mystery') ? undefined : text(r('.d-cost')),
         affordable: el.classList.contains('affordable'),
-        note: [text(r('.d-pps')), text(r('.d-owned')) && `${text(r('.d-owned'))} in the pub`].filter(Boolean).join(' · '),
+        note: [text(r('.d-pps')), text(r('.d-owned')) && tr('{n} in the pub', { n: text(r('.d-owned')) })].filter(Boolean).join(' · '),
       }));
     }
 
@@ -358,7 +360,7 @@ export class StoreView {
     const state = this.getState();
     const f = state.settings.numberFormat;
     const now = currentBeer(state);
-    this.set(this.beerNow, `Drinking: ${now.name}`);
+    this.set(this.beerNow, tr('Drinking: {beer}', { beer: now.name }));
 
     const offer = nextRound(state);
     const shown = offer ? offer.beer : beerAt(state.beer + 1);
@@ -367,6 +369,16 @@ export class StoreView {
       this.beerIconKey = iconKey;
       this.beerIconEl.replaceChildren(beerIcon(shown.look, 52));
     }
+    if (!offer && state.beer >= BEERS.length - 1) {
+      // The end of the list: nothing left to order.
+      this.beerCard.disabled = true;
+      this.beerCard.classList.remove('affordable', 'mystery');
+      this.set(this.beerName, tr('Nothing left to order'));
+      describe(this.beerCard, tr('You are drinking The Final Pint. There is nothing after it.'));
+      this.set(this.beerDesc, tr("You've drunk your way through the lot. This is the one."));
+      this.set(this.beerCost, '');
+      return;
+    }
     if (!offer) {
       // Tease the next one with when it shows up.
       const next = beerAt(state.beer + 1);
@@ -374,8 +386,8 @@ export class StoreView {
       this.beerCard.classList.remove('affordable');
       this.beerCard.classList.add('mystery');
       this.set(this.beerName, '???');
-      describe(this.beerCard, `The next beer is revealed at ${format(next.cost.mul(0.5), f)} lifetime pints.`);
-      this.set(this.beerDesc, `Revealed at ${format(next.cost.mul(0.5), f)} lifetime pints.`);
+      describe(this.beerCard, tr('The next beer is revealed at {pints} lifetime pints.', { pints: format(next.cost.mul(0.5), f) }));
+      this.set(this.beerDesc, tr('Revealed at {pints} lifetime pints.', { pints: format(next.cost.mul(0.5), f) }));
       this.set(this.beerCost, '');
       return;
     }
@@ -385,8 +397,8 @@ export class StoreView {
     this.beerCard.classList.toggle('affordable', affordable);
     setProgress(this.beerCard, state.pints, offer.cost);
     this.set(this.beerName, offer.beer.name);
-    describe(this.beerCard, `${offer.beer.name}: ${multText(offer.mult)} everything. ${format(offer.cost, f)} pints.`);
-    this.set(this.beerDesc, `${multText(offer.mult)} everything. ${offer.beer.flavour}`);
+    describe(this.beerCard, tr('{beer}: {mult} everything. {cost} pints.', { beer: offer.beer.name, mult: multText(offer.mult), cost: format(offer.cost, f) }));
+    this.set(this.beerDesc, `${tr('{mult} everything.', { mult: multText(offer.mult) })} ${offer.beer.flavour}`);
     this.set(this.beerCost, format(offer.cost, f));
   }
 
@@ -422,7 +434,7 @@ export class StoreView {
     if (!list.length) {
       const empty = document.createElement('p');
       empty.className = 'list-empty';
-      empty.textContent = 'Nothing on offer yet. Keep drinking.';
+      empty.textContent = tr('Nothing on offer yet. Keep drinking.');
       this.upgradeList.appendChild(empty);
       return;
     }
@@ -443,7 +455,7 @@ export class StoreView {
       if (u.badge) r('.u-badge').textContent = u.badge;
       r('.u-name').textContent = u.name;
       r('.u-desc').textContent = u.desc;
-      r('.u-group').textContent = GROUP_LABEL[u.group];
+      r('.u-group').textContent = groupLabel(u.group);
       b.addEventListener('click', () => {
         if (buyUpgrade(this.getState(), u.id)) this.events.onBought();
         this.update();
@@ -452,7 +464,7 @@ export class StoreView {
       this.upgradeRows.set(u.id, { el: b, cost: r('.u-cost') });
       this.addTip(b, () => ({
         name: u.name, desc: u.desc, cost: r('.u-cost').textContent ?? '', affordable: b.classList.contains('affordable'),
-        note: GROUP_LABEL[u.group],
+        note: groupLabel(u.group),
       }));
     }
   }
@@ -465,7 +477,7 @@ export class StoreView {
     const status = pubStatuses(state);
     // After a move you have to stay put for a while before moving again.
     const wait = Math.ceil(pubCooldownLeft(state));
-    const waitText = `Move in ${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, '0')}`;
+    const waitText = tr('Move in {time}', { time: `${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, '0')}` });
     let ready = 0;
     LOCATIONS.forEach((l, i) => {
       const row = this.pubRows[i];
@@ -486,12 +498,12 @@ export class StoreView {
       }
       const bonus = Math.round((pubBonus(l.id) - 1) * 100);
       this.set(row.name, mystery ? '???' : l.name);
-      this.set(row.perk, mystery ? `Word gets round at ${format(l.threshold.mul(0.1), f)} lifetime pints.` : l.perk);
-      this.set(row.bonus, mystery || !bonus ? '' : `+${bonus}% everything`);
-      this.set(row.action, st === 'here' ? "You're here" : st === 'open' ? (settling ? waitText : 'Move here') : mystery ? '' : format(l.threshold, f));
+      this.set(row.perk, mystery ? tr('Word gets round at {pints} lifetime pints.', { pints: format(l.threshold.mul(0.1), f) }) : l.perk);
+      this.set(row.bonus, mystery || !bonus ? '' : tr('+{percent}% everything', { percent: bonus }));
+      this.set(row.action, st === 'here' ? tr("You're here") : st === 'open' ? (settling ? waitText : tr('Move here')) : mystery ? '' : format(l.threshold, f));
       describe(
         row.el,
-        mystery ? 'Unknown pub' : `${l.name}. ${l.perk} ${st === 'here' ? 'You are here.' : st === 'open' ? (settling ? `${waitText}.` : 'Move here.') : `Open for ${format(l.threshold, f)} pints.`}`,
+        mystery ? tr('Unknown pub') : `${l.name}. ${l.perk} ${st === 'here' ? tr("You're here") : st === 'open' ? (settling ? waitText : tr('Move here')) : tr('Stand the house a round for {pints} pints.', { pints: format(l.threshold, f) })}`,
       );
     });
     this.set(this.pubCount, ready ? String(ready) : '');
@@ -524,13 +536,13 @@ export class StoreView {
       setProgress(row.el, state.pints, cost);
 
       this.set(row.name, mystery ? '???' : d.name);
-      this.set(row.flavour, mystery ? 'Keep drinking to find out who turns up.' : d.flavour);
+      this.set(row.flavour, mystery ? tr('Keep drinking to find out who turns up.') : d.flavour);
       this.set(row.owned, have > 0 ? format(D(have), f) : '');
-      this.set(row.cost, `${format(cost, f)}${qty > 1 ? ` for ${format(D(qty), f)}` : ''}`);
-      this.set(row.pps, mystery ? '' : `+${format(drinkerPpsEach(state, d), f)}/s each`);
+      this.set(row.cost, qty > 1 ? tr('{cost} for {n}', { cost: format(cost, f), n: format(D(qty), f) }) : format(cost, f));
+      this.set(row.pps, mystery ? '' : tr('+{pints}/s each', { pints: format(drinkerPpsEach(state, d), f) }));
       describe(
         row.el,
-        mystery ? 'Unknown drinker' : `${d.name}, owned ${have}. Buy ${qty} for ${format(cost, f)} pints.`,
+        mystery ? tr('Unknown drinker') : tr('{name}, owned {have}. Buy {n} for {cost} pints.', { name: d.name, have, n: qty, cost: format(cost, f) }),
       );
     });
   }

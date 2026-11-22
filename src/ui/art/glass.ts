@@ -4,7 +4,7 @@
  * so the caller only has to position, tilt and scale the canvas.
  */
 import type { BeerLook, GlassShape } from '../../data/beers';
-import { GLASS, LIQUID_BOTTOM, halfWidth, type Pt } from '../scene';
+import { GLASS, LIQUID_BOTTOM, halfWidth, hasHandle, type Pt } from '../scene';
 import {
   TAU, alpha, circle, clamp, ellipse, glow, hash, hgrad, lerp, mix, shade, sparkle, tint, vgrad, type Ctx,
 } from './draw';
@@ -48,6 +48,8 @@ export function drawGlassAura(ctx: Ctx, look: BeerLook, t: number) {
   const c = look.effectColour ?? '#ffffff';
   if (fx === 'glow' || fx === 'sparkle') {
     glow(ctx, 0, 2, 46 + 4 * Math.sin(t * 2.1), c, 0.34 + 0.08 * Math.sin(t * 2.1));
+  } else if (fx === 'smoke' || fx === 'sink' || fx === 'float') {
+    glow(ctx, 0, 2, 42 + 3 * Math.sin(t * 1.6), c, 0.26 + 0.06 * Math.sin(t * 1.6));
   } else if (fx === 'shimmer') {
     glow(ctx, 0, 2, 40, c, 0.2 + 0.06 * Math.sin(t * 1.3));
   } else if (fx === 'void' || fx === 'singularity') {
@@ -112,17 +114,17 @@ export function drawGlass(ctx: Ctx, g: GlassDraw) {
   ctx.fillStyle = 'rgba(214,236,246,0.13)';
   ctx.fill();
 
-  // Tankard handle sits behind the beer, on the side away from the drinker.
-  if (shape === 'tankard') {
+  // A handle sits behind the beer, on the side away from the drinker.
+  if (hasHandle(shape)) {
     const hw = halfWidth(0, shape);
     ctx.beginPath();
     ctx.moveTo(hw - 1, -17);
     ctx.bezierCurveTo(hw + 17, -19, hw + 17, 15, hw - 1, 13);
-    ctx.strokeStyle = 'rgba(226,242,250,0.5)';
+    ctx.strokeStyle = look.vessel ? shade(look.vessel, 0.25) : 'rgba(226,242,250,0.5)';
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.stroke();
-    ctx.strokeStyle = `rgba(255,255,255,${0.5 * shine})`;
+    ctx.strokeStyle = `rgba(255,255,255,${(look.vessel ? 0.3 : 0.5) * shine})`;
     ctx.lineWidth = 1.2;
     ctx.stroke();
   }
@@ -136,7 +138,8 @@ export function drawGlass(ctx: Ctx, g: GlassDraw) {
   const cs = Math.cos(g.slosh), sn = Math.sin(g.slosh);
   const dx = g.down.x * cs - g.down.y * sn, dy = g.down.x * sn + g.down.y * cs;
   const tx = dy, ty = -dx; // along the surface
-  const s = { x: 0, y: lb - g.fill * (lb - lt) };
+  // A beer with a big head is poured lower, so the head has room under the rim.
+  const s = { x: 0, y: lb - g.fill * (lb - lt) + Math.max(0, g.foam - 4) * g.fill };
   const band = (up: number, depth: number) => {
     const B = 90, ox = s.x - dx * up, oy = s.y - dy * up;
     ctx.beginPath();
@@ -146,6 +149,9 @@ export function drawGlass(ctx: Ctx, g: GlassDraw) {
     ctx.lineTo(ox + tx * B + dx * depth, oy + ty * B + dy * depth);
     ctx.closePath();
   };
+
+  // Schrödinger's: mostly there, now and then not.
+  if (fx === 'flicker') ctx.globalAlpha = hash(Math.floor(t * 6), 77) < 0.3 ? 0.12 : 0.85 + 0.15 * Math.sin(t * 31);
 
   if (g.fill > 0.002) {
     // Thin film of head left on the glass above the beer.
@@ -165,6 +171,47 @@ export function drawGlass(ctx: Ctx, g: GlassDraw) {
     }
 
     // Special beers.
+    if (fx === 'allfoam') {
+      // Mlíko: head nearly all the way down, with a finger of beer under it.
+      band(0, Math.max(0, lb - s.y - 8));
+      ctx.fillStyle = look.foam;
+      ctx.fill();
+      for (let i = 0; i < 26; i++) {
+        const x = (hash(i, 51) * 2 - 1) * 15, y = lerp(s.y, lb - 9, hash(i, 52));
+        circle(ctx, x, y, 0.8 + hash(i, 53) * 1.6, alpha(look.foamShade, 0.5));
+      }
+    }
+    if (fx === 'cascade') {
+      // A stout settling: pale streaks falling down the inside of the glass.
+      for (let i = 0; i < 16; i++) {
+        const p = (t * (0.22 + hash(i, 54) * 0.2) + hash(i, 55)) % 1;
+        const y = lerp(s.y + 1, lb, p);
+        const x = (hash(i, 56) * 2 - 1) * (halfWidth(y, shape) - 2.6);
+        ctx.fillStyle = alpha(look.foam, 0.34 * (1 - p));
+        ctx.fillRect(x, y, 0.9, 2.4 + hash(i, 57) * 3);
+      }
+    }
+    if (fx === 'shot' && g.fill > 0.3) {
+      // The shot that was dropped in, sat at the bottom and still fizzing.
+      const bx = 1.5 + Math.sin(t * 1.3) * 0.6, by = lb - 0.6;
+      ctx.beginPath();
+      ctx.moveTo(bx - 5.4, by - 12);
+      ctx.lineTo(bx + 5.4, by - 12);
+      ctx.lineTo(bx + 4, by);
+      ctx.lineTo(bx - 4, by);
+      ctx.closePath();
+      ctx.fillStyle = alpha(fxc, 0.42);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(bx - 3.8, by - 2, 7.6, 1.4);
+      for (let i = 0; i < 5; i++) {
+        const p = (t * (0.7 + hash(i, 58) * 0.5) + hash(i, 59)) % 1;
+        circle(ctx, bx + (hash(i, 60) * 2 - 1) * 4.6, by - 12 - p * 14, 0.6, alpha('#ffffff', 0.7 * (1 - p)));
+      }
+    }
     if (fx === 'shimmer') {
       const p = (t * 0.4) % 1;
       ctx.save();
@@ -190,7 +237,8 @@ export function drawGlass(ctx: Ctx, g: GlassDraw) {
     for (let i = 0; i < count; i++) {
       const b = BUBBLES[i];
       const p = (t * b.speed * (g.pouring ? 2.4 : 1) + b.offset) % 1;
-      const y = lb - p * span;
+      // Alien lager's bubbles sink.
+      const y = fx === 'sink' ? lt + p * span : lb - p * span;
       const x = b.x * (halfWidth(y, shape) - 3.5) + Math.sin(t * 3 + b.wob + p * 9) * 0.8;
       const depth = (x - s.x) * dx + (y - s.y) * dy;
       if (depth < 1.5) continue;
@@ -252,7 +300,45 @@ export function drawGlass(ctx: Ctx, g: GlassDraw) {
   ctx.fillStyle = `rgba(255,255,255,${0.5 * shine})`;
   ctx.fillRect(-halfWidth(BOT - 1, shape) + 1.5, BOT - 1.6, halfWidth(BOT - 1, shape) * 1.1, 0.8);
 
-  if (shape === 'tankard') {
+  if (look.vessel) {
+    // Not glass at all: horn, pewter or stone, with only the head showing over the top.
+    const v = look.vessel;
+    trace(ctx, shape, 0, TOP + 1.4, BOT);
+    ctx.fillStyle = hgrad(ctx, -GLASS.W / 2, GLASS.W / 2, [0, shade(v, 0.3), 0.3, v, 0.55, tint(v, 0.3), 1, shade(v, 0.38)]);
+    ctx.fill();
+    if (g.fill > 0.5 && g.foam > 0.25) {
+      // The head, standing a little proud of the rim.
+      const w = halfWidth(TOP, shape) - 1.5;
+      ctx.beginPath();
+      for (let k = -w; k <= w; k += 3.4) {
+        const r = 2.2 + hash(Math.round(k * 3), 33) * 1.4;
+        ctx.moveTo(k + r, TOP + 0.6);
+        ctx.arc(k, TOP + 0.6, r, 0, TAU);
+      }
+      ctx.fillStyle = look.foam;
+      ctx.fill();
+    }
+    if (shape === 'horn') {
+      // Brass bands round the horn, and its dark tip.
+      for (const y of [TOP + 5, TOP + 22]) {
+        ctx.fillStyle = '#c9a24a';
+        ctx.fillRect(-halfWidth(y, shape) - 0.6, y, halfWidth(y, shape) * 2 + 1.2, 3);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillRect(-halfWidth(y, shape) + 1, y + 0.5, halfWidth(y, shape) * 0.7, 0.8);
+      }
+      trace(ctx, shape, 0, BOT - 12, BOT);
+      ctx.fillStyle = '#3a2c22';
+      ctx.fill();
+    } else {
+      // Hoops, as on a barrel.
+      for (const y of [TOP + 9, BOT - 12]) {
+        ctx.fillStyle = shade(v, 0.45);
+        ctx.fillRect(-halfWidth(y, shape), y, halfWidth(y, shape) * 2, 2.6);
+      }
+    }
+  }
+
+  if (hasHandle(shape) && !look.vessel) {
     // Dimples.
     ctx.strokeStyle = 'rgba(255,255,255,0.16)';
     ctx.lineWidth = 0.7;
@@ -300,6 +386,27 @@ export function drawGlass(ctx: Ctx, g: GlassDraw) {
   ctx.stroke();
 
   // Effects in front of the glass.
+  if ((fx === 'steam' || fx === 'smoke') && g.fill > 0.05) {
+    // Wisps off the top: pale steam from something hot, or dark smoke with embers in it.
+    for (let i = 0; i < 6; i++) {
+      const p = (t * (0.16 + hash(i, 61) * 0.12) + hash(i, 62)) % 1;
+      const x = (hash(i, 63) * 2 - 1) * 8 + Math.sin(t * 1.1 + i * 2) * (3 + p * 6);
+      const y = TOP - 3 - p * 34;
+      circle(ctx, x, y, 2.6 + p * 7, alpha(fx === 'smoke' ? '#3a2a2a' : '#ffffff', (fx === 'smoke' ? 0.34 : 0.22) * arcFade(p)));
+      if (fx === 'smoke' && i % 2 === 0) glow(ctx, x, y + 3, 3, fxc, 0.8 * arcFade(p));
+    }
+  }
+  if (fx === 'float' && g.fill > 0.05) {
+    // Low gravity: blobs of it wander up out of the glass.
+    for (let i = 0; i < 6; i++) {
+      const p = (t * (0.07 + hash(i, 64) * 0.06) + hash(i, 65)) % 1;
+      const x = (hash(i, 66) * 2 - 1) * 13 + Math.sin(t * 0.8 + i * 1.7) * 3;
+      const y = TOP - 2 - p * 36;
+      const r = (2 + hash(i, 67) * 2.6) * (1 + 0.12 * Math.sin(t * 3 + i));
+      ellipse(ctx, x, y, r * 1.08, r * 0.94, alpha(look.liquid, 0.9 * arcFade(p)));
+      circle(ctx, x - r * 0.3, y - r * 0.34, r * 0.3, alpha('#ffffff', 0.8 * arcFade(p)));
+    }
+  }
   if (fx === 'singularity') ring(ctx, fxc, t, true);
   if (fx === 'sparkle' || fx === 'glow') {
     const n = fx === 'sparkle' ? 7 : 3;
@@ -316,7 +423,8 @@ export function drawGlass(ctx: Ctx, g: GlassDraw) {
 export function drawGlassIcon(ctx: Ctx, look: BeerLook, t = 0) {
   if (look.effect !== 'none') glow(ctx, 0, 2, 40, look.effectColour ?? '#fff', 0.35);
   drawGlass(ctx, {
-    look: { ...look, effect: look.effect === 'singularity' || look.effect === 'void' ? look.effect : 'none' },
+    // Keep the tricks that are part of how the drink looks standing still.
+    look: { ...look, effect: ['singularity', 'void', 'allfoam', 'shot'].includes(look.effect) ? look.effect : 'none' },
     fill: 1, foam: 5 * look.foamScale, down: { x: 0, y: 1 }, slosh: 0, t, pouring: false,
   });
 }

@@ -1,4 +1,5 @@
 import './styles/main.css';
+import './styles/theme.css';
 import { newDrinkState, stepDrink } from './core/drinking';
 import {
   availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerPpsEach, drinkTime, earn,
@@ -9,7 +10,9 @@ import {
 } from './core/events';
 import { mods } from './core/licenceState';
 import { matMult } from './core/prestige';
-import { format, pintsWord, type NumberFormat } from './core/format';
+import { format, type NumberFormat } from './core/format';
+import { LOCALES, currentLocale, localeUrl, preferredLocale, tr, trn } from './i18n';
+import { localiseData, pintsLabel } from './i18n/data';
 import { startLoop } from './core/loop';
 import { big, D, Decimal } from './core/num';
 import { deserialize, loadGame, saveGame, serialize, wipeSave } from './core/save';
@@ -29,12 +32,22 @@ import { computePose, popupAnchor, type Renderer } from './ui/scene';
 import { icon } from './ui/glyphs';
 import { Sound } from './ui/sound';
 import { StoreView } from './ui/store';
+import { SCENARIOS } from './dev/scenarios';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
+// Names, descriptions and jokes go into the page's language before anything is built from them.
+localiseData();
+
 let state = loadGame();
+// Dev: ?debug&scenario=veteran looks at a ready-made game without touching the real save.
+const previewScenario = new URLSearchParams(location.search).has('debug')
+  ? SCENARIOS.find((sc) => sc.id === new URLSearchParams(location.search).get('scenario'))
+  : undefined;
+if (previewScenario) state = previewScenario.build();
 const drink = newDrinkState(state.glassFill);
-let resetting = false;
+let resetting = !!previewScenario;
+const SKIP_TITLE = 'idleBeer.skipTitle';
 
 /** Gaps longer than this (laptop asleep, etc.) count as being away, not as live play. */
 const AWAY_THRESHOLD_SECONDS = 60;
@@ -50,7 +63,16 @@ sound.enabled = state.settings.sound;
 // ---------- toasts ----------
 
 const toastsEl = $('toasts');
+/** False while the title screen is up: nothing is said, and nothing can be pressed, until you go in. */
+let started = false;
+const heldToasts: (() => void)[] = [];
+
 function toast(emoji: string, html: string, ms = 6000) {
+  if (!started) {
+    // Anything worth saying on load ("while you were away…") waits until you're through the door.
+    heldToasts.push(() => toast(emoji, html, ms));
+    return;
+  }
   // Keep the stack short: a burst of achievements shouldn't bury the pub.
   while (toastsEl.childElementCount >= 4) toastsEl.firstElementChild?.remove();
   const el = document.createElement('div');
@@ -70,11 +92,12 @@ function toast(emoji: string, html: string, ms = 6000) {
 
 function duration(seconds: number): string {
   const m = Math.round(seconds / 60);
-  if (m < 1) return `${Math.round(seconds)} seconds`;
-  if (m < 60) return `${m} minute${m === 1 ? '' : 's'}`;
+  if (m < 1) return trn(Math.round(seconds), '{n} second', '{n} seconds');
+  if (m < 60) return trn(m, '{n} minute', '{n} minutes');
   const h = Math.floor(m / 60);
   const rest = m % 60;
-  return `${h} hour${h === 1 ? '' : 's'}${rest ? ` ${rest} min` : ''}`;
+  const hours = trn(h, '{n} hour', '{n} hours');
+  return rest ? tr('{hours} {minutes} min', { hours, minutes: rest }) : hours;
 }
 
 // ---------- achievements ----------
@@ -86,7 +109,7 @@ function announce(list: (Achievement | null)[]) {
   invalidate(); // Reputation depends on the achievement count
   sound.play('beer');
   for (const a of fresh.slice(0, 3)) toast('🏆', `<strong>${a.name}</strong>${a.desc}`, 5000);
-  if (fresh.length > 3) toast('🏆', `<strong>…and ${fresh.length - 3} more achievements</strong>`, 5000);
+  if (fresh.length > 3) toast('🏆', `<strong>${tr('…and {n} more achievements', { n: fresh.length - 3 })}</strong>`, 5000);
 }
 const grant = (id: GrantedAchievement) => announce([grantAchievement(state, id)]);
 
@@ -99,11 +122,14 @@ function creditAway(seconds: number) {
   if (gain.pints.lte(0)) return;
   earn(state, gain.pints);
   const shown = gain.pints.floor();
-  const capped = gain.seconds < seconds ? ` (they stop after ${duration(gain.seconds)} without you)` : '';
+  const amount = `<b>${format(shown, state.settings.numberFormat)}</b> ${pintsLabel(shown)}`;
   toast(
     '🌙',
-    `While you were away for ${duration(seconds)}, your drinkers sank ` +
-      `<b>${format(shown, state.settings.numberFormat)}</b> ${pintsWord(shown)}${capped}.`,
+    gain.seconds < seconds
+      ? tr('While you were away for {time}, your drinkers sank {amount} (they stop after {limit} without you).', {
+        time: duration(seconds), amount, limit: duration(gain.seconds),
+      })
+      : tr('While you were away for {time}, your drinkers sank {amount}.', { time: duration(seconds), amount }),
   );
 }
 
@@ -133,7 +159,7 @@ function showLocation(announce = false) {
   renderer.cheer(2);
   sound.play('beer');
   const bonus = Math.round((pubBonus(loc.id) - 1) * 100);
-  toast('🍻', `<strong>Welcome to ${loc.name}</strong>${loc.perk}${bonus ? ` Everything drinks ${bonus}% more here.` : ''}`);
+  toast('🍻', `<strong>${tr('Welcome to {pub}', { pub: loc.name })}</strong>${loc.perk}${bonus ? ` ${tr('Everything drinks {percent}% more here.', { percent: bonus })}` : ''}`);
 }
 showLocation();
 
@@ -146,7 +172,17 @@ function updateCrowd() {
   renderer.setCrowd(crowdOverride ?? ((id) => owned(state, id)));
   const total = DRINKERS.reduce((sum, d) => sum + owned(state, d.id), 0);
   crowdCountEl.hidden = total === 0;
-  if (total > 0) setText(crowdCountText, `${format(D(total), state.settings.numberFormat)} in the pub`);
+  if (total > 0) setText(crowdCountText, tr('{n} in the pub', { n: format(D(total), state.settings.numberFormat) }));
+}
+
+// The scene carries on underneath the shop. Tell it how much is covered, so it keeps you and
+// your pint in the middle of what can actually be seen.
+{
+  const sceneEl = $('scene'), stageEl = $('stage');
+  const cover = () => renderer.setCover?.(Math.max(0, sceneEl.clientWidth - stageEl.clientWidth));
+  new ResizeObserver(cover).observe(sceneEl);
+  new ResizeObserver(cover).observe(stageEl);
+  cover();
 }
 
 // ---------- settings ----------
@@ -155,7 +191,7 @@ const soundButton = $<HTMLButtonElement>('sound-toggle');
 function showSoundSetting() {
   soundButton.classList.toggle('muted', !state.settings.sound);
   soundButton.setAttribute('aria-pressed', String(state.settings.sound));
-  soundButton.title = state.settings.sound ? 'Sound on' : 'Sound off';
+  soundButton.title = state.settings.sound ? tr('Sound on') : tr('Sound off');
 }
 function setSound(on: boolean) {
   state.settings.sound = on;
@@ -193,7 +229,7 @@ const settings = new SettingsPanel(() => state, {
       location.reload();
       return null;
     } catch {
-      return "That doesn't look like an idle.beer save. Check you copied all of it.";
+      return tr("That doesn't look like an idle.beer save. Check you copied all of it.");
     }
   },
   hardReset,
@@ -224,7 +260,7 @@ function showFullscreen() {
   const on = isFullscreen();
   fullscreenButton.classList.toggle('muted', on); // shows the "leave" icon
   fullscreenButton.setAttribute('aria-pressed', String(on));
-  fullscreenButton.title = on ? 'Leave full screen (F)' : 'Full screen (F)';
+  fullscreenButton.title = on ? tr('Leave full screen (F)') : tr('Full screen (F)');
 }
 // Only offer it where it works (it doesn't on an iPhone: there, add the game to the home screen).
 fullscreenButton.hidden = !canFullscreen;
@@ -261,7 +297,7 @@ stage.addEventListener('contextmenu', (e) => e.preventDefault());
 
 const isSpace = (e: KeyboardEvent) => e.code === 'Space' || e.key === ' ';
 window.addEventListener('keydown', (e) => {
-  if (!isSpace(e)) return;
+  if (!isSpace(e) || !started) return;
   const tag = (e.target as HTMLElement | null)?.tagName;
   if (tag === 'SELECT' || tag === 'BUTTON' || tag === 'INPUT') return;
   e.preventDefault();
@@ -274,7 +310,7 @@ window.addEventListener('keyup', (e) => {
 
 // Shortcuts: F for full screen, M for sound, 1 / 2 / 3 for the shop's tabs.
 window.addEventListener('keydown', (e) => {
-  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || !started) return;
   const tag = (e.target as HTMLElement | null)?.tagName;
   if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA' || document.querySelector('dialog[open]')) return;
   const key = e.key.toLowerCase();
@@ -328,7 +364,7 @@ function setText(el: HTMLElement, text: string) {
 }
 
 // Say how to drink in the words that fit the device.
-hud.hint.textContent = matchMedia('(pointer: coarse)').matches ? 'Touch and hold to drink' : 'Click and hold to drink (or hold Space)';
+hud.hint.textContent = matchMedia('(pointer: coarse)').matches ? tr('Touch and hold to drink') : tr('Click and hold to drink (or hold Space)');
 
 const cycleSeconds = () => drinkCycle(drinkTime(state), refillTime(state));
 
@@ -336,7 +372,7 @@ function renderHud() {
   const f = state.settings.numberFormat;
   const shown = state.pints.floor();
   setText(hud.pints, format(shown, f));
-  setText(hud.label, pintsWord(shown));
+  setText(hud.label, pintsLabel(shown));
   setText(hud.pps, format(totalPps(state), f));
   setText(hud.perDrink, format(pintsPerDrink(state), f));
   setText(hud.drinks, format(D(state.drinks), f));
@@ -354,7 +390,7 @@ function renderHud() {
   const left = streakRemaining(streak, clock, cycleSeconds(), m.streakSlack);
   hud.streak.hidden = left <= 0;
   if (left > 0) {
-    setText(hud.streakLabel, `${streak.count} in a row · ×${streakMult(streak.count, m.streakMaxSteps ?? undefined).toFixed(2)}`);
+    setText(hud.streakLabel, tr('{n} in a row · ×{mult}', { n: streak.count, mult: streakMult(streak.count, m.streakMaxSteps ?? undefined).toFixed(2) }));
     hud.streakBar.style.width = `${(left * 100).toFixed(1)}%`;
   }
 }
@@ -406,15 +442,15 @@ const freeRound = new FreeRoundView($('free-rounds'), () => freeRoundLifetime(st
   sound.play('freeRound');
   if (outcome.kind === 'lucky') {
     earn(state, outcome.amount);
-    popup(`Lucky Round! +${format(outcome.amount.floor(), state.settings.numberFormat)}`, x, y, 'big');
-    toast('🍀', `<strong>Lucky Round!</strong>The landlord stands you ${format(outcome.amount.floor(), state.settings.numberFormat)} pints.`, 4000);
+    popup(`${tr('Lucky Round!')} +${format(outcome.amount.floor(), state.settings.numberFormat)}`, x, y, 'big');
+    toast('🍀', `<strong>${tr('Lucky Round!')}</strong>${tr('The landlord stands you {pints} pints.', { pints: format(outcome.amount.floor(), state.settings.numberFormat) })}`, 4000);
   } else {
     startBuff(state, outcome.buff);
     invalidate();
     const info = BUFFS[outcome.buff];
     const title = info.name.endsWith('!') ? info.name : `${info.name}!`;
     popup(title, x, y, 'big');
-    toast(info.icon, `<strong>${title}</strong>${info.desc} for ${Math.round(buffDuration(state, outcome.buff))} seconds.`, 4000);
+    toast(info.icon, `<strong>${title}</strong>${tr('{effect} for {seconds} seconds.', { effect: info.desc, seconds: Math.round(buffDuration(state, outcome.buff)) })}`, 4000);
   }
 });
 
@@ -433,12 +469,14 @@ const lastOrdersPanel = new LastOrdersPanel(() => state, {
     store.update();
     save();
     sound.play('freeRound');
-    toast('🔔', `<strong>Time, gentlemen, please!</strong>You banked ${format(gained, state.settings.numberFormat)} Beer Mats. A fresh night at The Red Lion awaits.`, 7000);
+    toast('🔔', `<strong>${tr('Time, gentlemen, please!')}</strong>${tr('You woke up with {mats} Beer Mats in your pockets. Back to The Red Lion.', { mats: format(gained, state.settings.numberFormat) })}`, 7000);
   },
   onLicenceBought: () => {
     sound.play('buy');
     renderHud();
+    save();
   },
+  onBackToPub: () => save(),
 });
 
 // ---------- auto-buyers (Management branch of the Licence) ----------
@@ -577,10 +615,11 @@ startLoop((elapsed, now) => {
   if (now - lastAutoBuy > 1000) {
     lastAutoBuy = now;
     autoBuy();
-    // Pints in the tab title, so you can keep an eye on the pub from another tab.
+    // Pints in the tab title, so you can keep an eye on the pub from another tab. Not until
+    // you've gone in, though: a search engine reading the page should see its proper title.
     const shown = state.pints.floor();
-    const title = `${format(shown, state.settings.numberFormat)} ${pintsWord(shown)} · idle.beer`;
-    if (document.title !== title) document.title = title;
+    const title = `${format(shown, state.settings.numberFormat)} ${pintsLabel(shown)} · idle.beer`;
+    if (started && document.title !== title) document.title = title;
   }
   if (now - lastStoreUpdate > 200) {
     lastStoreUpdate = now;
@@ -611,13 +650,43 @@ window.addEventListener('pagehide', save);
 // ---------- debug panel (?debug) ----------
 
 if (new URLSearchParams(location.search).has('debug')) {
-  const panel = $('debug');
-  panel.hidden = false;
+  const tab = $('debug-tab');
+  const panel = $<HTMLDialogElement>('debug-dialog');
+  tab.hidden = false;
+  tab.addEventListener('click', () => panel.showModal());
+  panel.querySelector('.dialog-close')!.addEventListener('click', () => panel.close());
+  panel.addEventListener('click', (e) => {
+    if (e.target === panel) panel.close();
+  });
+  // Ready-made saves: the game at particular moments.
+  for (const scenario of SCENARIOS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'debug-scenario';
+    button.innerHTML = '<b></b><span></span>';
+    button.querySelector('b')!.textContent = scenario.name;
+    button.querySelector('span')!.textContent = scenario.desc;
+    button.addEventListener('click', () => {
+      resetting = true;
+      saveGame(scenario.build());
+      // Straight back in afterwards: no need to sit through the title for a debug load.
+      sessionStorage.setItem(SKIP_TITLE, '1');
+      location.reload();
+    });
+    $('debug-scenarios').appendChild(button);
+  }
   panel.addEventListener('click', (e) => {
     const value = (e.target as HTMLElement).dataset.debug;
     if (!value) return;
     if (value === 'reset') {
       if (confirm('Wipe your save and start again?')) hardReset();
+      return;
+    }
+    panel.close();
+    if (value === 'happyhour') {
+      state.buffs = state.buffs.filter((b) => b.kind !== 'happyHour');
+      state.buffs.push({ kind: 'happyHour', remaining: 30 });
+      invalidate();
       return;
     }
     if (value === 'x1000') {
@@ -631,7 +700,7 @@ if (new URLSearchParams(location.search).has('debug')) {
       return;
     }
     if (value === 'beer') {
-      state.beer = (state.beer + 1) % (BEERS.length + 6); // includes a few generated beers
+      state.beer = (state.beer + 1) % BEERS.length;
       invalidate();
       renderer.setBeer(currentBeer(state).look, state.beer);
       return;
@@ -657,6 +726,112 @@ if (new URLSearchParams(location.search).has('debug')) {
     const amount: Decimal = value === '1e1e10' ? big(1, 1e10) : D(value);
     state.pints = amount;
     state.lifetimePints = Decimal.max(state.lifetimePints, amount);
+  });
+}
+
+// ---------- loading, then the title screen ----------
+
+/** Through the door: the title goes, the HUD and shop come in, and anything held back is said. */
+function enterPub() {
+  if (started) return;
+  started = true;
+  const title = $('title-screen');
+  title.classList.add('leaving');
+  setTimeout(() => (title.hidden = true), 700);
+  $('app').classList.remove('intro');
+  crowdOverride = null;
+  updateCrowd();
+  sound.unlock();
+  for (const say of heldToasts.splice(0)) say();
+  // Reloaded part-way through spending Beer Mats: carry on where you were.
+  lastOrdersPanel.resume();
+}
+
+{
+  // The pub behind the title is never empty: until you have a crowd of your own, the house provides one.
+  const own = DRINKERS.reduce((sum, d) => sum + owned(state, d.id), 0);
+  if (own < 12) {
+    crowdOverride = (id) => (DRINKERS.findIndex((d) => d.id === id) < 7 ? 30 : 0);
+    updateCrowd();
+  }
+  const returning = state.lifetimePints.gt(0) || state.prestiges > 0;
+  $('title-start').textContent = returning ? tr('Back to the bar') : tr('Start drinking');
+  $('title-save').textContent = returning
+    ? tr('{pints} on the bar, at {pub}.', {
+      pints: `${format(state.pints.floor(), state.settings.numberFormat)} ${pintsLabel(state.pints.floor())}`,
+      pub: LOCATION_BY_ID.get(state.pub)?.name ?? '',
+    })
+    : tr('Hold to drink. Buy a round. See where it goes.');
+  $('title-start').addEventListener('click', enterPub);
+
+  // ----- languages -----
+  // The picker (on the title and in Settings) is a list of addresses: each language is its own page.
+  const here = currentLocale();
+  const CHOSEN = 'idleBeer.lang';
+  const go = (path: string) => {
+    // Remember it was asked for, so nobody is offered their browser's language on top of it.
+    try {
+      localStorage.setItem(CHOSEN, path);
+    } catch {
+      // Private browsing: they'll just be offered again.
+    }
+    save();
+    location.href = localeUrl(LOCALES.find((l) => l.path === path) ?? LOCALES[0]) + location.search;
+  };
+  for (const select of document.querySelectorAll<HTMLSelectElement>('.language-select')) {
+    for (const l of LOCALES) select.add(new Option(l.name, l.path, l === here, l === here));
+    select.addEventListener('change', () => go(select.value));
+  }
+  // Landed on one language with a browser set to another we have: offer it, once.
+  const theirs = preferredLocale(navigator.languages ?? [navigator.language]);
+  let settled: string | null = null;
+  try {
+    settled = localStorage.getItem(CHOSEN);
+  } catch {
+    // As above.
+  }
+  if (theirs && theirs !== here && settled !== here.path) {
+    $('lang-offer-text').textContent = tr('This game also comes in {language}.', { language: theirs.name });
+    $('lang-offer-yes').textContent = tr('Play in {language}', { language: theirs.name });
+    $('lang-offer').hidden = false;
+    $('lang-offer-yes').addEventListener('click', () => go(theirs.path));
+    $('lang-offer-no').addEventListener('click', () => {
+      $('lang-offer').hidden = true;
+      try {
+        localStorage.setItem(CHOSEN, here.path);
+      } catch {
+        // As above.
+      }
+    });
+  }
+  // The number-format choices show a live sample, written the way this language writes numbers.
+  for (const option of document.querySelectorAll<HTMLOptionElement>('#number-format option')) {
+    const sample = format(D(1234567), option.value as NumberFormat);
+    option.textContent = (option.textContent ?? '').replace(/\s*[(（][^)）]*[)）]\s*$/, '') + ` (${sample})`;
+  }
+  // "reduced", after a discounted price, is written by the stylesheet.
+  document.documentElement.style.setProperty('--reduced', JSON.stringify(` ${tr('reduced')}`));
+
+  // Ready means: the save is loaded (it is, by now), the lettering has arrived, and the pub has
+  // been drawn at least twice. Never wait on any of that for more than a few seconds.
+  const frames = new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  const fonts = document.fonts?.ready ?? Promise.resolve();
+  const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+  void Promise.all([Promise.race([Promise.all([fonts, frames]), wait(4000)]), wait(500)]).then(() => {
+    const loading = $('loading');
+    loading.classList.add('done');
+    setTimeout(() => loading.remove(), 600);
+    // Looking at a ready-made game from the debug dialog: straight in, no title. Anything
+    // else, a hard reset included, starts at the front door.
+    const skip = sessionStorage.getItem(SKIP_TITLE) === '1' || !!previewScenario;
+    sessionStorage.removeItem(SKIP_TITLE);
+    if (skip) {
+      $('title-screen').hidden = true;
+      enterPub();
+      return;
+    }
+    $('title-screen').hidden = false;
+    $('title-start').focus();
   });
 }
 

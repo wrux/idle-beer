@@ -121,9 +121,9 @@ describe("Landlord's Licence", () => {
     lastOrders(s);
     expect(s.beer).toBe(7);
     s.lifetimePints = D('1e60');
-    // Kept 7 of 14 beers, so next up is the Landlord's Reserve (5e16), discounted 25% then 50%.
-    expect(nextRound(s)!.beer.id).toBe('reserve');
-    expect(nextRound(s)!.cost.toNumber()).toBeCloseTo(5e16 * 0.75 * 0.5);
+    // Kept 7 of 14 beers, so next up is the Hefeweizen (1e17), discounted 25% then 50%.
+    expect(nextRound(s)!.beer.id).toBe('hefeweizen');
+    expect(nextRound(s)!.cost.toNumber()).toBeCloseTo(1e17 * 0.75 * 0.5);
   });
 
   it('Charm stretches Free Rounds', () => {
@@ -167,6 +167,17 @@ describe("Landlord's Licence", () => {
 });
 
 describe('saves', () => {
+  it('remembers you are on the after-hours screen until you go back to the pub', () => {
+    const s = newGame(0);
+    expect(s.afterHours).toBe(false);
+    s.lifetimePints = D(1e15);
+    lastOrders(s, 0);
+    expect(s.afterHours).toBe(true);
+    expect(deserialize(serialize(s), 0).afterHours).toBe(true);
+    s.afterHours = false;
+    expect(deserialize(serialize(s), 0).afterHours).toBe(false);
+  });
+
   it('round-trip prestige state', () => {
     const s = withMats(20);
     buyLicence(s, 'charm-1');
@@ -184,7 +195,7 @@ describe('saves', () => {
   it('migrate version 1 saves', () => {
     const v1 = btoa(JSON.stringify({ version: 1, pints: '500', lifetimePints: '2e12', startedAt: 1234 }));
     const s = deserialize(v1);
-    expect(s.version).toBe(3);
+    expect(s.version).toBe(SAVE_VERSION);
     // Pubs used to follow lifetime pints: 2e12 had reached The Whole Town, so that's where you still are.
     expect(s.pub).toBe('town');
     expect(s.pubs.size).toBe(6);

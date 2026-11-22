@@ -1,4 +1,4 @@
-import { beerAt, beerMultUpTo, type Beer } from '../data/beers';
+import { BEERS, beerAt, beerMultUpTo, type Beer } from '../data/beers';
 import { DRINKERS, DRINKER_BY_ID, type Drinker } from '../data/drinkers';
 import { LOCATIONS, LOCATION_BONUS, LOCATION_BY_ID, type Location } from '../data/locations';
 import { UPGRADES, UPGRADE_BY_ID, type Upgrade } from '../data/upgrades';
@@ -248,8 +248,9 @@ export interface NextRound {
   mult: number;
 }
 
-/** The next beer for sale, or null if it isn't revealed yet. There is always a next beer. */
+/** The next beer for sale, or null if it isn't revealed yet, or you're on the last one. */
 export function nextRound(state: GameState): NextRound | null {
+  if (state.beer >= BEERS.length - 1) return null;
   const beer = beerAt(state.beer + 1);
   if (state.lifetimePints.lt(beer.cost.mul(0.5))) return null;
   const discount = mods(state).beerDiscount;

@@ -7,7 +7,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "simulate": "tsx tools/simulate.ts"
+    "simulate": "tsx tools/simulate.ts",
+    "i18n": "tsx tools/i18n-extract.ts"
   },
   "author": "Callum Bonnyman",
   "license": "ISC",

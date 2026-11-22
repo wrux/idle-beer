@@ -27,10 +27,31 @@ const PROFILES: Record<Exclude<GlassShape, 'nonic'>, [number, number][]> = {
   // Stemmed glasses: a bowl, a thin stem, then a foot.
   tulip: [[0, 0.84], [0.16, 0.78], [0.46, 1.0], [0.7, 0.84], [0.8, 0.4], [0.84, 0.1], [0.945, 0.1], [0.97, 0.56], [1, 0.62]],
   snifter: [[0, 0.6], [0.2, 0.84], [0.5, 1.08], [0.68, 0.9], [0.78, 0.42], [0.82, 0.1], [0.945, 0.1], [0.97, 0.56], [1, 0.62]],
+  // A half-pint tumbler and a Kölsch "Stange": straight-sided, the second much narrower.
+  half: [[0, 0.9], [1, 0.76]],
+  stange: [[0, 0.56], [1, 0.52]],
+  // A wheat-beer glass: wide at the top, a long waist, a small flare at the foot.
+  weizen: [[0, 0.8], [0.14, 0.9], [0.4, 0.7], [0.68, 0.52], [0.88, 0.5], [0.95, 0.64], [1, 0.68]],
+  // A chalice: a wide open bowl on a short stem.
+  goblet: [[0, 1.04], [0.26, 1.08], [0.46, 0.94], [0.58, 0.5], [0.64, 0.13], [0.93, 0.13], [0.97, 0.62], [1, 0.7]],
+  // A thistle: a flared lip, a waist, then a bulb above the stem.
+  thistle: [[0, 0.98], [0.22, 0.72], [0.44, 0.66], [0.58, 0.98], [0.7, 0.8], [0.78, 0.3], [0.82, 0.1], [0.945, 0.1], [0.97, 0.56], [1, 0.62]],
+  // A litre stein: a tankard, only more so.
+  mass: [[0, 1.08], [0.5, 1.13], [1, 1.06]],
+  // A yard: a flared mouth, a long thin neck, and a bulb at the bottom.
+  yard: [[0, 0.56], [0.07, 0.36], [0.5, 0.25], [0.72, 0.3], [0.86, 0.64], [0.94, 0.62], [1, 0.3]],
+  // A horn: wide at the mouth, down to a point.
+  horn: [[0, 0.74], [0.45, 0.56], [0.8, 0.3], [1, 0.07]],
 };
 
 /** Where the beer stops, as a fraction of the glass height: the base, or the top of the stem. */
-export const LIQUID_BOTTOM: Record<GlassShape, number> = { nonic: 0.92, tankard: 0.91, tulip: 0.79, snifter: 0.77 };
+export const LIQUID_BOTTOM: Record<GlassShape, number> = {
+  nonic: 0.92, tankard: 0.91, tulip: 0.79, snifter: 0.77, half: 0.92, stange: 0.93, weizen: 0.94, goblet: 0.62,
+  thistle: 0.77, mass: 0.92, yard: 0.98, horn: 0.97,
+};
+
+/** Glasses with a handle on the side away from the drinker. */
+export const hasHandle = (shape: GlassShape) => shape === 'tankard' || shape === 'mass';
 
 /** Outer half-width at height ly for a glass shape. */
 export function halfWidth(ly: number, shape: GlassShape = 'nonic'): number {
@@ -88,7 +109,9 @@ export const DEFAULT_LAYOUT: PoseLayout = {
 };
 /** Where on the glass the hand holds it (local coords): the widest part of the body. */
 function gripLocal(shape: GlassShape, hw: HalfWidth = halfWidth): Pt {
-  const y = shape === 'nonic' || shape === 'tankard' ? 4 : 0;
+  // Where a hand naturally goes: the body of a pint, the neck of a yard, the bowl of a goblet.
+  const GRIP: Partial<Record<GlassShape, number>> = { nonic: 4, tankard: 4, mass: 4, half: 3, yard: -6, horn: -10, goblet: -10, weizen: 6 };
+  const y = GRIP[shape] ?? 0;
   return { x: -hw(y, shape) - 1, y };
 }
 
@@ -228,6 +251,8 @@ export interface Renderer {
   project(p: Pt): Pt;
   render(pose: Pose, t: number): void;
   destroy(): void;
+  /** How many pixels of the right-hand side of the scene sit under other UI (the shop). */
+  setCover?(px: number): void;
 }
 
 /**

@@ -44,6 +44,8 @@ export interface LicenceNode {
   cost: Decimal;
   requires: string | null;
   effects: LicenceEffect[];
+  /** Where it sits in the tree, in grid squares from the middle (x right, y down; -8..8 by -4..4). */
+  at: { x: number; y: number };
 }
 
 export interface Branch {
@@ -56,7 +58,7 @@ export const BRANCHES: Branch[] = [
   { id: 'regulars', name: 'Regulars', icon: '👥' },
   { id: 'brewing', name: 'Brewing', icon: '🍺' },
   { id: 'charm', name: 'Charm', icon: '🌟' },
-  { id: 'management', name: 'Management', icon: '🗝️' },
+  { id: 'management', name: 'Favours', icon: '🗝️' },
   { id: 'technique', name: 'Technique', icon: '💪' },
   { id: 'collecting', name: 'Collecting', icon: '🟫' },
 ];
@@ -68,19 +70,19 @@ type Spec = [string, string, LicenceEffect[]];
 
 const SPECS: Record<string, Spec[]> = {
   regulars: [
-    ['Old Faithful', 'Start every run with a Regular already at the bar.', [{ kind: 'startDrinkers', drinkers: { regular: 1 } }]],
-    ['Familiar Faces', 'Start with 10 Regulars and 5 Uni Students.', [{ kind: 'startDrinkers', drinkers: { regular: 10, student: 5 } }]],
-    ['Float in the Till', 'Start every run with 1,000 pints.', [{ kind: 'startPints', pints: 1e3 }]],
-    ['The Usual Crowd', 'Start with 25 each of the first four drinkers.',
+    ['Old Faithful', 'A Regular is already at the bar every time you walk in.', [{ kind: 'startDrinkers', drinkers: { regular: 1 } }]],
+    ['Familiar Faces', 'Walk in to 10 Regulars and 5 Uni Students.', [{ kind: 'startDrinkers', drinkers: { regular: 10, student: 5 } }]],
+    ['Money Behind the Bar', 'Start every night with 1,000 pints behind the bar.', [{ kind: 'startPints', pints: 1e3 }]],
+    ['The Usual Crowd', 'Walk in to 25 each of the first four drinkers.',
       [{ kind: 'startDrinkers', drinkers: { regular: 25, student: 25, darts: 25, stag: 25 } }]],
-    ['Opening Night', 'Start every run with a million pints.', [{ kind: 'startPints', pints: 1e6 }]],
+    ['Welcome Back', 'Start every night with a million pints behind the bar.', [{ kind: 'startPints', pints: 1e6 }]],
   ],
   brewing: [
-    ['Cellar Knowledge', 'Keep the Pint of Bitter when you call Last Orders.', [{ kind: 'keepBeer', min: 1 }]],
-    ["Brewer's Friend", 'Beers are 25% cheaper.', [{ kind: 'beerDiscount', mult: 0.75 }]],
-    ['House Recipe', 'Keep beers up to Proper Real Ale.', [{ kind: 'keepBeer', min: 3 }]],
-    ['Master Brewer', 'Beers are another 50% cheaper.', [{ kind: 'beerDiscount', mult: 0.5 }]],
-    ['Family Brewery', "Keep half of the beers you'd reached.", [{ kind: 'keepHalfBeers' }]],
+    ['The Usual', 'The barman remembers: you start every night on the Pint of Bitter.', [{ kind: 'keepBeer', min: 1 }]],
+    ["Mates' Rates", 'Beers are 25% cheaper.', [{ kind: 'beerDiscount', mult: 0.75 }]],
+    ['Your Own Tankard', 'Start every night on anything up to the Nitro Stout.', [{ kind: 'keepBeer', min: 3 }]],
+    ['On the House', 'Beers are another 50% cheaper.', [{ kind: 'beerDiscount', mult: 0.5 }]],
+    ['Top Shelf', "Start every night halfway up the beers you'd reached.", [{ kind: 'keepHalfBeers' }]],
   ],
   charm: [
     ['Golden Reputation', 'Free Rounds turn up 20% more often.', [{ kind: 'freeRoundGap', mult: 0.8 }]],
@@ -90,11 +92,11 @@ const SPECS: Record<string, Spec[]> = {
     ['Happiest Hour', 'Happy Hour makes drinkers drink 10× instead of 7×.', [{ kind: 'happyHour', mult: 10 }]],
   ],
   management: [
-    ['Night Manager', 'Drinkers keep going for up to 4 hours while you are away.', [{ kind: 'offlineCap', seconds: 4 * 3600 }]],
-    ['Trusted Staff', 'Earn 75% instead of 50% while you are away.', [{ kind: 'offlineRate', rate: 0.75 }]],
-    ['Bar Back', 'Automatically buys upgrades you can afford.', [{ kind: 'auto', what: 'upgrades' }]],
-    ['Head Barman', 'Automatically buys drinkers.', [{ kind: 'auto', what: 'drinkers' }]],
-    ['Area Manager', 'Automatically buys the next beer, and drinkers keep going for 12 hours while you are away.',
+    ['Lock-In', 'Drinkers keep going for up to 4 hours while you are away.', [{ kind: 'offlineCap', seconds: 4 * 3600 }]],
+    ['Saved Seat', 'Earn 75% instead of 50% while you are away.', [{ kind: 'offlineRate', rate: 0.75 }]],
+    ['A Quiet Word', 'The staff buy upgrades for you as soon as you can afford them.', [{ kind: 'auto', what: 'upgrades' }]],
+    ['Same Again', 'The barman gets the rounds in: drinkers are bought for you.', [{ kind: 'auto', what: 'drinkers' }]],
+    ['Friends in High Places', 'Your next beer is poured without asking, and drinkers keep going for 12 hours while you are away.',
       [{ kind: 'auto', what: 'beer' }, { kind: 'offlineCap', seconds: 12 * 3600 }]],
   ],
   technique: [
@@ -102,7 +104,7 @@ const SPECS: Record<string, Spec[]> = {
     ['Second Wind', 'Your chug streak can reach +100% instead of +50%.', [{ kind: 'streakMax', steps: 20 }]],
     ['Steady Hand', 'An extra second between pints before your streak breaks.', [{ kind: 'streakSlack', seconds: 1 }]],
     ['Practised Lunch', 'Each drink earns half a second of idle production from the start.', [{ kind: 'lunch', seconds: 0.5 }]],
-    ['Iron Liver', 'Keep your drinking upgrades when you call Last Orders.', [{ kind: 'keepDrinking' }]],
+    ['Iron Liver', 'Keep your drinking upgrades when the landlord calls time.', [{ kind: 'keepDrinking' }]],
   ],
   collecting: [
     ['Coaster Collector', 'Each unspent Beer Mat gives +2% instead of +1%.', [{ kind: 'matRate', rate: 0.02 }]],
@@ -113,6 +115,20 @@ const SPECS: Record<string, Spec[]> = {
   ],
 };
 
+/**
+ * The shape of the tree. For each branch, in tier order: [x, y, tier it hangs off (0 = the middle)].
+ * Branches start as a line out from the middle and then fork, each in its own way, so a later
+ * node is not always behind the one before it.
+ */
+const SHAPE: Record<string, [number, number, number][]> = {
+  regulars: [[0, -2, 0], [0, -4, 1], [-2, -4, 2], [2, -4, 2], [4, -3, 4]],
+  brewing: [[2, 0, 0], [4, 0, 1], [6, -1, 2], [6, 1, 2], [8, -3, 3]],
+  charm: [[2, 2, 0], [4, 2, 1], [6, 3, 2], [4, 4, 2], [8, 4, 3]],
+  management: [[0, 2, 0], [0, 4, 1], [-2, 3, 2], [-4, 4, 3], [-6, 3, 4]],
+  technique: [[-2, 0, 0], [-4, 0, 1], [-6, 0, 2], [-8, -1, 3], [-8, 1, 3]],
+  collecting: [[-2, -2, 0], [-4, -2, 1], [-6, -3, 2], [-4, -4, 2], [-8, -4, 3]],
+};
+
 export const LICENCE: LicenceNode[] = BRANCHES.flatMap((b) =>
   SPECS[b.id].map(([name, desc, effects], tier) => ({
     id: `${b.id}-${tier + 1}`,
@@ -121,8 +137,9 @@ export const LICENCE: LicenceNode[] = BRANCHES.flatMap((b) =>
     name,
     desc,
     cost: D(TIER_COSTS[tier]),
-    requires: tier === 0 ? null : `${b.id}-${tier}`,
+    requires: SHAPE[b.id][tier][2] === 0 ? null : `${b.id}-${SHAPE[b.id][tier][2]}`,
     effects,
+    at: { x: SHAPE[b.id][tier][0], y: SHAPE[b.id][tier][1] },
   })),
 );
 

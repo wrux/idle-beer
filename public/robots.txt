@@ -1,0 +1,5 @@
+# idle.beer is one page: the game. Everything is welcome to read it.
+User-agent: *
+Allow: /
+
+Sitemap: https://idle.beer/sitemap.xml

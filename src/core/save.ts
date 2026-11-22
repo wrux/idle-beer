@@ -1,3 +1,4 @@
+import { BEERS } from '../data/beers';
 import { DRINKERS } from '../data/drinkers';
 import { BUFFS, type BuffKind } from './events';
 import { ACHIEVEMENT_BY_ID } from '../data/achievements';
@@ -11,6 +12,21 @@ import { newGame, SAVE_VERSION, type GameState } from './state';
 const KEY = 'idleBeer.save';
 /** Beers that existed when Brew Again was replaced by more beers. */
 const BEERS_BEFORE_BREW = 13;
+/**
+ * What each beer cost (as a power of ten) before the list was rewritten in version 4: thirty-one
+ * hand-written beers, then generated ones a hundred million times dearer each.
+ */
+const OLD_BEER_COSTS = [
+  -1, 2, 4.3, 6.3, 8.3, 10.3, 12.3, 14.3, 16.7, 20, 23, 27, 32, 37, 42, 47, 52, 57, 62, 68, 74, 80, 86, 92, 99, 106, 113, 120,
+  128, 136, 145,
+];
+/** An old beer number → the dearest beer in today's list that cost no more than it did. */
+function beerFromOldList(old: number): number {
+  const cost = old < OLD_BEER_COSTS.length ? OLD_BEER_COSTS[old] : Infinity;
+  let i = 0;
+  while (i + 1 < BEERS.length && BEERS[i + 1].cost.log10() <= cost + 0.5) i++;
+  return i;
+}
 const BACKUP_KEY = 'idleBeer.save.bak';
 /** A save we couldn't read is parked here before anything overwrites it, so it can be rescued by hand. */
 export const UNREADABLE_KEY = 'idleBeer.save.unreadable';
@@ -35,6 +51,14 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
   2: (raw) => {
     const reached = locationIndex(toDecimal(raw.lifetimePints));
     return { ...raw, version: 3, pubs: LOCATIONS.slice(0, reached + 1).map((l) => l.id), pub: LOCATIONS[reached].id };
+  },
+  // v3 → v4: the beers were rewritten (27 of them, and no more after The Final Pint). You keep
+  // a beer worth about what yours was.
+  3: (raw) => {
+    let old = Number.isInteger(raw.beer) && raw.beer > 0 ? raw.beer : 0;
+    // Before that, "Brew Again" levels had become the beers after Singularity Stout.
+    if (Number.isInteger(raw.brewAgain) && raw.brewAgain > 0) old = Math.max(old, BEERS_BEFORE_BREW - 1) + raw.brewAgain;
+    return { ...raw, version: 4, beer: beerFromOldList(old), brewAgain: 0 };
   },
 };
 
@@ -91,13 +115,11 @@ export function deserialize(text: string, now = Date.now()): GameState {
   if (Array.isArray(raw.upgrades)) {
     for (const id of raw.upgrades) if (UPGRADE_BY_ID.has(id)) s.upgrades.add(id);
   }
-  if (Number.isInteger(raw.beer) && raw.beer > 0) s.beer = raw.beer;
+  if (Number.isInteger(raw.beer) && raw.beer > 0) s.beer = Math.min(raw.beer, BEERS.length - 1);
   if (Array.isArray(raw.pubs)) for (const id of raw.pubs) if (LOCATION_BY_ID.has(id)) s.pubs.add(id);
   if (typeof raw.pub === 'string' && s.pubs.has(raw.pub)) s.pub = raw.pub;
   // Never longer than a full cooldown from now, whatever the clock has done since.
   if (Number.isFinite(raw.pubReadyAt) && raw.pubReadyAt > 0) s.pubReadyAt = Math.min(raw.pubReadyAt, now + PUB_COOLDOWN_SECONDS * 1000);
-  // Older saves had "Brew Again" levels after Singularity Stout (beer 12); they become the beers after it.
-  if (Number.isInteger(raw.brewAgain) && raw.brewAgain > 0) s.beer = Math.max(s.beer, BEERS_BEFORE_BREW - 1) + raw.brewAgain;
   if (['short', 'scientific', 'engineering'].includes(raw.settings?.numberFormat)) {
     s.settings.numberFormat = raw.settings.numberFormat;
   }
@@ -123,6 +145,7 @@ export function deserialize(text: string, now = Date.now()): GameState {
     for (const id of raw.licence) if (LICENCE_BY_ID.has(id)) s.licence.add(id);
   }
   if (Number.isInteger(raw.prestiges) && raw.prestiges > 0) s.prestiges = raw.prestiges;
+  s.afterHours = raw.afterHours === true;
   s.kegs = toDecimal(raw.kegs);
   s.runStartedAt = Number.isFinite(raw.runStartedAt) ? raw.runStartedAt : s.startedAt;
   for (const k of ['upgrades', 'drinkers', 'beer'] as const) {

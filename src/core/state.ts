@@ -3,7 +3,7 @@ import type { Buff } from './events';
 import type { NumberFormat } from './format';
 import type { AutoBuy } from '../data/licence';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export type BuyMode = 1 | 10 | 100 | 'max';
 
@@ -25,7 +25,7 @@ export interface GameState {
   drinkers: Record<string, number>;
   /** Upgrade ids bought this run. */
   upgrades: Set<string>;
-  /** Index of the beer you're drinking (see beerAt: hand-written first, then generated forever). */
+  /** Index of the beer you're drinking, in data/beers. */
   beer: number;
   /** Pubs opened this run (ids from data/locations). The Red Lion is always open. */
   pubs: Set<string>;
@@ -55,6 +55,8 @@ export interface GameState {
   licence: Set<string>;
   /** Times you've called Last Orders. */
   prestiges: number;
+  /** The bell has rung and you haven't gone back to the pub yet: you're on the Licence screen. */
+  afterHours: boolean;
   /** Reserved for the second prestige layer (Brewery Empire). */
   kegs: Decimal;
   /** When this run started. */
@@ -97,6 +99,7 @@ export function newGame(now = Date.now()): GameState {
     matsEarned: D(0),
     licence: new Set(),
     prestiges: 0,
+    afterHours: false,
     kegs: D(0),
     runStartedAt: now,
     debugPerDrinkMult: D(1),

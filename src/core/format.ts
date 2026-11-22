@@ -24,16 +24,44 @@ const PLAIN_LIMIT = 1e6;
 /** Once the exponent itself is this big, show "e1.23e9". */
 const HUGE_EXPONENT = 1e6;
 
-// One shared formatter: toLocaleString() builds a new one on every call, which is ~25× slower.
-const GROUPED = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
+// Shared formatters: toLocaleString() builds a new one on every call, which is ~25× slower.
+// They follow the language the game is being played in (see setNumberLocale).
+let lang = 'en-GB';
+let english = true;
+let GROUPED = new Intl.NumberFormat(lang, { maximumFractionDigits: 0 });
+let SMALL = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
+let FIXED: Intl.NumberFormat[] = [];
+let COMPACT: Intl.NumberFormat | null = null;
+let COMPACT_TIDY: Intl.NumberFormat | null = null;
 const grouped = (n: number) => GROUPED.format(Math.floor(n));
+/** A number to exactly `places` decimals, with the language's own decimal mark. */
+const fixed = (n: number, places: number) =>
+  (FIXED[places] ??= new Intl.NumberFormat(lang, { minimumFractionDigits: places, maximumFractionDigits: places, useGrouping: false })).format(n);
+
+/**
+ * Show numbers the way a language writes them: its digit grouping and decimal mark, and its own
+ * words for big numbers ("1,234 Millionen", "123.4万"). English keeps its longer list of names
+ * (up to decillion); other languages use what Intl knows, which runs out around a quadrillion,
+ * and scientific notation after that.
+ */
+export function setNumberLocale(tag: string): void {
+  lang = tag;
+  english = tag.toLowerCase().startsWith('en');
+  GROUPED = new Intl.NumberFormat(lang, { maximumFractionDigits: 0 });
+  SMALL = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
+  FIXED = [];
+  COMPACT = english ? null : new Intl.NumberFormat(lang, { notation: 'compact', compactDisplay: 'long', minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  COMPACT_TIDY = english ? null : new Intl.NumberFormat(lang, { notation: 'compact', compactDisplay: 'long', maximumFractionDigits: 3 });
+}
+
+/** How far Intl's own big-number words go before it starts writing "1000 trillion". */
+const COMPACT_LIMIT = 1e15;
 
 function formatSmall(n: number): string {
   if (n >= 1000) return grouped(n);
-  if (Number.isInteger(n)) return String(n);
+  if (Number.isInteger(n)) return english ? String(n) : GROUPED.format(n);
   // 0.1 / 12.5 style: one decimal, dropped when it rounds to .0
-  const s = n.toFixed(1);
-  return s.endsWith('.0') ? s.slice(0, -2) : s;
+  return SMALL.format(n);
 }
 
 /** Round mantissa m (with exponent e) to `places`, carrying into the exponent on overflow. */
@@ -52,7 +80,7 @@ function formatExponent(e: number): string {
   // e is a plain JS number (break_infinity caps it at 9e15)
   const x = Math.floor(Math.log10(e));
   const [m, x2] = roundCarry(e / Math.pow(10, x), x, 2, 1);
-  return `${m.toFixed(2)}e${x2}`;
+  return `${fixed(m, 2)}e${x2}`;
 }
 
 /**
@@ -74,7 +102,13 @@ export function format(value: Decimal, fmt: NumberFormat = 'short', tidy = false
   // Exponent so large the mantissa is meaningless: just show the order of magnitude.
   if (e >= HUGE_EXPONENT) return 'e' + formatExponent(e);
 
-  if (fmt === 'short') {
+  if (fmt === 'short' && COMPACT) {
+    // Another language's own words for it, as far as they go; then scientific below.
+    if (e < 15) {
+      const n = value.toNumber();
+      if (n < COMPACT_LIMIT) return (tidy ? COMPACT_TIDY! : COMPACT).format(n);
+    }
+  } else if (fmt === 'short') {
     const group = Math.floor(e / 3);
     const scaled = m * Math.pow(10, e - group * 3);
     const [r, e2] = roundCarry(scaled, group * 3, 3, 3);
@@ -86,11 +120,11 @@ export function format(value: Decimal, fmt: NumberFormat = 'short', tidy = false
   if (fmt === 'engineering') {
     const e3 = Math.floor(e / 3) * 3;
     const [r, e2] = roundCarry(m * Math.pow(10, e - e3), e3, 2, 3);
-    return `${r.toFixed(2)}e${formatExponent(e2)}`;
+    return `${fixed(r, 2)}e${formatExponent(e2)}`;
   }
 
   const [r, e2] = roundCarry(m, e, 2, 1);
-  return `${r.toFixed(2)}e${formatExponent(e2)}`;
+  return `${fixed(r, 2)}e${formatExponent(e2)}`;
 }
 
 /** "1 pint" / "2 pints" / "1.234 million pints". */

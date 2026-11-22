@@ -1,4 +1,6 @@
 /** The golden "Free Round!" pint that drifts across the pub. Position is driven by game time. */
+import { tr } from '../i18n';
+
 
 const GOLDEN_PINT = `
 <svg viewBox="-20 -26 40 52" aria-hidden="true">
@@ -41,8 +43,8 @@ export class FreeRoundView {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'free-round';
-    b.setAttribute('aria-label', 'Free Round! Click to claim');
-    b.innerHTML = GOLDEN_PINT + '<span class="free-round-label">Free Round!</span>';
+    b.setAttribute('aria-label', tr('Free Round! Click to claim'));
+    b.innerHTML = GOLDEN_PINT + `<span class="free-round-label">${tr('Free Round!')}</span>`;
     // Don't let the click also start drinking on the stage underneath.
     b.addEventListener('pointerdown', (e) => e.stopPropagation());
     b.addEventListener('click', (e) => {

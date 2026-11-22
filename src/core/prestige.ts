@@ -54,6 +54,8 @@ export function lastOrders(s: GameState, now = Date.now()): Decimal {
   s.matsEarned = s.matsEarned.add(gained);
   s.beerMats = s.beerMats.add(gained);
   s.prestiges++;
+  // You stay on the Licence screen until you choose to go back to the pub, even across a reload.
+  s.afterHours = true;
 
   // Everything that belongs to a single run starts again.
   const fresh = newGame(now);

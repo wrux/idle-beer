@@ -9,7 +9,7 @@ import { lastOrders } from '../src/core/prestige';
 import { D } from '../src/core/num';
 import { deserialize, serialize } from '../src/core/save';
 import { newGame, type GameState } from '../src/core/state';
-import { BEERS, beerAt, generatedBeerName } from '../src/data/beers';
+import { BEERS, beerAt } from '../src/data/beers';
 import { DRINKERS, DRINKER_BY_ID } from '../src/data/drinkers';
 import { LOCATIONS } from '../src/data/locations';
 import { UPGRADES } from '../src/data/upgrades';
@@ -112,7 +112,7 @@ describe('beers', () => {
     const s = rich();
     s.drinkers = { student: 1 };
     invalidate();
-    expect(currentBeer(s).id).toBe('lager');
+    expect(currentBeer(s).id).toBe('shandy');
     expect(buyNextRound(s)).toBe(true);
     expect(currentBeer(s).id).toBe('bitter');
     expect(totalPps(s).toNumber()).toBeCloseTo(1.5 * loc(s));
@@ -127,23 +127,24 @@ describe('beers', () => {
     expect(nextRound(s)?.beer.id).toBe('bitter');
   });
 
-  it('carry on forever after the hand-written ones, each with its own name', () => {
+  it('end at The Final Pint: there is nothing after it to buy', () => {
     const s = rich();
     s.pints = D('1e9000');
     s.lifetimePints = D('1e9000');
-    for (let i = 1; i < BEERS.length + 5; i++) expect(buyNextRound(s)).toBe(true);
-    expect(currentBeer(s).id).toBe('gen-4');
+    for (let i = 1; i < BEERS.length; i++) expect(buyNextRound(s)).toBe(true);
+    expect(currentBeer(s).id).toBe('final');
+    expect(nextRound(s)).toBeNull();
     const before = globalMult(s);
-    expect(buyNextRound(s)).toBe(true);
-    expect(globalMult(s).div(before).toNumber()).toBeCloseTo(3);
+    expect(buyNextRound(s)).toBe(false);
+    expect(globalMult(s).eq(before)).toBe(true);
+    expect(beerAt(BEERS.length + 42)).toBe(BEERS[BEERS.length - 1]);
   });
 
-  it('generated beers get unique names and always look the same', () => {
-    const names = new Set<string>();
-    for (let n = 0; n < 9600; n++) names.add(generatedBeerName(n));
-    expect(names.size).toBe(9600);
-    expect(beerAt(BEERS.length + 42)).toEqual(beerAt(BEERS.length + 42));
-    expect(beerAt(BEERS.length + 42).cost.gt(beerAt(BEERS.length + 41).cost)).toBe(true);
+  it('every beer has a name and a look of its own', () => {
+    expect(new Set(BEERS.map((b) => b.id)).size).toBe(BEERS.length);
+    expect(new Set(BEERS.map((b) => b.name)).size).toBe(BEERS.length);
+    const looks = BEERS.map((b) => `${b.look.glass}|${b.look.effect}|${b.look.liquid}|${b.look.vessel ?? ''}|${b.look.size ?? 1}`);
+    expect(new Set(looks).size).toBe(BEERS.length);
   });
 
   it('every hand-written beer costs more than the last', () => {
@@ -255,9 +256,15 @@ describe('saving upgrades and beers', () => {
     expect(s.beer).toBe(0);
   });
 
-  it('turns old Brew Again levels into the beers after Singularity Stout', () => {
-    const s = deserialize(btoa(JSON.stringify({ version: 1, beer: 12, brewAgain: 3 })));
-    expect(s.beer).toBe(15);
-    expect(beerAt(s.beer).name).toBe('Nebula Hazy IPA'); // 12 + 3: Quasar, Pulsar, Nebula
+  it('gives an old save a beer worth about what its old one was', () => {
+    // Old beer 6 was the Craft Double IPA at 2e12: the same price as today's Hladinka.
+    expect(beerAt(deserialize(btoa(JSON.stringify({ version: 3, beer: 6 }))).beer).id).toBe('hladinka');
+    // "Brew Again" levels from the very first saves counted as beers after number 12 (so 15, at 1e47).
+    expect(beerAt(deserialize(btoa(JSON.stringify({ version: 1, beer: 12, brewAgain: 3 }))).beer).id).toBe('yard');
+    // Anything past the old end of the list, generated beers included, is The Final Pint.
+    expect(beerAt(deserialize(btoa(JSON.stringify({ version: 3, beer: 30 }))).beer).id).toBe('final');
+    expect(beerAt(deserialize(btoa(JSON.stringify({ version: 3, beer: 5000 }))).beer).id).toBe('final');
+    // A save already on the new list is left alone.
+    expect(deserialize(btoa(JSON.stringify({ version: 4, beer: 6 }))).beer).toBe(6);
   });
 });

@@ -110,6 +110,18 @@ count badge after a few, so the scene never fills up with thousands of sprites).
 
 ## 4. Beers (the "better beers" line)
 
+> **As built now.** There are 27 beers and no generated ones: the list ends at The Final Pint.
+> They run from pub beers (Half of Shandy, Pint of Bitter, Mild, Nitro Stout, Hazy IPA) through
+> beers from abroad (Kölsch, Hladinka, Mlíko, Hefeweizen, Maß, Tripel, Scotch Heavy, Winter
+> Warmer, Somaek, Sake Bomb, Yard of Ale) to ones from nowhere (Viking Mead, Grog, Dwarven Stout,
+> Fairy Cider, Dragon's Breath, Moon Mead, Alien Lager, Dark Matter Porter, Schrödinger's Pint,
+> Singularity Stout). Each has its own glass (twelve shapes, three of them opaque: horn, pewter,
+> stone), size, or trick (a settling cascade, a glass of foam, a sunk shot, steam, smoke, floating
+> blobs, sinking bubbles, flickering in and out). Costs follow the same ladder as before and the
+> multipliers were re-spread so the total is about what the old 31 gave. Save version 4 maps an old
+> beer to the dearest new one that cost no more. `/beers.html` shows them all. The table below is
+> the original plan.
+
 Beers are a tiered upgrade line that changes the pint in your hand (glass shape, colour,
 foam) and applies a **global multiplier** to everything. They're bought in order, once each,
 and each one appears in the store when lifetime pints reach half its price. (Prices were
@@ -166,6 +178,13 @@ not written one by one.
 
 ## 6. Prestige: "Last Orders"
 
+> **Whose side of the bar.** You are the regular, not the landlord, and the wording says so
+> throughout. The landlord calls Last Orders; your button is "Drink up". You black out, and "the
+> morning after" you find Beer Mats in your pockets and spend them on being a **Local Legend** (the
+> tree that used to be the Landlord's Licence, and is still `licence` in the code). Its auto-buyers
+> are favours from the staff, pubs are places you get known by standing the house a round, and
+> drinkers are people you get a round in for. Below, "ring the bell" and "Licence" are the old names.
+
 When the bell rings you can call **Last Orders**: reset pints, drinkers and non-permanent
 upgrades in exchange for **Beer Mats**.
 
@@ -177,6 +196,16 @@ upgrades in exchange for **Beer Mats**.
   start with a free Regular, keep beer tier on reset, longer offline progress, more Free
   Round events, auto-buyers, "Down in One" from the start, and so on.
   Spending is a trade-off against the passive bonus.
+
+**The Licence is a tree.** Its 30 nodes sit on a grid round a hub: each branch starts as a line out
+from the middle and then forks in its own way (`SHAPE` in `data/licence.ts`), so a node's
+prerequisite is not always the tier before it. You only see nodes you own, nodes you can buy,
+and a "?" for whatever each of those would open; buying one reveals the next.
+
+**Ringing the bell** asks first, in a dialog that says what you lose and what you bank. On yes, a
+room starts to swim, your eyelids droop and you black out (`ui/blackout.ts`); the reset happens
+in the dark, and you come round on an "After hours" screen with nothing but the tree. A button takes you back
+to the pub.
 
 **As built (Phase 6):** the Licence has six branches of five nodes (Regulars, Brewing, Charm,
 Management, Technique, Collecting). Each node needs the one before it in its branch and costs
@@ -294,8 +323,11 @@ often and last longer.
 5. **Avoid per-frame allocations.** Reuse `Decimal` instances in the hot tick path where
    possible. break_infinity supports in-place style operations.
 6. **Saves store Decimals as strings** (`"1.234e5678"`), never as JSON numbers.
-7. **A stress-test mode** (`?debug`) sets pints to `1e1000`, `1e100000` and `1e1e10`
-   so we can check formatting, buying and saving at extreme values.
+7. **A debug mode** (`?debug`) adds a tab on the edge of the screen that opens a dialog. It can
+   load ready-made games (`src/dev/scenarios.ts`: brand new, an hour in, ready for the first Last
+   Orders, twenty-four Last Orders later, the end of everything), set pints to `1e1000`,
+   `1e100000` and `1e1e10` to check formatting, buying and saving at extreme values, and trigger
+   a Free Round or Happy Hour.
 
 ### 8.3 Key formulas
 

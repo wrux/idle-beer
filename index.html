@@ -3,23 +3,306 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>idle.beer</title>
+    <title>idle.beer: the pub that never calls time</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Baloo+2:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <meta name="description" content="A UK pub incremental game. Hold to drink." />
-    <meta name="theme-color" content="#120b08" />
+    <meta
+      name="description"
+      content="A free idle game set in a British pub. Hold to drink, buy a round, fill the bar with regulars, and drink your way from The Red Lion to the edge of the multiverse. No download, no sign-up."
+    />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://idle.beer/" />
+    <meta name="author" content="wrux.com" />
+    <meta name="application-name" content="idle.beer" />
+    <meta name="theme-color" content="#1c2321" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- How a shared link looks: Facebook, WhatsApp, iMessage, Slack, Discord, LinkedIn and the rest read these. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="idle.beer" />
+    <meta property="og:url" content="https://idle.beer/" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:title" content="idle.beer: the pub that never calls time" />
+    <meta
+      property="og:description"
+      content="A free idle game set in a British pub. Hold to drink, buy a round, and see how far one pint can go. Plays in your browser."
+    />
+    <meta property="og:image" content="https://idle.beer/og.jpg" />
+    <meta property="og:image:secure_url" content="https://idle.beer/og.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="An old regular in a flat cap at the bar of The Red Lion with a pint, beside a chalkboard reading idle.beer: the pub that never calls time." />
+
+    <!-- X / Twitter uses its own names for the same things. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="idle.beer: the pub that never calls time" />
+    <meta
+      name="twitter:description"
+      content="A free idle game set in a British pub. Hold to drink, buy a round, and see how far one pint can go."
+    />
+    <meta name="twitter:image" content="https://idle.beer/og.jpg" />
+    <meta name="twitter:image:alt" content="An old regular in a flat cap at the bar of The Red Lion with a pint, beside a chalkboard reading idle.beer." />
+
+    <!-- For search engines: what this is, in a form they can read without running the game. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://idle.beer/#maker",
+            "name": "wrux",
+            "url": "https://wrux.com",
+            "sameAs": [
+              "https://www.instagram.com/etocallum",
+              "https://github.com/wrux"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://idle.beer/#site",
+            "name": "idle.beer",
+            "alternateName": "Idle Beer",
+            "url": "https://idle.beer/",
+            "description": "A free idle game set in a British pub. Hold to drink, buy a round, and see how far one pint can go. Plays in your browser.",
+            "inLanguage": [
+              "en-GB",
+              "fr",
+              "de",
+              "nl",
+              "cs",
+              "pl",
+              "it",
+              "es",
+              "pt",
+              "ja",
+              "zh-Hans",
+              "ko",
+              "ru",
+              "da",
+              "nb",
+              "sv"
+            ],
+            "publisher": {
+              "@id": "https://idle.beer/#maker"
+            }
+          },
+          {
+            "@type": "ImageObject",
+            "@id": "https://idle.beer/#share-image",
+            "url": "https://idle.beer/og.jpg",
+            "contentUrl": "https://idle.beer/og.jpg",
+            "width": 1200,
+            "height": 630,
+            "caption": "An old regular in a flat cap at the bar of The Red Lion with a pint, beside a chalkboard reading idle.beer: the pub that never calls time."
+          },
+          {
+            "@type": "WebPage",
+            "@id": "https://idle.beer/#page",
+            "url": "https://idle.beer/",
+            "name": "idle.beer: the pub that never calls time",
+            "description": "A free idle game set in a British pub. Hold to drink, buy a round, fill the bar with regulars, and drink your way from The Red Lion to the edge of the multiverse. No download, no sign-up.",
+            "inLanguage": "en-GB",
+            "isPartOf": {
+              "@id": "https://idle.beer/#site"
+            },
+            "about": {
+              "@id": "https://idle.beer/#game"
+            },
+            "mainEntity": {
+              "@id": "https://idle.beer/#game"
+            },
+            "primaryImageOfPage": {
+              "@id": "https://idle.beer/#share-image"
+            }
+          },
+          {
+            "@type": [
+              "VideoGame",
+              "WebApplication"
+            ],
+            "@id": "https://idle.beer/#game",
+            "name": "idle.beer",
+            "alternateName": "Idle Beer",
+            "url": "https://idle.beer/",
+            "description": "A free idle game set in a British pub. Hold to drink, buy a round, fill the bar with regulars, and drink your way from The Red Lion to the edge of the multiverse.",
+            "image": [
+              "https://idle.beer/og.jpg",
+              "https://idle.beer/og-square.jpg",
+              "https://idle.beer/icon-512.png"
+            ],
+            "screenshot": {
+              "@id": "https://idle.beer/#share-image"
+            },
+            "genre": [
+              "Idle game",
+              "Incremental game",
+              "Clicker game",
+              "Casual game"
+            ],
+            "keywords": "idle game, incremental game, clicker game, pub game, beer game, browser game, free game",
+            "gamePlatform": [
+              "Web browser",
+              "Desktop browser",
+              "Mobile browser"
+            ],
+            "applicationCategory": "GameApplication",
+            "applicationSubCategory": "Idle game",
+            "operatingSystem": "Any",
+            "browserRequirements": "Requires JavaScript and a browser with canvas support",
+            "playMode": "SinglePlayer",
+            "numberOfPlayers": {
+              "@type": "QuantitativeValue",
+              "value": 1
+            },
+            "inLanguage": [
+              "en-GB",
+              "fr",
+              "de",
+              "nl",
+              "cs",
+              "pl",
+              "it",
+              "es",
+              "pt",
+              "ja",
+              "zh-Hans",
+              "ko",
+              "ru",
+              "da",
+              "nb",
+              "sv"
+            ],
+            "isAccessibleForFree": true,
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "GBP",
+              "availability": "https://schema.org/InStock",
+              "url": "https://idle.beer/"
+            },
+            "author": {
+              "@id": "https://idle.beer/#maker"
+            },
+            "publisher": {
+              "@id": "https://idle.beer/#maker"
+            },
+            "creator": {
+              "@id": "https://idle.beer/#maker"
+            },
+            "isPartOf": {
+              "@id": "https://idle.beer/#site"
+            },
+            "mainEntityOfPage": {
+              "@id": "https://idle.beer/#page"
+            },
+            "gameLocation": {
+              "@type": "Place",
+              "name": "The Red Lion, a British pub"
+            },
+            "characterAttribute": {
+              "@type": "Thing",
+              "name": "A pub regular in a flat cap"
+            },
+            "gameItem": [
+              {
+                "@type": "Thing",
+                "name": "Pint of Bitter"
+              },
+              {
+                "@type": "Thing",
+                "name": "Beer Mats"
+              },
+              {
+                "@type": "Thing",
+                "name": "Free Round"
+              },
+              {
+                "@type": "Thing",
+                "name": "Yard of Ale"
+              },
+              {
+                "@type": "Thing",
+                "name": "German Maß"
+              }
+            ],
+            "quest": {
+              "@type": "Thing",
+              "name": "Drink your way from The Red Lion to the edge of the multiverse"
+            }
+          }
+        ]
+      }
+    </script>
     <!-- Installed to a home screen, the game runs full screen (the only way to get that on an iPhone). -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="idle.beer" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
+    <style>
+      /* The loading screen is styled here so it shows before the rest of the game arrives. */
+      .loading {
+        position: fixed;
+        inset: 0;
+        z-index: 300;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 18px;
+        /* The same chalkboard, in its frame, as the rest of the game. */
+        background:
+          radial-gradient(ellipse at 18% 0%, rgba(255, 255, 255, 0.06), transparent 52%),
+          linear-gradient(#232c29, #1a211f);
+        box-shadow: inset 0 0 0 1px #2a180b, inset 0 0 0 9px #63401f, inset 0 0 0 10px #8f6235, inset 0 0 0 11px #0c0805,
+          inset 0 0 90px rgba(0, 0, 0, 0.5);
+        color: rgba(243, 239, 228, 0.7);
+        font: 600 15px system-ui, sans-serif;
+        letter-spacing: 0.04em;
+        transition: opacity 0.45s ease;
+      }
+      .loading.done {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .loading-glass {
+        width: 62px;
+        height: 86px;
+        overflow: visible;
+      }
+      .loading-glass .lg-rim {
+        fill: rgba(243, 239, 228, 0.06);
+        stroke: #f3efe4;
+        stroke-width: 3;
+        stroke-linejoin: round;
+      }
+      .loading-glass .lg-beer {
+        fill: #f2b23c;
+      }
+      .loading-glass .lg-head {
+        fill: #f8f3e6;
+      }
+      /* The beer and its head rise together inside the glass, then it starts again. */
+      .loading-glass .lg-liquid {
+        animation: loading-pour 1.7s cubic-bezier(0.3, 0, 0.3, 1) infinite;
+      }
+      @keyframes loading-pour {
+        0% { transform: translateY(80px); }
+        75%, 100% { transform: translateY(12px); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .loading-glass .lg-liquid { animation: none; transform: translateY(22px); }
+      }
+    </style>
   </head>
   <body>
     <svg width="0" height="0" style="position: absolute" aria-hidden="true">
@@ -39,33 +322,76 @@
         <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1 4 5 5.500 5 10.500a5 5 0 0 1-10 0c0-2 1-3.500 2-4.500 0 1.500.800 2.500 1.500 3 0-3.500.500-6.500 1.500-9Z" fill="currentColor" stroke="none"/></symbol>
       </defs>
     </svg>
-    <div id="app">
+    <noscript>
+      <div style="max-width: 34rem; margin: 20vh auto; padding: 0 1.5rem; font: 16px/1.5 system-ui, sans-serif; color: #f3efe4">
+        <h1 data-i18n>idle.beer</h1>
+        <p>
+          A free idle game set in a British pub. Hold to drink, buy a round, fill the bar with regulars, and drink your
+          way from The Red Lion to the edge of the multiverse.
+        </p>
+        <p data-i18n>The game needs JavaScript to run. Turn it on and reload to start drinking.</p>
+      </div>
+    </noscript>
+    <div class="loading" id="loading" role="status">
+      <svg class="loading-glass" viewBox="0 0 60 84" aria-hidden="true">
+        <defs>
+          <clipPath id="loading-glass-inside"><path d="M9.500 6h41l-5.200 69.600a4.500 4.500 0 0 1-4.500 4.200H19.200a4.500 4.500 0 0 1-4.500-4.200Z" /></clipPath>
+        </defs>
+        <g clip-path="url(#loading-glass-inside)">
+          <g class="lg-liquid">
+            <rect class="lg-beer" x="0" y="0" width="60" height="90" />
+            <rect class="lg-head" x="0" y="0" width="60" height="9" />
+          </g>
+        </g>
+        <path class="lg-rim" d="M7 4h46l-5.500 72a6 6 0 0 1-6 5.500H18.500a6 6 0 0 1-6-5.500Z" />
+      </svg>
+      <span data-i18n>Pulling a pint…</span>
+    </div>
+    <div class="title-screen" id="title-screen" hidden>
+      <div class="title-card">
+        <h1 class="title-logo">idle<span>.</span>beer</h1>
+        <p class="title-tag" data-i18n>One pub. One pint. No closing time.</p>
+        <button type="button" id="title-start" class="ring-bell title-start" data-i18n>Start drinking</button>
+        <p class="title-save" id="title-save"></p>
+      </div>
+      <div class="lang-offer" id="lang-offer" hidden>
+        <span id="lang-offer-text"></span>
+        <button type="button" id="lang-offer-yes" class="ring-bell"></button>
+        <button type="button" id="lang-offer-no" class="confirm-cancel" data-i18n>No thanks</button>
+      </div>
+      <label class="title-language">
+        <span data-i18n>Language</span>
+        <select id="title-language" class="language-select"></select>
+      </label>
+      <p class="title-credit" data-i18n>A pub game by wrux.com</p>
+    </div>
+    <div id="app" class="intro">
       <div class="layout">
-        <main class="stage" id="stage" tabindex="0" aria-label="Your pint. Hold to drink, or hold Space.">
+        <main class="stage" id="stage" tabindex="0" aria-label="Your pint. Hold to drink, or hold Space." data-i18n-attr="aria-label">
           <div class="scene" id="scene"></div>
 
           <header class="hud-top">
             <div class="counter">
               <div class="counter-main">
                 <div class="pints" id="pints">0</div>
-                <div class="pints-label" id="pints-label">pints</div>
+                <div class="pints-label" id="pints-label" data-i18n>pints</div>
               </div>
-              <div class="pps"><b id="pps">0</b> per second</div>
-              <div class="mats" id="mats" hidden><i class="mat-ico" aria-hidden="true"></i><b id="mats-count">0</b> Beer Mats · <span id="mats-bonus"></span></div>
+              <div class="pps"><b id="pps">0</b> <span data-i18n>per second</span></div>
+              <div class="mats" id="mats" hidden><i class="mat-ico" aria-hidden="true"></i><b id="mats-count">0</b> <span data-i18n>Beer Mats</span> · <span id="mats-bonus"></span></div>
             </div>
             <div class="topbar-actions">
-              <button type="button" id="open-last-orders" class="last-orders-button with-badge" aria-label="Last Orders" hidden>
-                <svg class="ico"><use href="#i-bell" /></svg><span class="lo-text">Last Orders</span><span class="badge" id="last-orders-badge" hidden></span>
+              <button type="button" id="open-last-orders" class="last-orders-button with-badge" aria-label="Last Orders" hidden data-i18n-attr="aria-label">
+                <svg class="ico"><use href="#i-bell" /></svg><span class="lo-text" data-i18n>Last Orders</span><span class="badge" id="last-orders-badge" hidden></span>
               </button>
-              <button type="button" id="open-achievements" class="icon-button with-badge" aria-label="Achievements" title="Achievements">
+              <button type="button" id="open-achievements" class="icon-button with-badge" aria-label="Achievements" title="Achievements" data-i18n-attr="aria-label title">
                 <svg class="ico"><use href="#i-trophy" /></svg><span class="badge" id="achievement-badge" hidden></span>
               </button>
-              <button type="button" id="open-stats" class="icon-button" aria-label="Stats" title="Stats"><svg class="ico"><use href="#i-stats" /></svg></button>
-              <button type="button" id="open-settings" class="icon-button" aria-label="Settings" title="Settings"><svg class="ico"><use href="#i-cog" /></svg></button>
-              <button type="button" id="fullscreen-toggle" class="icon-button" aria-pressed="false" aria-label="Full screen" title="Full screen (F)" hidden>
+              <button type="button" id="open-stats" class="icon-button" aria-label="Stats" title="Stats" data-i18n-attr="aria-label title"><svg class="ico"><use href="#i-stats" /></svg></button>
+              <button type="button" id="open-settings" class="icon-button" aria-label="Settings" title="Settings" data-i18n-attr="aria-label title"><svg class="ico"><use href="#i-cog" /></svg></button>
+              <button type="button" id="fullscreen-toggle" class="icon-button" aria-pressed="false" aria-label="Full screen" title="Full screen (F)" hidden data-i18n-attr="aria-label title">
                 <svg class="ico ico-on"><use href="#i-full" /></svg><svg class="ico ico-off"><use href="#i-unfull" /></svg>
               </button>
-              <button type="button" id="sound-toggle" class="icon-button" aria-pressed="true" aria-label="Sound">
+              <button type="button" id="sound-toggle" class="icon-button" aria-pressed="true" aria-label="Sound" data-i18n-attr="aria-label">
                 <svg class="ico ico-on"><use href="#i-sound" /></svg><svg class="ico ico-off"><use href="#i-mute" /></svg>
               </button>
             </div>
@@ -79,11 +405,11 @@
           </div>
           <div class="popups" id="popups"></div>
           <div class="free-rounds" id="free-rounds"></div>
-          <div class="hint" id="hint">Hold to drink</div>
+          <div class="hint" id="hint" data-i18n>Hold to drink</div>
           <div class="toasts" id="toasts" aria-live="polite"></div>
 
           <div class="credits">
-            <span class="credits-by">Made by</span>
+            <span class="credits-by" data-i18n>Made by</span>
             <a href="https://wrux.com" target="_blank" rel="noopener">wrux.com</a>
             <span aria-hidden="true">·</span>
             <a href="https://www.instagram.com/etocallum" target="_blank" rel="nofollow noopener noreferrer">@etocallum</a>
@@ -95,21 +421,21 @@
               <div class="crowd-count" id="crowd-count" hidden><svg class="ico"><use href="#i-people" /></svg><span id="crowd-count-text"></span></div>
             </div>
             <footer class="statusbar">
-                <span>Per drink <b id="per-drink">1</b></span>
-                <span>Drinks <b id="drinks">0</b></span>
-                <span>Lifetime <b id="lifetime">0</b></span>
-                <span>Best streak <b id="best-streak">0</b></span>
+                <span><span data-i18n>Per drink</span> <b id="per-drink">1</b></span>
+                <span><span data-i18n>Drinks</span> <b id="drinks">0</b></span>
+                <span><span data-i18n>Lifetime</span> <b id="lifetime">0</b></span>
+                <span><span data-i18n>Best streak</span> <b id="best-streak">0</b></span>
             </footer>
           </div>
         </main>
 
-        <aside class="store" id="store" aria-label="Shop">
-          <section class="store-section" aria-label="Beer">
+        <aside class="store" id="store" aria-label="Shop" data-i18n-attr="aria-label">
+          <section class="store-section" aria-label="Beer" data-i18n-attr="aria-label">
             <div class="section-head">
-              <button type="button" id="shop-size" class="shop-size" aria-pressed="false" aria-label="Shrink the shop to icons" title="Shrink the shop to icons">
+              <button type="button" id="shop-size" class="shop-size" aria-pressed="false" aria-label="Shrink the shop to icons" title="Shrink the shop to icons" data-i18n-attr="aria-label title">
                 <svg class="ico"><use href="#i-chevron" /></svg>
               </button>
-              <h2>Next round</h2>
+              <h2 data-i18n>Next round</h2>
               <span class="beer-now"></span>
             </div>
             <button type="button" class="beer-card">
@@ -122,27 +448,27 @@
             </button>
           </section>
 
-          <div class="tabs" role="tablist" aria-label="Shop">
-            <button type="button" role="tab" class="tab" data-tab="drinkers" aria-selected="true" title="Drinkers (1)"><svg class="ico tab-ico"><use href="#i-people" /></svg><span class="tab-label">Drinkers</span></button>
-            <button type="button" role="tab" class="tab" data-tab="upgrades" aria-selected="false" title="Upgrades (2)"><svg class="ico tab-ico"><use href="#i-up" /></svg><span class="tab-label">Upgrades</span><span class="tab-badge upgrade-count"></span></button>
-            <button type="button" role="tab" class="tab" data-tab="pubs" aria-selected="false" title="Pubs (3)"><svg class="ico tab-ico"><use href="#i-pin" /></svg><span class="tab-label">Pubs</span><span class="tab-badge pub-count"></span></button>
+          <div class="tabs" role="tablist" aria-label="Shop" data-i18n-attr="aria-label">
+            <button type="button" role="tab" class="tab" data-tab="drinkers" aria-selected="true" title="Drinkers (1)" data-i18n-attr="title"><svg class="ico tab-ico"><use href="#i-people" /></svg><span class="tab-label" data-i18n>Drinkers</span></button>
+            <button type="button" role="tab" class="tab" data-tab="upgrades" aria-selected="false" title="Upgrades (2)" data-i18n-attr="title"><svg class="ico tab-ico"><use href="#i-up" /></svg><span class="tab-label" data-i18n>Upgrades</span><span class="tab-badge upgrade-count"></span></button>
+            <button type="button" role="tab" class="tab" data-tab="pubs" aria-selected="false" title="Pubs (3)" data-i18n-attr="title"><svg class="ico tab-ico"><use href="#i-pin" /></svg><span class="tab-label" data-i18n>Pubs</span><span class="tab-badge pub-count"></span></button>
           </div>
 
-          <section class="tab-panel" data-panel="drinkers" aria-label="Drinkers">
+          <section class="tab-panel" data-panel="drinkers" aria-label="Drinkers" data-i18n-attr="aria-label">
             <div class="panel-head">
-              <span class="panel-note">Each one drinks for you, all day.</span>
-              <div class="buy-modes" role="group" aria-label="How many to buy"></div>
+              <span class="panel-note" data-i18n>Get a round in and they join your session.</span>
+              <div class="buy-modes" role="group" aria-label="How many to buy" data-i18n-attr="aria-label"></div>
             </div>
             <div class="store-list"></div>
           </section>
 
-          <section class="tab-panel" data-panel="upgrades" aria-label="Upgrades" hidden>
-            <div class="panel-head"><span class="panel-note">Bought once. They last until Last Orders.</span></div>
+          <section class="tab-panel" data-panel="upgrades" aria-label="Upgrades" hidden data-i18n-attr="aria-label">
+            <div class="panel-head"><span class="panel-note" data-i18n>Bought once. They last until the landlord calls time.</span></div>
             <div class="upgrade-list"></div>
           </section>
 
-          <section class="tab-panel" data-panel="pubs" aria-label="Pubs" hidden>
-            <div class="panel-head"><span class="panel-note">Open a pub, then drink wherever suits. Only the pub you're in counts, and once you move you stay put for 5 minutes.</span></div>
+          <section class="tab-panel" data-panel="pubs" aria-label="Pubs" hidden data-i18n-attr="aria-label">
+            <div class="panel-head"><span class="panel-note" data-i18n>Stand the house a round to get known somewhere new, then drink wherever suits. Only the pub you're in counts, and once you move you stay put for 5 minutes.</span></div>
             <div class="pub-list"></div>
           </section>
         </aside>
@@ -151,107 +477,160 @@
 
       <dialog class="panel-dialog" id="achievements-dialog" aria-labelledby="achievements-title">
         <header class="dialog-head">
-          <h2 id="achievements-title">Achievements</h2>
-          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+          <h2 id="achievements-title" data-i18n>Achievements</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close" data-i18n-attr="aria-label">✕</button>
         </header>
         <p class="dialog-sub" id="achievements-summary"></p>
         <div class="achievement-detail" id="achievement-detail"></div>
         <div class="achievement-grid" id="achievement-grid"></div>
       </dialog>
 
-      <dialog class="panel-dialog wide" id="last-orders-dialog" aria-labelledby="last-orders-title">
+      <dialog class="panel-dialog wide lo" id="last-orders-dialog" aria-labelledby="last-orders-title">
         <header class="dialog-head">
-          <h2 id="last-orders-title">Last Orders</h2>
-          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+          <h2 id="last-orders-title" data-i18n>Last Orders</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close" data-i18n-attr="aria-label">✕</button>
         </header>
-        <section class="bell">
-          <p class="setting-note">
-            Ring the bell to close up for the night. Your pints, drinkers, upgrades and beers go, and you start
-            again at The Red Lion. In return you bank <b>Beer Mats</b>. Every unspent mat makes everything drink
-            more, and mats buy permanent Landlord's Licences. Achievements and stats are kept.
-          </p>
-          <div class="bell-row">
-            <div class="bell-numbers">
-              <div>Ring now for <b class="big" id="mats-on-reset">0</b> Beer Mats</div>
+        <div class="lo-body">
+          <aside class="lo-side">
+            <section class="lo-card bell">
+              <div class="lo-label" data-i18n>When the landlord calls time</div>
+              <div class="lo-gain"><b id="mats-on-reset">0</b><span class="with-mat"><i class="mat-ico" aria-hidden="true"></i><span data-i18n>Beer Mats</span></span></div>
+              <div class="lo-progress" aria-hidden="true"><i id="next-mat-bar"></i></div>
               <div class="setting-note" id="next-mat"></div>
+              <button type="button" id="ring-bell" class="ring-bell"><svg class="ico"><use href="#i-bell" /></svg><span data-i18n>Drink up</span></button>
+              <p class="setting-note" data-i18n>
+                You neck what's left and that's the night over. Pints, drinkers, upgrades, beers and pubs go. You
+                wake up with these in your pockets, and your legend, achievements and stats stay.
+              </p>
+            </section>
+            <section class="lo-card">
+              <div class="lo-stat"><span class="with-mat"><i class="mat-ico" aria-hidden="true"></i><span data-i18n>Beer Mats</span></span><b id="lo-mats">0</b></div>
+              <div class="lo-stat"><span data-i18n>Bonus to everything</span><b id="lo-bonus">+0%</b></div>
+              <p class="setting-note" id="licence-summary"></p>
+            </section>
+            <div class="auto-toggles" id="auto-toggles"></div>
+          </aside>
+          <section class="licence">
+            <div class="licence-view">
+              <div class="licence-scroll" id="licence-scroll"><div class="licence-web" id="licence-web"></div></div>
+              <h3 class="licence-title" data-i18n>Local Legend</h3>
+              <div class="licence-zoom">
+                <button type="button" id="licence-zoom-in" aria-label="Zoom in" title="Zoom in" data-i18n-attr="aria-label title">+</button>
+                <button type="button" id="licence-zoom-out" aria-label="Zoom out" title="Zoom out" data-i18n-attr="aria-label title">−</button>
+                <button type="button" id="licence-zoom-fit" aria-label="Show the whole tree" title="Show the whole tree" data-i18n-attr="aria-label title">⤢</button>
+              </div>
+              <span class="licence-help" data-i18n>Drag to move · scroll or pinch to zoom</span>
             </div>
-            <button type="button" id="ring-bell" class="ring-bell"><svg class="ico"><use href="#i-bell" /></svg>Ring the bell</button>
+          </section>
+        </div>
+        <footer class="after-hours-bar">
+          <span class="with-mat"><i class="mat-ico" aria-hidden="true"></i><span id="after-hours-note"></span></span>
+          <button type="button" id="back-to-pub" class="ring-bell" data-i18n>Back to the pub</button>
+        </footer>
+      </dialog>
+
+      <dialog class="panel-dialog confirm-dialog" id="prestige-dialog" aria-labelledby="prestige-title">
+        <div class="confirm-body">
+          <div class="confirm-icon"><svg class="ico"><use href="#i-bell" /></svg></div>
+          <h2 id="prestige-title" data-i18n>Time, please. Drink up?</h2>
+          <p data-i18n>
+            The landlord is calling last orders. Drink up and the night is over: your pints, drinkers, upgrades,
+            beers and pubs all go, and tomorrow you start again with one drink at The Red Lion.
+          </p>
+          <p class="confirm-gain with-mat"><span data-i18n>You wake up with</span> <i class="mat-ico" aria-hidden="true"></i><b id="prestige-gain"></b></p>
+          <p class="setting-note" id="prestige-bonus"></p>
+          <p class="setting-note" data-i18n>Beer Mats, your legend, achievements and stats are kept.</p>
+          <div class="confirm-actions">
+            <button type="button" id="prestige-cancel" class="confirm-cancel" data-i18n>One more first</button>
+            <button type="button" id="prestige-confirm" class="ring-bell"><svg class="ico"><use href="#i-bell" /></svg><span data-i18n>Drink up</span></button>
           </div>
-        </section>
-        <section class="licence">
-          <div class="section-head">
-            <h2>Landlord's Licence</h2>
-            <span class="setting-note" id="licence-summary"></span>
-          </div>
-          <div class="licence-grid" id="licence-grid"></div>
-          <div class="auto-toggles" id="auto-toggles"></div>
-        </section>
+        </div>
       </dialog>
 
       <dialog class="panel-dialog" id="stats-dialog" aria-labelledby="stats-title">
         <header class="dialog-head">
-          <h2 id="stats-title">Stats</h2>
-          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+          <h2 id="stats-title" data-i18n>Stats</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close" data-i18n-attr="aria-label">✕</button>
         </header>
         <dl class="stats-list" id="stats-list"></dl>
       </dialog>
 
       <dialog class="panel-dialog" id="settings-dialog" aria-labelledby="settings-title">
         <header class="dialog-head">
-          <h2 id="settings-title">Settings</h2>
-          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+          <h2 id="settings-title" data-i18n>Settings</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close" data-i18n-attr="aria-label">✕</button>
         </header>
         <div class="settings">
           <label class="setting">
-            <span>Numbers</span>
+            <span data-i18n>Language</span>
+            <select id="language-select" class="language-select"></select>
+          </label>
+          <label class="setting">
+            <span data-i18n>Numbers</span>
             <select id="number-format">
-              <option value="short">Names (1.234 million)</option>
-              <option value="scientific">Scientific (1.23e6)</option>
-              <option value="engineering">Engineering (1.23e6, steps of 3)</option>
+              <option value="short" data-i18n>Names (1.234 million)</option>
+              <option value="scientific" data-i18n>Scientific (1.23e6)</option>
+              <option value="engineering" data-i18n>Engineering (1.23e6, steps of 3)</option>
             </select>
           </label>
           <label class="setting">
-            <span>Sound</span>
+            <span data-i18n>Sound</span>
             <input type="checkbox" id="sound-setting" />
           </label>
 
-          <h3>Save</h3>
-          <p class="setting-note">Your game saves itself every 30 seconds in this browser. Export a copy to move it or keep a backup.</p>
+          <h3 data-i18n>Save</h3>
+          <p class="setting-note" data-i18n>Your game saves itself every 30 seconds in this browser. Export a copy to move it or keep a backup.</p>
           <div class="setting-buttons">
-            <button type="button" id="export-save">Export save</button>
-            <button type="button" id="import-save">Import save</button>
+            <button type="button" id="export-save" data-i18n>Export save</button>
+            <button type="button" id="import-save" data-i18n>Import save</button>
           </div>
-          <textarea id="save-text" rows="4" spellcheck="false" placeholder="Paste a save here, then press Import save." aria-label="Save text"></textarea>
+          <textarea id="save-text" rows="4" spellcheck="false" placeholder="Paste a save here, then press Import save." aria-label="Save text" data-i18n-attr="aria-label placeholder"></textarea>
           <p class="setting-note" id="save-message" aria-live="polite"></p>
 
-          <h3>Credits</h3>
+          <h3 data-i18n>Credits</h3>
           <p class="setting-note">
-            idle.beer is made by <a href="https://wrux.com" target="_blank" rel="noopener">wrux.com</a>.
-            Say hello on Instagram: <a href="https://www.instagram.com/etocallum" target="_blank" rel="nofollow noopener noreferrer">@etocallum</a>.
+            <span data-i18n>idle.beer is made by</span> <a href="https://wrux.com" target="_blank" rel="noopener">wrux.com</a>.
+            <span data-i18n>Say hello on Instagram:</span> <a href="https://www.instagram.com/etocallum" target="_blank" rel="nofollow noopener noreferrer">@etocallum</a>.
           </p>
 
-          <h3>Danger zone</h3>
-          <button type="button" id="hard-reset" class="danger">Hard reset (wipe everything)</button>
+          <h3 data-i18n>Danger zone</h3>
+          <button type="button" id="hard-reset" class="danger" data-i18n>Hard reset (wipe everything)</button>
         </div>
       </dialog>
 
-      <div class="debug" id="debug" hidden>
-        <b>Debug</b>
-        <button type="button" data-debug="1e6">1e6</button>
-        <button type="button" data-debug="1e36">1e36</button>
-        <button type="button" data-debug="1e303">1e303</button>
-        <button type="button" data-debug="1e1000">1e1000</button>
-        <button type="button" data-debug="1e100000">1e100000</button>
-        <button type="button" data-debug="1e1e10">e1e10</button>
-        <button type="button" data-debug="x1000">per drink ×1000</button>
-        <button type="button" data-debug="drinkers">+10 of each drinker</button>
-        <button type="button" data-debug="away">Simulate 2h away</button>
-        <button type="button" data-debug="beer">Cycle beer</button>
-        <button type="button" data-debug="freeround">Free Round now</button>
-        <button type="button" data-debug="location">Next location</button>
-        <button type="button" data-debug="reset">Hard reset</button>
-      </div>
+      <button type="button" class="debug-tab" id="debug-tab" hidden data-i18n>Debug</button>
+      <dialog class="panel-dialog" id="debug-dialog" aria-labelledby="debug-title">
+        <header class="dialog-head">
+          <h2 id="debug-title">Debug</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close">✕</button>
+        </header>
+        <div class="debug-body">
+          <h3>Load a game</h3>
+          <p class="setting-note">Each of these replaces your save and reloads.</p>
+          <div class="debug-scenarios" id="debug-scenarios"></div>
+          <h3>Set pints</h3>
+          <div class="debug-row">
+            <button type="button" data-debug="1e6">1e6</button>
+            <button type="button" data-debug="1e36">1e36</button>
+            <button type="button" data-debug="1e303">1e303</button>
+            <button type="button" data-debug="1e1000">1e1000</button>
+            <button type="button" data-debug="1e100000">1e100000</button>
+            <button type="button" data-debug="1e1e10">e1e10</button>
+          </div>
+          <h3>Poke at things</h3>
+          <div class="debug-row">
+            <button type="button" data-debug="x1000">Per drink ×1000</button>
+            <button type="button" data-debug="drinkers">+10 of each drinker</button>
+            <button type="button" data-debug="away">Simulate 2h away</button>
+            <button type="button" data-debug="beer">Cycle beer</button>
+            <button type="button" data-debug="freeround">Free Round now</button>
+            <button type="button" data-debug="happyhour">Happy Hour now</button>
+            <button type="button" data-debug="location">Next location</button>
+            <button type="button" data-debug="reset">Hard reset</button>
+          </div>
+        </div>
+      </dialog>
     </div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/boot.ts"></script>
   </body>
 </html>

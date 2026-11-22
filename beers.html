@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="noindex" />
+    <title>idle.beer: every beer</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #2a3a36; color: #f3efe4; font: 600 12px system-ui, sans-serif; }
+      #grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; }
+      figure { margin: 0; text-align: center; }
+      canvas { width: 100%; display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="grid"></div>
+    <script type="module" src="/src/dev/beers.ts"></script>
+  </body>
+</html>

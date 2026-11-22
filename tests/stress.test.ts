@@ -45,18 +45,17 @@ describe('stress: e(1e10) pints', () => {
     expect(performance.now() - start).toBeLessThan(2000);
     expect(DRINKERS.every((d) => (s.drinkers[d.id] ?? 0) > 1e10)).toBe(true);
     expect(s.upgrades.size).toBeGreaterThan(240);
-    expect(s.beer).toBeGreaterThan(100);
+    expect(currentBeer(s).id).toBe('final');
     for (const v of [s.pints, totalPps(s), pintsPerDrink(s)]) {
       expect(ok(v)).toBe(true);
       expect(readable(v)).toBe(true);
     }
   });
 
-  it('a generated beer deep into the list still works', () => {
+  it('asking for a beer far past the end of the list is safe', () => {
     const b = beerAt(1_000_000);
-    expect(b.name.length).toBeGreaterThan(3);
+    expect(b.name).toBe('The Final Pint');
     expect(ok(b.cost)).toBe(true);
-    expect(b.cost.exponent).toBeGreaterThan(7_900_000); // ≈ 1e145 × (1e8)^999,969
   });
 
   it('earning on top of absurd numbers works', () => {

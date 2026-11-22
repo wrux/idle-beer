@@ -50,7 +50,13 @@ interface Particle {
 
 export class StageRenderer implements Renderer {
   readonly root: HTMLDivElement;
-  readonly layout = LAYOUT;
+  /** The glass is bigger or smaller with the beer: a half is a half, a Maß is a litre. */
+  get layout(): PoseLayout {
+    const size = this.look.size ?? 1;
+    if (this.sized.glassScale !== LAYOUT.glassScale * size) this.sized = { ...LAYOUT, glassScale: LAYOUT.glassScale * size };
+    return this.sized;
+  }
+  private sized: PoseLayout = LAYOUT;
   private canvas = document.createElement('canvas');
   private ctx: Ctx;
   private shell = document.createElement('canvas');
@@ -245,6 +251,14 @@ export class StageRenderer implements Renderer {
 
   // ---------- sizing and cached layers ----------
 
+  private cover = 0;
+
+  setCover(px: number): void {
+    if (Math.abs(px - this.cover) < 1) return;
+    this.cover = px;
+    this.resize();
+  }
+
   private resize() {
     const w = this.root.clientWidth, h = this.root.clientHeight;
     if (!w || !h) return;
@@ -260,7 +274,10 @@ export class StageRenderer implements Renderer {
       scale = w / MAX_W;
     }
     this.px = scale * dpr;
-    this.view = { x0: 200 - worldW / 2, x1: 200 + worldW / 2, y0: WORLD_H - h / scale, w: worldW };
+    // With the shop over the right of the scene, look a little to the right, so the bar stool
+    // stays in the middle of what's left (but never past the end of the painted scenery).
+    const shift = Math.max(0, Math.min(this.cover / 2 / scale, X1 - 200 - worldW / 2));
+    this.view = { x0: 200 + shift - worldW / 2, x1: 200 + shift + worldW / 2, y0: WORLD_H - h / scale, w: worldW };
     for (const c of [this.canvas, this.shell, this.barLayer]) {
       c.width = Math.round(w * dpr);
       c.height = Math.round(h * dpr);
@@ -453,7 +470,7 @@ export class StageRenderer implements Renderer {
   private drawPump(ctx: Ctx, pose: Pose, t: number) {
     const dim = this.backdrop.dim;
     const k = (c: string) => mix(c, '#07040d', dim * 0.7);
-    const top = LAYOUT.barTop, gh = GLASS.H * LAYOUT.glassScale;
+    const top = LAYOUT.barTop, gh = GLASS.H * Math.max(1, this.layout.glassScale);
     const bx = LAYOUT.restX + 50;
     const spout = { x: LAYOUT.restX + 3, y: top - gh - 12 };
     const brass = k('#d1a849'), brassHi = k('#f6e3a0'), brassSh = k('#8a6a24');

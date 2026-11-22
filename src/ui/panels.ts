@@ -2,7 +2,9 @@
 import {
   currentBeer, drinkTime, pintsPerDrink, reputationMult, totalPps,
 } from '../core/economy';
-import { format, pintsWord, type NumberFormat } from '../core/format';
+import { format, type NumberFormat } from '../core/format';
+import { currentLocale, tr, trn } from '../i18n';
+import { pintsLabel } from '../i18n/data';
 import { D } from '../core/num';
 import type { GameState } from '../core/state';
 import { ACHIEVEMENTS, type Achievement } from '../data/achievements';
@@ -31,7 +33,7 @@ export function playTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
-  return h ? `${h}h ${m}m` : m ? `${m}m ${s}s` : `${s}s`;
+  return h ? tr('{h}h {m}m', { h, m }) : m ? tr('{m}m {s}s', { m, s }) : tr('{s}s', { s });
 }
 
 // ---------- achievements ----------
@@ -75,7 +77,7 @@ export class AchievementsPanel {
     const a = this.selected;
     const has = a ? this.getState().achievements.has(a.id) : false;
     if (!a) {
-      this.detail.innerHTML = '<span class="ad-placeholder">Hover or tap an achievement to see how to get it.</span>';
+      this.detail.innerHTML = `<span class="ad-placeholder">${tr('Hover or tap an achievement to see how to get it.')}</span>`;
       return;
     }
     const secret = a.hidden && !has;
@@ -83,11 +85,11 @@ export class AchievementsPanel {
     const name = document.createElement('div');
     name.className = 'ad-name';
     const label = document.createElement('span');
-    label.textContent = `${secret ? 'Secret achievement' : a.name}${has ? ' ✓' : ''}`;
+    label.textContent = `${secret ? tr('Secret achievement') : a.name}${has ? ' ✓' : ''}`;
     name.append(icon(secret ? '❓' : a.icon, 26), label);
     const desc = document.createElement('div');
     desc.className = 'ad-desc';
-    desc.textContent = secret ? 'Keep playing. Some things are best discovered.' : a.desc;
+    desc.textContent = secret ? tr('Keep playing. Some things are best discovered.') : a.desc;
     this.detail.append(name, desc);
   }
 
@@ -102,8 +104,8 @@ export class AchievementsPanel {
 
     const bonus = (reputationMult(s) - 1) * 100;
     this.summary.textContent =
-      `${got} of ${ACHIEVEMENTS.length} unlocked · Reputation bonus +${bonus.toFixed(bonus < 10 ? 1 : 0)}%` +
-      (bonus === 0 ? ' (buy Reputation upgrades to turn achievements into a bonus)' : '');
+      tr('{got} of {total} unlocked · Reputation bonus +{bonus}%', { got, total: ACHIEVEMENTS.length, bonus: bonus.toFixed(bonus < 10 ? 1 : 0) }) +
+      (bonus === 0 ? ` ${tr('(buy Reputation upgrades to turn achievements into a bonus)')}` : '');
     for (const a of ACHIEVEMENTS) {
       const t = this.tiles.get(a.id)!;
       const has = s.achievements.has(a.id);
@@ -113,7 +115,7 @@ export class AchievementsPanel {
         t.replaceChildren(icon(shown, 34));
       }
       t.classList.toggle('unlocked', has);
-      t.setAttribute('aria-label', has || !a.hidden ? `${a.name}${has ? ' (unlocked)' : ''}` : 'Secret achievement');
+      t.setAttribute('aria-label', has || !a.hidden ? (has ? tr('{name} (unlocked)', { name: a.name }) : a.name) : tr('Secret achievement'));
     }
     this.renderDetail();
   }
@@ -136,23 +138,26 @@ export class StatsPanel {
     const n = (v: number) => format(D(v), f);
     const drinkers = DRINKERS.reduce((t, d) => t + (s.drinkers[d.id] ?? 0), 0);
     const rows: [string, string][] = [
-      ['Pints', format(s.pints.floor(), f)],
-      ['Lifetime pints', format(s.lifetimePints.floor(), f)],
-      ['Pints per second', format(totalPps(s), f)],
-      ['Pints per drink', format(pintsPerDrink(s), f)],
-      ['Drunk by hand', `${format(s.handPints.floor(), f)} ${pintsWord(s.handPints.floor())} in ${n(s.drinks)} drink${s.drinks === 1 ? '' : 's'}`],
-      ['Drunk on his own', `${n(s.autoDrinks)} pint${s.autoDrinks === 1 ? '' : 's'}`],
-      ['Time per pint', `${drinkTime(s).toFixed(2)}s`],
-      ['Best chug streak', n(s.bestStreak)],
-      ['Free Rounds claimed', n(s.freeRounds)],
-      ['Drinkers', n(drinkers)],
-      ['Upgrades', `${s.upgrades.size} of ${UPGRADES.length}`],
-      ['Beer', currentBeer(s).name],
-      ['Drinking at', LOCATION_BY_ID.get(s.pub)?.name ?? ''],
-      ['Pubs open', String(s.pubs.size)],
-      ['Achievements', `${s.achievements.size} of ${ACHIEVEMENTS.length}`],
-      ['Time played', playTime(s.playSeconds)],
-      ['Started', new Date(s.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })],
+      [tr('Pints'), format(s.pints.floor(), f)],
+      [tr('Lifetime pints'), format(s.lifetimePints.floor(), f)],
+      [tr('Pints per second'), format(totalPps(s), f)],
+      [tr('Pints per drink'), format(pintsPerDrink(s), f)],
+      [tr('Drunk by hand'), tr('{pints} in {drinks}', {
+        pints: `${format(s.handPints.floor(), f)} ${pintsLabel(s.handPints.floor())}`,
+        drinks: trn(s.drinks, '{n} drink', '{n} drinks', { n: n(s.drinks) }),
+      })],
+      [tr('Drunk on his own'), trn(s.autoDrinks, '{n} pint', '{n} pints', { n: n(s.autoDrinks) })],
+      [tr('Time per pint'), tr('{s}s', { s: format(D(Number(drinkTime(s).toFixed(2))), f) })],
+      [tr('Best chug streak'), n(s.bestStreak)],
+      [tr('Free Rounds claimed'), n(s.freeRounds)],
+      [tr('Drinkers'), n(drinkers)],
+      [tr('Upgrades'), tr('{n} of {total}', { n: s.upgrades.size, total: UPGRADES.length })],
+      [tr('Beer'), currentBeer(s).name],
+      [tr('Drinking at'), LOCATION_BY_ID.get(s.pub)?.name ?? ''],
+      [tr('Pubs open'), String(s.pubs.size)],
+      [tr('Achievements'), tr('{n} of {total}', { n: s.achievements.size, total: ACHIEVEMENTS.length })],
+      [tr('Time played'), playTime(s.playSeconds)],
+      [tr('Started'), new Date(s.startedAt).toLocaleDateString(currentLocale().lang, { day: 'numeric', month: 'long', year: 'numeric' })],
     ];
     const html = rows.map(() => `<dt></dt><dd></dd>`).join('');
     if (this.list.childElementCount !== rows.length * 2) this.list.innerHTML = html;
@@ -195,25 +200,25 @@ export class SettingsPanel {
       this.text.select();
       try {
         await navigator.clipboard.writeText(save);
-        this.message.textContent = 'Copied to your clipboard. Keep it somewhere safe.';
+        this.message.textContent = tr('Copied to your clipboard. Keep it somewhere safe.');
       } catch {
-        this.message.textContent = 'Copy the text above and keep it somewhere safe.';
+        this.message.textContent = tr('Copy the text above and keep it somewhere safe.');
       }
     });
 
     $('import-save').addEventListener('click', () => {
       const text = this.text.value.trim();
       if (!text) {
-        this.message.textContent = 'Paste a save into the box first.';
+        this.message.textContent = tr('Paste a save into the box first.');
         return;
       }
-      if (!confirm('Replace your current game with this save?')) return;
+      if (!confirm(tr('Replace your current game with this save?'))) return;
       const error = events.importSave(text);
       if (error) this.message.textContent = error;
     });
 
     $('hard-reset').addEventListener('click', () => {
-      if (confirm('Wipe everything and start again from a single pint? This cannot be undone.')) events.hardReset();
+      if (confirm(tr('Wipe everything and start again from a single pint? This cannot be undone.'))) events.hardReset();
     });
   }
 

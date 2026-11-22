@@ -1,12 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2415"/><stop offset="1" stop-color="#170e09"/></linearGradient>
-    <linearGradient id="beer" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c9781c"/><stop offset="0.5" stop-color="#f0a83a"/><stop offset="1" stop-color="#c9781c"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f6235"/><stop offset="0.5" stop-color="#63401f"/><stop offset="1" stop-color="#3f2811"/></linearGradient>
+    <radialGradient id="board" cx="0.3" cy="0.2" r="1"><stop offset="0" stop-color="#2f3b37"/><stop offset="1" stop-color="#161c1a"/></radialGradient>
+    <linearGradient id="beer" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d98a1c"/><stop offset="0.45" stop-color="#ffc54a"/><stop offset="1" stop-color="#c9781a"/></linearGradient>
   </defs>
-  <rect width="512" height="512" fill="url(#bg)"/>
-  <circle cx="256" cy="262" r="196" fill="#f6c651" opacity="0.14"/>
-  <path d="M158 132h196l-24 280q-74 18-148 0Z" fill="url(#beer)" stroke="#fff7e0" stroke-width="14" stroke-linejoin="round"/>
-  <path d="M148 132q-16-56 40-48q26-42 68-10q40-36 74 6q62-8 44 52l-8 60q-44 22-74-6q-36 30-74 0q-30 20-62 6Z" fill="#fffdf2"/>
-  <path d="M206 214l10 150" stroke="#fff" stroke-width="20" stroke-linecap="round" opacity="0.6"/>
-  <circle cx="292" cy="292" r="9" fill="#fff5d0"/><circle cx="270" cy="350" r="7" fill="#fff5d0"/><circle cx="310" cy="364" r="6" fill="#fff5d0"/>
+  <!-- A chalkboard in a wooden frame, like the rest of the game, with a pint on it. -->
+  <rect width="512" height="512" rx="112" fill="url(#wood)"/>
+  <rect x="34" y="34" width="444" height="444" rx="82" fill="#1c1108"/>
+  <rect x="42" y="42" width="428" height="428" rx="76" fill="url(#board)"/>
+  <!-- The glass: a straight pint, wider at the top. -->
+  <path d="M160 150h192l-22 244a22 22 0 0 1-22 20H204a22 22 0 0 1-22-20Z" fill="url(#beer)"/>
+  <path d="M250 196l8 176" stroke="#fff6d8" stroke-width="20" stroke-linecap="round" opacity="0.5" transform="translate(-52 0)"/>
+  <circle cx="300" cy="290" r="10" fill="#fff3c4" opacity="0.9"/>
+  <circle cx="278" cy="348" r="7" fill="#fff3c4" opacity="0.9"/>
+  <circle cx="316" cy="356" r="6" fill="#fff3c4" opacity="0.9"/>
+  <path d="M160 150h192l-22 244a22 22 0 0 1-22 20H204a22 22 0 0 1-22-20Z" fill="none" stroke="#f3efe4" stroke-width="16" stroke-linejoin="round"/>
+  <!-- The head, spilling a little over the rim. -->
+  <path d="M146 168c-22-8-26-44 2-54 2-34 46-46 68-22 22-28 68-26 84 4 30-18 70 4 62 40 20 14 12 46-12 46-4 26-40 32-54 10-18 22-56 22-72 0-14 20-48 18-58-4-10 2-16-8-20-20Z" fill="#fdfaf0"/>
+  <path d="M196 132c10-16 30-18 42-8" fill="none" stroke="#e2dcc8" stroke-width="8" stroke-linecap="round"/>
 </svg>

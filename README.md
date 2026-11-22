@@ -14,15 +14,16 @@ pub is drawn in code on a single canvas.
 - **Hold to drink.** Click, touch or hold Space to lift the glass. Let go and it goes back down
   part-drunk; keep holding and the next pint starts by itself. Back-to-back pints build a chug streak.
 - **18 kinds of drinker**, from The Regular to the Multiverse Lock-In, each drinking for you all day.
-- **Beers that never run out.** 31 hand-written beers, then generated ones forever, each with its
-  own colour, glass and effect.
-- **24 pubs to open and choose between**, from The Red Lion by way of Prague, a Viking mead hall,
+- **27 beers, each in its own glass or with its own trick:** a half of shandy, a settling stout, a
+  Czech glass of pure foam, a litre Maß, a yard of ale, a Viking's horn, a pint that is both full
+  and empty, and at the very end a perfectly ordinary pint.
+- **24 pubs to get known in and choose between**, from The Red Lion by way of Prague, a Viking mead hall,
   a pirate ship, the Outback and an alien beer garden to the multiverse, each with a perk of its
   own and, away from home, its own locals at the bar.
 - **Around 250 upgrades and 170 achievements.**
 - **Free Rounds:** a golden pint drifts through the pub every few minutes. Catch it.
-- **Last Orders:** ring the bell to start again with Beer Mats, which boost everything and buy
-  permanent Landlord's Licences.
+- **Last Orders:** when the landlord calls time you drink up, black out, and wake with Beer Mats
+  in your pockets. They boost everything, and buy the perks of being a Local Legend.
 - **Numbers that go a long way.** Everything runs on
   [break_infinity.js](https://github.com/Patashu/break_infinity.js), so it keeps working far past
   where ordinary JavaScript numbers give up.
@@ -35,6 +36,19 @@ pub is drawn in code on a single canvas.
     <td><img src="docs/multiverse.png" alt="The Multiverse Tavern: what is left of a pub, in orbit round a black hole" /></td>
   </tr>
 </table>
+
+## Languages
+
+The game comes in sixteen languages: English at the root, and Français, Deutsch, Nederlands, Čeština,
+Polski, Italiano, Español, Português, 日本語, 中文, 한국어, Русский, Dansk, Norsk and Svenska each at
+their own address (`/fr/`, `/de/`, `/jp/`, `/zh/` …). Each address is a real page with its own
+language tags, title and sharing text, and they all list each other as alternates. Numbers are
+written the way each language writes them. If your browser is set to another language the game
+has, the title screen offers it.
+
+The English text in the source is the key for each translation, so there are no made-up string
+names. `npm run i18n` collects every sentence into `src/i18n/en.json`; translations live beside it
+in `src/i18n/locales/`.
 
 ## Running it
 
@@ -54,6 +68,13 @@ beers and moves pub.
 | `npm test` | Unit tests, including stress tests at huge numbers |
 | `npm run build` | Type-check and production build into `dist/` |
 | `npm run simulate -- [activity] [target] [runs]` | Plays the game with a bot to check pacing |
+| `npm run i18n` | Collects every translatable sentence into `src/i18n/en.json` |
+
+`/share.html` renders the picture that goes with a shared link: screenshot it at 1200×630 for
+`public/og.jpg` (and 1200×1200 for `public/og-square.jpg`). The link tags in `index.html` assume the
+game lives at `https://idle.beer/`.
+
+`/beers.html` shows every beer side by side.
 
 Two pages on the dev server are for working on the art: `/sheet.html` shows every character
 large, and `/banner.html` renders the scene without the HUD (the images in this README come from it).
@@ -65,6 +86,7 @@ large, and `/banner.html` renders the scene without the HUD (the images in this 
 | `src/core` | The game: economy, drinking, events, prestige, saving |
 | `src/data` | Content as data: drinkers, beers, upgrades, pubs, achievements, the Licence |
 | `src/ui` | The shop, dialogs and HUD |
+| `src/i18n` | Languages: the translation lookup, the list of locales, and one file per language |
 | `src/ui/art` | The scene: characters, pints, pubs and the canvas that draws them |
 | `tests` | Unit tests |
 | `tools` | The pacing simulator |

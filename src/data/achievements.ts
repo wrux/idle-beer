@@ -128,12 +128,13 @@ const misc: Achievement[] = [
 // ---------- beers and locations ----------
 
 const BEER_MILESTONES: [number, string, string][] = [
-  [1, 'Moving On Up', 'Upgrade from Warm Watery Lager.'],
-  [5, 'Pint of the Black Stuff', 'Get on to the Irish-style Stout.'],
-  [12, 'Event Horizon', 'Drink Singularity Stout.'],
-  [BEERS.length - 1, 'Always One More', 'Reach The Final Pint.'],
-  [BEERS.length, 'Off the Menu', 'Discover a beer nobody has named before.'],
-  [BEERS.length + 25, 'Infinite Menu', 'Discover 25 beers beyond The Final Pint.'],
+  [1, 'Moving On Up', 'Graduate from the Half of Shandy.'],
+  [3, 'Pint of the Black Stuff', 'Get on to the Nitro Stout.'],
+  [9, 'Ein Prosit', 'Lift a full litre of German Maß.'],
+  [15, 'All in One Go', 'Take on the Yard of Ale.'],
+  [20, 'Here Be Dragons', "Brave the Dragon's Breath Ale."],
+  [25, 'Event Horizon', 'Drink Singularity Stout.'],
+  [BEERS.length - 1, 'It Was This All Along', 'Reach The Final Pint.'],
 ];
 
 const beerAchievements: Achievement[] = BEER_MILESTONES.map(([n, name, desc]) => ({
@@ -142,7 +143,7 @@ const beerAchievements: Achievement[] = BEER_MILESTONES.map(([n, name, desc]) =>
 
 const locationAchievements: Achievement[] = LOCATIONS.slice(1).map((loc) => ({
   id: `location-${loc.id}`, name: `Welcome to ${loc.name}`, icon: '🗺️',
-  desc: `Open ${loc.name}.`,
+  desc: `Get known at ${loc.name}.`,
   check: (s: GameState) => s.pubs.has(loc.id),
 }));
 
@@ -151,7 +152,7 @@ const locationAchievements: Achievement[] = LOCATIONS.slice(1).map((loc) => ({
 const prestigeAchievements: Achievement[] = [
   ...([[1, 'Last Orders!', '🔔'], [5, 'Regular at Closing Time', '🔔'], [25, 'Lock-In Legend', '🔔'], [100, 'Eternal Closing Time', '🔔']] as const)
     .map(([n, name, icon]) => ({
-      id: `prestige-${n}`, name, icon, desc: n === 1 ? 'Call Last Orders for the first time.' : `Call Last Orders ${n} times.`,
+      id: `prestige-${n}`, name, icon, desc: n === 1 ? 'Drink up at Last Orders for the first time.' : `Drink up at Last Orders ${n} times.`,
       check: (s: GameState) => s.prestiges >= n,
     })),
   ...([['1e2', 'Coaster Collector'], ['1e4', 'Beer Mat Mountain'], ['1e6', 'A Million Mats'], ['1e9', 'Mat Magnate']] as const)
@@ -160,11 +161,11 @@ const prestigeAchievements: Achievement[] = [
       check: (s: GameState) => s.matsEarned.gte(n),
     })),
   {
-    id: 'licence-first', name: 'Licensed Premises', icon: '📜', desc: "Buy your first Landlord's Licence.",
+    id: 'licence-first', name: 'Known Round Here', icon: '📜', desc: 'Earn your first Local Legend perk.',
     check: (s) => s.licence.size >= 1,
   },
   {
-    id: 'licence-all', name: 'Fully Licensed', icon: '📜', desc: "Buy every Landlord's Licence.",
+    id: 'licence-all', name: 'Living Legend', icon: '📜', desc: 'Earn every Local Legend perk.',
     check: (s) => s.licence.size >= 30,
   },
 ];
@@ -174,7 +175,7 @@ const prestigeAchievements: Achievement[] = [
 const hidden: Achievement[] = [
   {
     id: 'designated-driver', name: 'Designated Driver', icon: '🚗', hidden: true,
-    desc: 'Earn a million pints without upgrading from Warm Watery Lager.',
+    desc: 'Earn a million pints without moving on from the Half of Shandy.',
     check: (s) => s.beer === 0 && s.lifetimePints.gte(1e6),
   },
   {
