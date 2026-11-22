@@ -13,7 +13,8 @@ const q = new URLSearchParams(location.search);
 const pub = LOCATION_BY_ID.get(q.get('pub') ?? 'redlion') ?? LOCATIONS[0];
 const beerIndex = Number(q.get('beer') ?? 1);
 const tiers = Number(q.get('tiers') ?? 10);
-document.getElementById('title')!.hidden = q.get('title') === '0';
+// title=0 is the bare scene, for the README's screenshots; otherwise the name goes along the bar.
+document.documentElement.classList.toggle('plain', q.get('title') === '0');
 
 const beer = beerAt(beerIndex);
 const stage = new StageRenderer(beer.look);
