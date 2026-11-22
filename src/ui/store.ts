@@ -29,9 +29,9 @@ const groupLabel = (group: Upgrade['group']): string => ({
   drinker: tr('Drinkers'), drinking: tr('Drinking'), synergy: tr('Teamwork'), pub: tr('The pub'), reputation: tr('Reputation'),
 })[group];
 
-/** Only touch the DOM when text actually changes. */
+/** Only touch the DOM when text actually changes. (Weak, so it never keeps a removed row alive.) */
 function textSetter() {
-  const last = new Map<HTMLElement, string>();
+  const last = new WeakMap<HTMLElement, string>();
   return (el: HTMLElement, text: string) => {
     if (last.get(el) === text) return;
     last.set(el, text);
@@ -111,6 +111,12 @@ export class StoreView {
   private upgradeList: HTMLElement;
   private upgradeCount: HTMLElement;
   private buyAll: HTMLButtonElement;
+  /**
+   * One row per upgrade, built the first time it is on offer and kept for good. Each has a drawn
+   * portrait, and late on the list changes many times a minute, universe after universe: making
+   * them afresh every time left thousands of canvases behind, until the browser gave up drawing
+   * the pub on the graphics card.
+   */
   private upgradeRows = new Map<string, { el: HTMLButtonElement; cost: HTMLElement }>();
   private upgradeKey = '';
 
@@ -420,7 +426,7 @@ export class StoreView {
       const cost = upgradeCost(state, u);
       const affordable = state.pints.gte(cost);
       if (affordable) ready++;
-      const row = this.upgradeRows.get(u.id)!;
+      const row = this.upgradeRow(u);
       row.el.classList.toggle('affordable', affordable);
       setProgress(row.el, state.pints, cost);
       this.set(row.cost, format(cost));
@@ -433,46 +439,49 @@ export class StoreView {
 
   private rebuildUpgrades(list: Upgrade[]) {
     this.upgradeKey = list.map((u) => u.id).join(',');
-    for (const row of this.upgradeRows.values()) this.tips.delete(row.el);
-    if (this.tipRow && !this.tipRow.classList.contains('drinker') && !this.tipRow.classList.contains('pub') && this.tipRow !== this.beerCard) this.hideTip();
-    this.upgradeRows.clear();
-    this.upgradeList.replaceChildren();
     if (!list.length) {
       const empty = document.createElement('p');
       empty.className = 'list-empty';
       empty.textContent = tr('Nothing on offer yet. Keep drinking.');
-      this.upgradeList.appendChild(empty);
+      this.upgradeList.replaceChildren(empty);
       return;
     }
-    for (const u of list) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `upgrade group-${u.group}`;
-      b.innerHTML = `
-        <span class="u-tile" aria-hidden="true"><span class="u-icon"></span>${u.badge ? '<span class="u-badge"></span>' : ''}</span>
-        <span class="u-main">
-          <span class="u-name"></span>
-          <span class="u-desc"></span>
-          <span class="u-meta"><span class="u-cost"></span><span class="u-group"></span></span>
-        </span>`;
-      const r = (s: string) => b.querySelector<HTMLElement>(s)!;
-      if (u.effect.kind === 'drinker') r('.u-icon').appendChild(drinkerPortrait(u.effect.drinker, 40));
-      else r('.u-icon').appendChild(icon(u.icon));
-      if (u.badge) r('.u-badge').textContent = u.badge;
-      r('.u-name').textContent = u.name;
-      r('.u-desc').textContent = u.desc;
-      r('.u-group').textContent = groupLabel(u.group);
-      b.addEventListener('click', () => {
-        if (buyUpgrade(this.getState(), u.id)) this.events.onBought();
-        this.update();
-      });
-      this.upgradeList.appendChild(b);
-      this.upgradeRows.set(u.id, { el: b, cost: r('.u-cost') });
-      this.addTip(b, () => ({
-        name: u.name, desc: u.desc, cost: r('.u-cost').textContent ?? '', affordable: b.classList.contains('affordable'),
-        note: groupLabel(u.group),
-      }));
-    }
+    // Rows that have gone leave the page (and the hover card, if it was on one, goes at the next refresh).
+    this.upgradeList.replaceChildren(...list.map((u) => this.upgradeRow(u).el));
+  }
+
+  /** This upgrade's row, built once. */
+  private upgradeRow(u: Upgrade): { el: HTMLButtonElement; cost: HTMLElement } {
+    const made = this.upgradeRows.get(u.id);
+    if (made) return made;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `upgrade group-${u.group}`;
+    b.innerHTML = `
+      <span class="u-tile" aria-hidden="true"><span class="u-icon"></span>${u.badge ? '<span class="u-badge"></span>' : ''}</span>
+      <span class="u-main">
+        <span class="u-name"></span>
+        <span class="u-desc"></span>
+        <span class="u-meta"><span class="u-cost"></span><span class="u-group"></span></span>
+      </span>`;
+    const r = (s: string) => b.querySelector<HTMLElement>(s)!;
+    if (u.effect.kind === 'drinker') r('.u-icon').appendChild(drinkerPortrait(u.effect.drinker, 40));
+    else r('.u-icon').appendChild(icon(u.icon));
+    if (u.badge) r('.u-badge').textContent = u.badge;
+    r('.u-name').textContent = u.name;
+    r('.u-desc').textContent = u.desc;
+    r('.u-group').textContent = groupLabel(u.group);
+    b.addEventListener('click', () => {
+      if (buyUpgrade(this.getState(), u.id)) this.events.onBought();
+      this.update();
+    });
+    const row = { el: b, cost: r('.u-cost') };
+    this.upgradeRows.set(u.id, row);
+    this.addTip(b, () => ({
+      name: u.name, desc: u.desc, cost: row.cost.textContent ?? '', affordable: b.classList.contains('affordable'),
+      note: groupLabel(u.group),
+    }));
+    return row;
   }
 
   // ---------- pubs ----------
