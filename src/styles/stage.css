@@ -348,6 +348,8 @@ select:focus-visible,
   background: linear-gradient(#ffe08a, #e2a83e);
 }
 
+/* A button that isn't for you yet (the Big Bang, before your first) takes no room at all. */
+.icon-button[hidden],
 .last-orders-button[hidden] {
   display: none;
 }
