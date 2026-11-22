@@ -3,6 +3,7 @@ import {
   availableUpgrades, buyNextRound, buyPub, buyUpgrade, costOf, currentBeer, drinkTime, globalMult, hasDownInOne,
   invalidate, nextRound, offlineGain, pintsPerDrink, priceOf, pubBonus, pubCooldownLeft, pubStatuses, refillTime, selectPub, selectPub as move, totalPps,
 } from '../src/core/economy';
+import { buyAllUpgrades } from '../src/core/economy';
 import { mods } from '../src/core/licenceState';
 import { PUB_COOLDOWN_SECONDS } from '../src/core/pubs';
 import { lastOrders } from '../src/core/prestige';
@@ -235,6 +236,35 @@ describe('pubs', () => {
     lastOrders(s);
     expect([...s.pubs]).toEqual(['redlion']);
     expect(s.pub).toBe('redlion');
+  });
+});
+
+describe('Buy all', () => {
+  it('buys every upgrade you can afford, cheapest first, and stops at the first you cannot', () => {
+    const s = newGame(0);
+    s.drinks = 30; // Bigger Gulps (50), Two-Handed (50) and Quick Pour (200) are on offer
+    s.pints = D(120);
+    invalidate();
+    expect(buyAllUpgrades(s)).toBe(2);
+    expect(s.upgrades.has('gulp-1') && s.upgrades.has('perdrink-1')).toBe(true);
+    expect(s.upgrades.has('pour-1')).toBe(false);
+    expect(s.pints.toNumber()).toBe(20);
+    expect(buyAllUpgrades(s)).toBe(0);
+  });
+
+  it('goes round again for what buying one brings into the shop, and buys nothing on Empty Shelves', () => {
+    const s = newGame(0);
+    s.drinks = 5000;
+    s.pints = D(1e12);
+    invalidate();
+    const first = availableUpgrades(s).length;
+    expect(buyAllUpgrades(s)).toBeGreaterThanOrEqual(first);
+    const t = newGame(0);
+    t.drinks = 5000;
+    t.pints = D(1e12);
+    t.challenge = 'shelves';
+    invalidate();
+    expect(buyAllUpgrades(t)).toBe(0);
   });
 });
 

@@ -328,6 +328,43 @@ simply have none. The goals are fixed, so a player deep in the tree will find th
 they are meant for the first dozen nights. On screens under 860px, where the side column is hidden
 after hours, the card sits across the bottom above the way back to the pub.
 
+**Smoothing pass (the slow start and the blitz).** A simulated playthrough took about 8 hours,
+and 70% of it was the first five nights (45 to 90 minutes each, for three powers of ten). Then
+nights collapsed: 24 of them went by in 8 minutes, taking the player from 1e20 to 1e82 pints past
+every late drinker, beer and pub. The cause was the mat bonus. Mats are a cube root of pints and
+each one added a flat 1–5%, so a few thousand mats multiplied income a few thousand times, and
+through content paced for an unboosted player that is seconds a night. Four changes, tuned
+together against the simulator:
+
+- **Mats count for less as they pile up** (`core/mats.ts`). The first 20 each give their full
+  bonus; beyond that a pile counts as 20 × (mats ÷ 20)^0.2, so ten times the mats is about 1.6
+  times the bonus. The summary under your mats says so.
+- **But the first ones count for more.** The base rate is 5% a mat (was 1%), and the Collecting
+  perks give 10%, 15%, 25%, 50% and 100% (were 2, 3, 5, 10, 25). The first mat comes at 1e10
+  all-time pints (was 1e12), so every total is about 4.6 times what it was. A second night is
+  noticeably quicker than a first.
+- **The beers from 2e14 to 1e29 are weaker**: Mlíko ×2.5, Hefeweizen ×1.8, Maß ×1.8, Tripel ×3,
+  Scotch Heavy ×5, Winter Warmer ×7 (were ×4, ×5, ×6, ×8, ×10, ×12), and the fourteen after them
+  about a tenth weaker. Nobody reaches these on a first night, so they are paced for a player who
+  already has a mat bonus.
+- **The long lines are repriced for all that**: 45 steps (was 30) starting at 10^16.45 mats (was
+  10^23.4) and going up ×50 a round (was ×240), and the first one-off perks cost 1e9 to 1e14.
+  336 perks, about 6e97 mats.
+
+| Simulated, holding half the time | Before | After |
+|---|---|---|
+| Nights 1–6 | 6h 00m (90, 79, 69, 56, 46, 21 min) | 4h 08m (75, 60, 40, 26, 23, 24 min) |
+| 1e18 to 1e62 pints | 8 minutes, 24 nights of seconds | 1h 34m, 44 nights of 1–4 minutes |
+| Long lines to the first Big Bang | 1h 53m | 1h 54m, nights of up to 10 minutes |
+| First Big Bang | 8h 02m | 7h 36m |
+| Whole playthrough | 8h 05m | 7h 40m (8h 52m casual, 7h 28m always holding) |
+
+  Still rough: night 6 to night 7 drops from 24 minutes to 4, and the long lines dip to a few
+  seconds a night for a stretch after step 10. Old saves: mats already earned are kept, the next
+  Last Orders pays the difference up to the new, larger totals, and a big pile of mats is worth
+  far less than it was. The long lines remain a knife edge (see below): the same start one decade
+  dearer was hour-long nights, one decade cheaper two-second ones.
+
 **The Big Bang** (`core/bang.ts`, `data/bang.ts`, `ui/bigBang.ts`). The layer above Last Orders,
 and the answer to the long lines being a grind: the simulator reaches it at about eight hours,
 which is where the long lines begin.

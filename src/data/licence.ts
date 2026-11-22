@@ -173,7 +173,7 @@ const TIER_COSTS = [1, 4, 15];
 const FOURTH_COSTS = [300, 600, 1.2e3, 2.5e3, 5e3, 1e4];
 const FIFTH_COSTS = [3e4, 1e5, 3e5, 1e6, 1e7, 1e8];
 /** The first one-off perk of each branch: the last things to buy before the long lines begin. */
-const FIRST_UNIQUE_COSTS = [1e10, 1e12, 1e14, 1e16, 1e18, 1e20];
+const FIRST_UNIQUE_COSTS = [1e9, 1e10, 1e11, 1e12, 1e13, 1e14];
 /** Where each branch comes in those lists, cheapest first. */
 const PRICE_RANK: Record<string, number> = { technique: 0, charm: 1, regulars: 2, management: 3, brewing: 4, collecting: 5 };
 const coreCost = (branch: string, tier: number): number =>
@@ -220,11 +220,11 @@ const SPECS: Record<string, Spec[]> = {
     ['Iron Liver', 'Keep your drinking upgrades when the landlord calls time.', [{ kind: 'keepDrinking' }]],
   ],
   collecting: [
-    ['Coaster Collector', 'Each unspent Beer Mat gives +2% instead of +1%.', [{ kind: 'matRate', rate: 0.02 }]],
+    ['Coaster Collector', 'Each unspent Beer Mat gives +10% instead of +5%.', [{ kind: 'matRate', rate: 0.1 }]],
     ['Mat Hoarder', 'Earn 25% more Beer Mats.', [{ kind: 'matGain', mult: 1.25 }]],
-    ['Rare Prints', 'Each unspent Beer Mat gives +3%.', [{ kind: 'matRate', rate: 0.03 }]],
+    ['Rare Prints', 'Each unspent Beer Mat gives +15%.', [{ kind: 'matRate', rate: 0.15 }]],
     ['Limited Editions', 'Earn another 50% more Beer Mats.', [{ kind: 'matGain', mult: 1.5 }]],
-    ['Museum Collection', 'Each unspent Beer Mat gives +5%.', [{ kind: 'matRate', rate: 0.05 }]],
+    ['Museum Collection', 'Each unspent Beer Mat gives +25%.', [{ kind: 'matRate', rate: 0.25 }]],
   ],
 };
 
@@ -313,23 +313,23 @@ const EARLY: LicenceNode[] = BRANCHES.map((b) => {
 // ---------- the long lines ----------
 
 /** Steps along each branch's line. */
-export const LINE_LENGTH = 30;
+export const LINE_LENGTH = 45;
 /**
  * The first step of the first line costs 10^this mats. It is this far out on purpose: once mats
  * are worth a few thousand times your income, a run goes through every beer in seconds and pays
  * about 1e20 mats, so anything cheaper would be bought without a night's drinking. From here a
  * run is a few minutes to half an hour (`npm run simulate -- 0.5 1e15 600`).
  */
-const LINE_START = 23.4;
+const LINE_START = 16.45;
 /** …each step along a line is 10^this times the one before (a shade over the ×226 a round gives)… */
-const LINE_STEP = 2.38;
+const LINE_STEP = 1.7;
 /**
  * …and within a round of the six, each line is 10^this times the cheapest. Prices follow what you
  * have by then: the three that make mats come faster are spaced by what the one before them gave,
  * and each of the other three sits just under one of those, so it never holds the next one up.
  */
 const BRANCH_OFFSET: Record<string, number> = {
-  charm: 0, regulars: 0.05, management: 0.5, brewing: 0.55, technique: 1, collecting: 1.05,
+  charm: 0, regulars: 0.05, management: 0.36, brewing: 0.41, technique: 0.72, collecting: 0.77,
 };
 
 /**
@@ -380,9 +380,9 @@ const UNIQUES: Record<string, Spec[]> = {
     ['One for the Road', "Each pint you drink also earns ten seconds of your drinkers' output.", [{ kind: 'lunch', seconds: 10 }]],
   ],
   collecting: [
-    ['Framed Collection', 'Each unspent Beer Mat gives +10%.', [{ kind: 'matRate', rate: 0.1 }]],
+    ['Framed Collection', 'Each unspent Beer Mat gives +50%.', [{ kind: 'matRate', rate: 0.5 }]],
     ['Trophy Cabinet', 'Earn 1% more Beer Mats for every achievement.', [{ kind: 'matGainPerAch', rate: 0.01 }]],
-    ['Mint Condition', 'Each unspent Beer Mat gives +25%.', [{ kind: 'matRate', rate: 0.25 }]],
+    ['Mint Condition', 'Each unspent Beer Mat gives +100%.', [{ kind: 'matRate', rate: 1 }]],
     ['The Complete Set', 'Every Beer Mat you have ever earned gives its bonus, spent or not.', [{ kind: 'matsCountSpent' }]],
   ],
 };
@@ -409,7 +409,7 @@ const LINE_CURVE = 0.045;
  * The one-off perks make mats come faster too, so the line gets dearer by 10^this after the step
  * they hang off: mostly Connoisseur (×1.5 for each of 26 beers) and Master Brewer (×2 for each).
  */
-const UNIQUE_BUMPS: [afterStep: number, exponent: number][] = [[MECHANIC_STEP, 0.6], [10, 3.9], [20, 0.35]];
+const UNIQUE_BUMPS: [afterStep: number, exponent: number][] = [[MECHANIC_STEP, 0.3], [10, 3.1], [20, 0.35], [30, 1.5]];
 
 const price = (exponent: number): Decimal => {
   const whole = Math.floor(exponent);
@@ -450,7 +450,7 @@ const LONG: LicenceNode[] = BRANCHES.flatMap((b) => {
       const [name, desc, effects] = MECHANICS[b.id][1];
       out.push({
         id: `${b.id}-m2`, branch: b.id, tier: 5 + step, name, desc, effects,
-        cost: cost.mul(5), requires: `${b.id}-x${step}`, at: at(step, 1), unique: true,
+        cost: cost.mul(6), requires: `${b.id}-x${step}`, at: at(step, 1), unique: true,
       });
     }
     const u = UNIQUE_STEPS.indexOf(step);
@@ -537,7 +537,7 @@ export interface LicenceMods {
   autoLegend: boolean;
 }
 
-export const BASE_MAT_RATE = 0.01;
+export const BASE_MAT_RATE = 0.05;
 
 /** Modifiers with nothing bought. */
 export function baseMods(): LicenceMods {

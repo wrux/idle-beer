@@ -77,9 +77,10 @@ describe('stress: e(1e10) pints', () => {
     s.drinkers = { regular: 1 };
     invalidate();
     expect(ok(totalPps(s))).toBe(true);
-    expect(totalPps(s).exponent).toBeGreaterThan(3e9); // mats boost carries straight through
-    // Collecting's mat bonuses re-value what you've already drunk: ×1.25, ×1.5, thirty ×8s, and Trophy Cabinet.
-    const gain = 1.25 * 1.5 * 8 ** 30 * (1 + 0.01 * s.achievements.size);
+    // The mats boost carries through, at the fifth power its size has past the first twenty.
+    expect(totalPps(s).exponent).toBeGreaterThan(6e8);
+    // Collecting's mat bonuses re-value what you've already drunk: ×1.25, ×1.5, forty-five ×8s, and Trophy Cabinet.
+    const gain = 1.25 * 1.5 * 8 ** 45 * (1 + 0.01 * s.achievements.size);
     expect(matsOnReset(s).div(s.matsEarned).log10()).toBeCloseTo(Math.log10(gain - 1), 3);
   });
 

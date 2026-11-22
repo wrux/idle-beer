@@ -17,6 +17,7 @@ import { BRANCHES, LICENCE, LICENCE_BY_ID, type AutoBuy, type LicenceNode } from
 import { CHALLENGES, CHALLENGE_BY_ID, SPECIAL_BY_ID } from '../data/nights';
 import { challengeProgress, pickChallenge, pickSpecial } from '../core/nights';
 import { invalidate } from '../core/economy';
+import { MAT_FULL, matBonusOf } from '../core/mats';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SVG = 'http://www.w3.org/2000/svg';
@@ -115,7 +116,7 @@ export class LastOrdersPanel {
       const rate = mods(s).matRate;
       $('prestige-gain').textContent = matsText(gain);
       $('prestige-bonus').textContent =
-        tr('Unspent, that takes your bonus to everything from {from} to {to}.', { from: bonusText(matMult(s)), to: bonusText(s.beerMats.add(gain).mul(rate).add(1)) });
+        tr('Unspent, that takes your bonus to everything from {from} to {to}.', { from: bonusText(matMult(s)), to: bonusText(matBonusOf(s.beerMats.add(gain), rate)) });
       this.confirm.showModal();
     });
     $('prestige-cancel').addEventListener('click', () => this.confirm.close());
@@ -520,8 +521,8 @@ export class LastOrdersPanel {
     // Collectors' Fair makes this a fraction, so it goes through format() like any other number.
     const rate = format(new Decimal(mods(s).matRate * 100));
     $('licence-summary').textContent = mods(s).matsCountSpent
-      ? tr('Every mat you have ever earned gives +{rate}%, spent or not.', { rate })
-      : tr('Each unspent mat gives +{rate}%. Spending mats on your legend gives up their bonus.', { rate });
+      ? tr('The first {n} mats you have ever earned give +{rate}% each, spent or not, and every one after that a little less.', { n: format(new Decimal(MAT_FULL)), rate })
+      : tr('The first {n} unspent mats give +{rate}% each, and every one after that a little less. Spending mats on your legend gives up their bonus.', { n: format(new Decimal(MAT_FULL)), rate });
     $('licence-mats').textContent = hubCount(s.beerMats);
     $('lo-mats').textContent = format(s.beerMats, true);
     $('lo-bonus').textContent = bonusText(matMult(s));

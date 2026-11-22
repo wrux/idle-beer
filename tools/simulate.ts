@@ -9,6 +9,8 @@
  *   npm run simulate -- 0.25 1e15 4     # four runs with Last Orders in between
  *   npm run simulate -- 0.5 1e15 600    # as many runs as it takes to buy the whole Local Legend tree
  *   npm run simulate -- 0.5 1e15 2000 12 # …and on through twelve Big Bangs, spending Black Hole Beers as they come
+ *   SIM_JSON=run.json npm run simulate -- 0.5 1e15 4000 200  # a whole playthrough (it stops when The Last Pint of All
+ *                                                            # is bought), with a row per night written to run.json
  *
  * Multi-run strategy: call Last Orders once it would at least double your total mats
  * (and pay 10+), then spend up to half your mats on the cheapest Licence nodes.
@@ -21,6 +23,7 @@ import {
 import { bigBang, buyVoid, canBang, collectLiveMats, voidStatus } from '../src/core/bang';
 import { autoCycleSeconds } from '../src/core/drinking';
 import { VOID_TREE } from '../src/data/bang';
+import fs from 'node:fs';
 import { format } from '../src/core/format';
 import { mods } from '../src/core/licenceState';
 import { D, Decimal } from '../src/core/num';
@@ -36,7 +39,8 @@ const target = D(process.argv[3] ?? '1e15');
 const runs = Number(process.argv[4] ?? 1);
 /** Stop after this many Big Bangs (0 = never end the universe: just keep calling Last Orders). */
 const bangs = Number(process.argv[5] ?? 0);
-const MAX_RUN_SECONDS = 12 * 60 * 60;
+/** No night goes on longer than this (SIM_MAX_NIGHT=seconds to change it, for quick tuning runs). */
+const MAX_RUN_SECONDS = Number(process.env.SIM_MAX_NIGHT ?? 12 * 60 * 60);
 
 // Physical drink cycle: lift to the lips, drain, put down, pour.
 const cycleTime = (s: GameState) => 0.25 * 0.85 + drinkTime(s) + 0.3 + refillTime(s);
@@ -205,6 +209,9 @@ if (runs <= 1) {
   console.log(`Activity ${activity * 100}% holding · ${runs} runs\n`);
   console.log('run     length   total time  drunk this run        mats in all  perks  bought');
   let total = 0;
+  /** A row per night, for charting (SIM_JSON=path). */
+  const rows: Record<string, unknown>[] = [];
+  const log10 = (d: Decimal) => (d.gt(0) ? +d.log10().toFixed(2) : 0);
   for (let run = 1; run <= runs; run++) {
     // Prestige once it would at least double your mats (and pay at least 10), or the universe is dry.
     const stop = (x: GameState) => {
@@ -215,6 +222,10 @@ if (runs <= 1) {
     const r = playRun(s, stop, false);
     total += r.seconds;
     const drunk = s.lifetimePints;
+    rows.push({
+      run, seconds: +r.seconds.toFixed(1), total: +total.toFixed(1), pints: log10(drunk), mats: log10(s.matsEarned.add(matsOnReset(s))),
+      perks: s.licence.size, universe: s.bangs + 1, voidPerks: s.voidTree.size, bang: bangs > 0 && canBang(s),
+    });
     if (bangs > 0 && canBang(s)) {
       const lasted = s.universeSeconds;
       const gained = bigBang(s);
@@ -226,7 +237,8 @@ if (runs <= 1) {
         bought.push(node.name);
       }
       console.log(`  BIG BANG ${s.bangs}: universe lasted ${fmtTime(lasted)} · +${gained} Black Hole Beers (${s.voidEarned} in all) · total ${fmtTime(total)} · bought ${bought.join(', ') || '-'}`);
-      if (s.bangs >= bangs) break;
+      // The Last Pint of All is the end of the game: one more pint, by hand, and that's it.
+      if (s.bangs >= bangs || s.voidTree.has('last-pint')) break;
       continue;
     }
     lastOrders(s);
@@ -239,5 +251,6 @@ if (runs <= 1) {
     );
     if (s.licence.size === LICENCE.length) break;
   }
+  if (process.env.SIM_JSON) fs.writeFileSync(process.env.SIM_JSON, JSON.stringify(rows));
   console.log(`\nTotal time ${fmtTime(total)} · ${format(s.beerMats)} mats unspent · ${s.licence.size} Licence nodes`);
 }

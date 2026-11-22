@@ -7,6 +7,7 @@ import { big, D } from '../src/core/num';
 import {
   allTimePints, buyLicence, lastOrders, licenceStatus, matMult, matsOnReset, matsWorth, pintsForNextMat,
 } from '../src/core/prestige';
+import { matBonusOf, matsCounted } from '../src/core/mats';
 import { deserialize, serialize } from '../src/core/save';
 import { newGame, SAVE_VERSION, type GameState } from '../src/core/state';
 import { checkAchievements } from '../src/data/achievements';
@@ -25,12 +26,12 @@ const buyBranch = (s: GameState, branch: string, upTo: number) => {
 };
 
 describe('Beer Mats', () => {
-  it('first mat at a trillion all-time pints, then the cube root', () => {
-    expect(matsWorth(D(9.99e11)).toNumber()).toBe(0);
-    expect(matsWorth(D(1e12)).toNumber()).toBe(1);
-    expect(matsWorth(D(8e12)).toNumber()).toBe(2);
-    expect(matsWorth(D(1e18)).toNumber()).toBe(100);
-    expect(matsWorth(D(1e15), 1.25).toNumber()).toBe(12);
+  it('first mat at ten billion all-time pints, then the cube root', () => {
+    expect(matsWorth(D(9.99e9)).toNumber()).toBe(0);
+    expect(matsWorth(D(1e10)).toNumber()).toBe(1);
+    expect(matsWorth(D(8e10)).toNumber()).toBe(2);
+    expect(matsWorth(D(1e16)).toNumber()).toBe(100);
+    expect(matsWorth(D(1e13), 1.25).toNumber()).toBe(12);
   });
 
   it('handle absurd all-time pints', () => {
@@ -39,37 +40,48 @@ describe('Beer Mats', () => {
 
   it('a reset only pays out mats you have not had before', () => {
     const s = newGame();
-    s.lifetimePints = D(1e18);
+    s.lifetimePints = D(1e16);
     expect(matsOnReset(s).toNumber()).toBe(100);
     expect(lastOrders(s).toNumber()).toBe(100);
     expect(matsOnReset(s).toNumber()).toBe(0);
-    s.lifetimePints = D(7e18); // all-time 8e18 → 200 mats
+    s.lifetimePints = D(7e16); // all-time 8e16 → 200 mats
     expect(matsOnReset(s).toNumber()).toBe(100);
   });
 
   it('says how many pints the next mat needs', () => {
     const s = newGame();
-    s.lifetimePints = D(1e18); // 100 mats
+    s.lifetimePints = D(1e16); // 100 mats
     const next = pintsForNextMat(s);
     expect(matsWorth(next).toNumber()).toBe(101);
     expect(matsWorth(next.mul(0.999)).toNumber()).toBe(100);
   });
 
-  it('each unspent mat adds 1% to everything', () => {
-    const s = withMats(50);
+  it('the first twenty unspent mats add 5% each to everything', () => {
+    const s = withMats(20);
     s.drinkers = { student: 2 };
     invalidate();
-    expect(matMult(s).toNumber()).toBeCloseTo(1.5);
-    expect(totalPps(s).toNumber()).toBeCloseTo(3);
-    expect(pintsPerDrink(s).toNumber()).toBeCloseTo(1.5);
+    expect(matMult(s).toNumber()).toBeCloseTo(2);
+    expect(totalPps(s).toNumber()).toBeCloseTo(4);
+    expect(pintsPerDrink(s).toNumber()).toBeCloseTo(2);
+  });
+
+  it('and every mat after that counts for less than the one before', () => {
+    expect(matsCounted(D(20)).toNumber()).toBe(20);
+    // Ten times the mats is about 1.6 times the bonus.
+    expect(matsCounted(D(200)).toNumber()).toBeCloseTo(20 * 10 ** 0.2);
+    expect(matsCounted(D(2e11)).toNumber()).toBeCloseTo(20 * 10 ** 2);
+    expect(matBonusOf(D(200), 0.05).toNumber()).toBeCloseTo(1 + 0.05 * 20 * 10 ** 0.2);
+    // A million mats used to multiply everything by ten thousand at 1% each. Now, at 5%:
+    expect(matBonusOf(D(1e6), 0.05).toNumber()).toBeCloseTo(1 + 0.05 * 20 * 50000 ** 0.2);
+    expect(matBonusOf(D(1e6), 0.05).toNumber()).toBeLessThan(10);
   });
 });
 
 describe('Last Orders reset', () => {
   it('wipes the run but keeps achievements, stats and prestige progress', () => {
     const s = newGame();
-    s.lifetimePints = D(1e15);
-    s.pints = D(5e14);
+    s.lifetimePints = D(1e13);
+    s.pints = D(5e12);
     s.drinkers = { regular: 50, student: 10 };
     s.upgrades.add('regular-1');
     s.beer = 6;
@@ -87,13 +99,13 @@ describe('Last Orders reset', () => {
     expect(s.achievements.has('lifetime-1')).toBe(true);
     expect(s.prestiges).toBe(1);
     expect(s.beerMats.toNumber()).toBe(10);
-    expect(allTimePints(s).toNumber()).toBe(1e15);
+    expect(allTimePints(s).toNumber()).toBe(1e13);
   });
 });
 
 describe("Landlord's Licence", () => {
-  it('has six branches: five nodes round the middle, a line of thirty, four one-off perks and two that change the game', () => {
-    expect(LICENCE).toHaveLength(6 * (5 + 30 + 4 + 2));
+  it('has six branches: five nodes round the middle, a line of forty-five, four one-off perks and two that change the game', () => {
+    expect(LICENCE).toHaveLength(6 * (5 + 45 + 4 + 2));
     expect(new Set(LICENCE.map((n) => n.id)).size).toBe(LICENCE.length);
     // Every node hangs off one that comes before it in the list, so buying in order always works.
     const seen = new Set<string>();
@@ -140,11 +152,11 @@ describe("Landlord's Licence", () => {
     expect(s.pubs.has('garden')).toBe(true);
     expect(s.pub).toBe('garden');
 
-    const t = withMats(100);
-    t.matsEarned = D(1000);
-    expect(matMult(t).toNumber()).toBeCloseTo(2);
+    const t = withMats(10);
+    t.matsEarned = D(20);
+    expect(matMult(t).toNumber()).toBeCloseTo(1.5);
     t.licence.add('collecting-u4');
-    expect(matMult(t).toNumber()).toBeCloseTo(11);
+    expect(matMult(t).toNumber()).toBeCloseTo(2);
   });
 
   it('nodes need the one before them and enough mats', () => {
@@ -211,12 +223,13 @@ describe("Landlord's Licence", () => {
 
   it('Collecting makes mats stronger and more plentiful', () => {
     const spent = 1 + 4 + 15 + 1e4 + 1e8; // Collecting is the dearest branch of the middle
-    const s = withMats(spent + 70);
+    const s = withMats(spent + 20);
     buyBranch(s, 'collecting', 5);
-    expect(s.beerMats.toNumber()).toBe(70);
-    expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.05 * 70);
-    s.lifetimePints = D(1e39); // worth ∛1e27 = 1e9 mats, ×1.875 with both gain nodes
-    expect(matsOnReset(s).toNumber()).toBeCloseTo(1.875e9 - (spent + 70), -1);
+    expect(s.beerMats.toNumber()).toBe(20);
+    // Museum Collection: 25% a mat (for the twenty that count in full).
+    expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.25 * 20);
+    s.lifetimePints = D(1e37); // worth ∛1e27 = 1e9 mats, ×1.875 with both gain nodes
+    expect(matsOnReset(s).toNumber()).toBeCloseTo(1.875e9 - (spent + 20), -1);
   });
 });
 
@@ -289,14 +302,14 @@ describe('perks that change how the game is played', () => {
   });
 
   it('Counted Already puts tonight\'s mats towards the bonus, and Collectors\' Fair makes each worth more', () => {
-    const s = withMats(100);
-    s.matsEarned = D(100);
-    s.lifetimePints = D(1e21); // worth 1,000 mats, so 900 to come
-    expect(matMult(s).toNumber()).toBeCloseTo(2);
+    const s = withMats(5);
+    s.matsEarned = D(5);
+    s.lifetimePints = D(8e12); // worth ∛800 = 9 mats, so 4 to come
+    expect(matMult(s).toNumber()).toBeCloseTo(1.25);
     s.licence.add('collecting-m1');
-    expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.01 * 1000);
+    expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.05 * 9);
     s.licence.add('collecting-m2');
-    expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.01 * 1.02 * 1000);
+    expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.05 * 1.02 * 9);
   });
 });
 
@@ -336,7 +349,8 @@ describe('saves', () => {
     expect(s.pints.toNumber()).toBe(500);
     expect(s.beerMats.eq(0)).toBe(true);
     expect(s.runStartedAt).toBe(1234);
-    expect(matsOnReset(s).toNumber()).toBe(1);
+    // 2e12 pints is ∛200 = 5 mats now that the first comes at ten billion.
+    expect(matsOnReset(s).toNumber()).toBe(5);
   });
 });
 

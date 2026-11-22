@@ -219,7 +219,7 @@ describe('what Black Hole Beers buy', () => {
 
   it('No More Mornings pays mats as you go and opens the tree at any time', () => {
     const s = withPerks('time-2');
-    s.lifetimePints = D(1e21); // worth 1,000 mats
+    s.lifetimePints = D(1e19); // worth 1,000 mats
     expect(collectLiveMats(s, matsOnReset(s))).toBe(true);
     expect(s.beerMats.toNumber()).toBe(1000);
     expect(matsOnReset(s).eq(0)).toBe(true);

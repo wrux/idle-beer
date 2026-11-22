@@ -4,7 +4,7 @@ import { LOCATIONS, LOCATION_BONUS, LOCATION_BY_ID, type Location } from '../dat
 import { UPGRADES, UPGRADE_BY_ID, type Upgrade } from '../data/upgrades';
 import { DOWN_IT_MULT, HAPPY_HOUR_MULT, hasBuff, QUIZ_DISCOUNT, startBuff } from './events';
 import { AGED_CAP, BASE_COST_RATIO } from '../data/licence';
-import { matsWorth } from './mats';
+import { matBonusOf, matsWorth } from './mats';
 import { mods, perkPubs } from './licenceState';
 import { PUB_COOLDOWN_SECONDS } from './pubs';
 import { D, Decimal } from './num';
@@ -138,7 +138,7 @@ export function matBonus(state: GameState): Decimal {
   if (m.pendingMats) {
     mats = mats.add(Decimal.max(0, matsWorth(state.pastRunsPints.add(state.lifetimePints), m.matGain).sub(state.matsEarned)));
   }
-  return mats.mul(m.matRate).add(1);
+  return matBonusOf(mats, m.matRate);
 }
 
 // ---------- drinking by hand ----------
@@ -283,6 +283,26 @@ export function buyUpgrade(state: GameState, id: string): boolean {
   state.upgrades.add(id);
   invalidate();
   return true;
+}
+
+/**
+ * Buy every upgrade you can afford, cheapest first, and go round again while that turns up more
+ * (buying one can bring another into the shop). Returns how many were bought.
+ */
+export function buyAllUpgrades(state: GameState): number {
+  let bought = 0;
+  for (let pass = 0; pass < 20; pass++) {
+    let any = false;
+    for (const u of availableUpgrades(state)) {
+      if (state.pints.lt(upgradeCost(state, u))) break; // they come cheapest first
+      if (buyUpgrade(state, u.id)) {
+        bought++;
+        any = true;
+      }
+    }
+    if (!any) break;
+  }
+  return bought;
 }
 
 // ---------- beers ----------

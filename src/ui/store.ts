@@ -3,7 +3,7 @@
  * and patched (upgrade rows are only rebuilt when the set of available upgrades changes).
  */
 import {
-  availableUpgrades, upgradeCost, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach,
+  availableUpgrades, upgradeCost, buyAllUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach,
   nextRound, priceOf, pubBonus, pubCooldownLeft, pubStatuses, quantityFor, selectPub, storeVisibility,
 } from '../core/economy';
 import { format as formatNumber } from '../core/format';
@@ -110,6 +110,7 @@ export class StoreView {
   // Upgrades
   private upgradeList: HTMLElement;
   private upgradeCount: HTMLElement;
+  private buyAll: HTMLButtonElement;
   private upgradeRows = new Map<string, { el: HTMLButtonElement; cost: HTMLElement }>();
   private upgradeKey = '';
 
@@ -189,6 +190,11 @@ export class StoreView {
     // ----- upgrades -----
     this.upgradeList = q('.upgrade-list');
     this.upgradeCount = q('.upgrade-count');
+    this.buyAll = q<HTMLButtonElement>('.buy-all-upgrades');
+    this.buyAll.addEventListener('click', () => {
+      if (buyAllUpgrades(this.getState()) > 0) this.events.onBought();
+      this.update();
+    });
 
     // ----- drinkers -----
     const modes = q('.buy-modes');
@@ -422,6 +428,7 @@ export class StoreView {
     }
     // The badge counts what you can buy right now, so it's worth a look when it lights up.
     this.set(this.upgradeCount, ready ? String(ready) : '');
+    this.buyAll.disabled = ready === 0;
   }
 
   private rebuildUpgrades(list: Upgrade[]) {

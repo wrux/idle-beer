@@ -1375,3 +1375,18 @@ dialog.panel-dialog.the-end::backdrop {
 .end-body .ring-bell {
   margin-top: 10px;
 }
+
+/* Buy all, on the Upgrades tab: lit when there is something to buy. */
+.buy-modes .buy-all-upgrades {
+  white-space: nowrap;
+}
+
+.buy-modes .buy-all-upgrades:not(:disabled) {
+  background: linear-gradient(#ffe08a, #e2a83e);
+  color: #2b1a0e;
+}
+
+.buy-modes .buy-all-upgrades:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
