@@ -6,7 +6,7 @@ import {
   availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach,
   nextRound, priceOf, pubBonus, pubCooldownLeft, pubStatuses, quantityFor, selectPub, storeVisibility,
 } from '../core/economy';
-import { format as formatNumber, type NumberFormat } from '../core/format';
+import { format as formatNumber } from '../core/format';
 import { D, type Decimal } from '../core/num';
 import { owned, type BuyMode, type GameState } from '../core/state';
 import { BEERS, beerAt } from '../data/beers';
@@ -18,7 +18,7 @@ import { beerIcon, drinkerPortrait, pubThumb } from './art/icons';
 import { icon } from './glyphs';
 
 /** Prices and targets sit still, so they're shown without trailing zeros ("100 million", not "100.000 million"). */
-const format = (v: Decimal, f: NumberFormat) => formatNumber(v, f, true);
+const format = (v: Decimal) => formatNumber(v, true);
 
 const MODES: BuyMode[] = [1, 10, 100, 'max'];
 const modeLabel = (m: BuyMode) => (m === 'max' ? tr('Max') : `×${m}`);
@@ -358,7 +358,6 @@ export class StoreView {
 
   private updateBeer() {
     const state = this.getState();
-    const f = state.settings.numberFormat;
     const now = currentBeer(state);
     this.set(this.beerNow, tr('Drinking: {beer}', { beer: now.name }));
 
@@ -386,8 +385,8 @@ export class StoreView {
       this.beerCard.classList.remove('affordable');
       this.beerCard.classList.add('mystery');
       this.set(this.beerName, '???');
-      describe(this.beerCard, tr('The next beer is revealed at {pints} lifetime pints.', { pints: format(next.cost.mul(0.5), f) }));
-      this.set(this.beerDesc, tr('Revealed at {pints} lifetime pints.', { pints: format(next.cost.mul(0.5), f) }));
+      describe(this.beerCard, tr('The next beer is revealed at {pints} lifetime pints.', { pints: format(next.cost.mul(0.5)) }));
+      this.set(this.beerDesc, tr('Revealed at {pints} lifetime pints.', { pints: format(next.cost.mul(0.5)) }));
       this.set(this.beerCost, '');
       return;
     }
@@ -397,16 +396,15 @@ export class StoreView {
     this.beerCard.classList.toggle('affordable', affordable);
     setProgress(this.beerCard, state.pints, offer.cost);
     this.set(this.beerName, offer.beer.name);
-    describe(this.beerCard, tr('{beer}: {mult} everything. {cost} pints.', { beer: offer.beer.name, mult: multText(offer.mult), cost: format(offer.cost, f) }));
+    describe(this.beerCard, tr('{beer}: {mult} everything. {cost} pints.', { beer: offer.beer.name, mult: multText(offer.mult), cost: format(offer.cost) }));
     this.set(this.beerDesc, `${tr('{mult} everything.', { mult: multText(offer.mult) })} ${offer.beer.flavour}`);
-    this.set(this.beerCost, format(offer.cost, f));
+    this.set(this.beerCost, format(offer.cost));
   }
 
   // ---------- upgrades ----------
 
   private updateUpgrades() {
     const state = this.getState();
-    const f = state.settings.numberFormat;
     const list = availableUpgrades(state);
     const key = list.map((u) => u.id).join(',');
     if (key !== this.upgradeKey) this.rebuildUpgrades(list);
@@ -418,8 +416,8 @@ export class StoreView {
       const row = this.upgradeRows.get(u.id)!;
       row.el.classList.toggle('affordable', affordable);
       setProgress(row.el, state.pints, u.cost);
-      this.set(row.cost, format(u.cost, f));
-      describe(row.el, `${u.name}. ${u.desc} ${format(u.cost, f)} pints.`);
+      this.set(row.cost, format(u.cost));
+      describe(row.el, `${u.name}. ${u.desc} ${format(u.cost)} pints.`);
     }
     // The badge counts what you can buy right now, so it's worth a look when it lights up.
     this.set(this.upgradeCount, ready ? String(ready) : '');
@@ -473,7 +471,6 @@ export class StoreView {
 
   private updatePubs() {
     const state = this.getState();
-    const f = state.settings.numberFormat;
     const status = pubStatuses(state);
     // After a move you have to stay put for a while before moving again.
     const wait = Math.ceil(pubCooldownLeft(state));
@@ -498,12 +495,12 @@ export class StoreView {
       }
       const bonus = Math.round((pubBonus(l.id) - 1) * 100);
       this.set(row.name, mystery ? '???' : l.name);
-      this.set(row.perk, mystery ? tr('Word gets round at {pints} lifetime pints.', { pints: format(l.threshold.mul(0.1), f) }) : l.perk);
+      this.set(row.perk, mystery ? tr('Word gets round at {pints} lifetime pints.', { pints: format(l.threshold.mul(0.1)) }) : l.perk);
       this.set(row.bonus, mystery || !bonus ? '' : tr('+{percent}% everything', { percent: bonus }));
-      this.set(row.action, st === 'here' ? tr("You're here") : st === 'open' ? (settling ? waitText : tr('Move here')) : mystery ? '' : format(l.threshold, f));
+      this.set(row.action, st === 'here' ? tr("You're here") : st === 'open' ? (settling ? waitText : tr('Move here')) : mystery ? '' : format(l.threshold));
       describe(
         row.el,
-        mystery ? tr('Unknown pub') : `${l.name}. ${l.perk} ${st === 'here' ? tr("You're here") : st === 'open' ? (settling ? waitText : tr('Move here')) : tr('Stand the house a round for {pints} pints.', { pints: format(l.threshold, f) })}`,
+        mystery ? tr('Unknown pub') : `${l.name}. ${l.perk} ${st === 'here' ? tr("You're here") : st === 'open' ? (settling ? waitText : tr('Move here')) : tr('Stand the house a round for {pints} pints.', { pints: format(l.threshold) })}`,
       );
     });
     this.set(this.pubCount, ready ? String(ready) : '');
@@ -513,7 +510,6 @@ export class StoreView {
 
   private updateDrinkers() {
     const state = this.getState();
-    const f = state.settings.numberFormat;
     const mode = state.settings.buyMode;
     this.modeButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(MODES[i] === mode)));
 
@@ -537,12 +533,12 @@ export class StoreView {
 
       this.set(row.name, mystery ? '???' : d.name);
       this.set(row.flavour, mystery ? tr('Keep drinking to find out who turns up.') : d.flavour);
-      this.set(row.owned, have > 0 ? format(D(have), f) : '');
-      this.set(row.cost, qty > 1 ? tr('{cost} for {n}', { cost: format(cost, f), n: format(D(qty), f) }) : format(cost, f));
-      this.set(row.pps, mystery ? '' : tr('+{pints}/s each', { pints: format(drinkerPpsEach(state, d), f) }));
+      this.set(row.owned, have > 0 ? format(D(have)) : '');
+      this.set(row.cost, qty > 1 ? tr('{cost} for {n}', { cost: format(cost), n: format(D(qty)) }) : format(cost));
+      this.set(row.pps, mystery ? '' : tr('+{pints}/s each', { pints: format(drinkerPpsEach(state, d)) }));
       describe(
         row.el,
-        mystery ? tr('Unknown drinker') : tr('{name}, owned {have}. Buy {n} for {cost} pints.', { name: d.name, have, n: qty, cost: format(cost, f) }),
+        mystery ? tr('Unknown drinker') : tr('{name}, owned {have}. Buy {n} for {cost} pints.', { name: d.name, have, n: qty, cost: format(cost) }),
       );
     });
   }

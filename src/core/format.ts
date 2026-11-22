@@ -1,22 +1,15 @@
 import { Decimal } from './num';
 
-export type NumberFormat = 'short' | 'scientific' | 'engineering';
-
-/** Word names for 10^(3g), g = 0..11 (up to decillion). */
-const NAMES = [
-  '', 'thousand', 'million', 'billion', 'trillion', 'quadrillion', 'quintillion',
-  'sextillion', 'septillion', 'octillion', 'nonillion', 'decillion',
-];
-/** Abbreviations for undecillion (1e36) up to novenonagintillion (1e300). */
-const UNITS = ['', 'U', 'D', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'O', 'N'];
-const TENS = ['', 'Dc', 'Vg', 'Tg', 'Qag', 'Qig', 'Sxg', 'Spg', 'Og', 'Ng'];
+/**
+ * Word names for 10^(3g), g = 0..6. They stop at quintillion on purpose: past that the names are
+ * ones nobody can place ("is a septillion more than an octillion?") and the made-up abbreviations
+ * beyond decillion ("QaDc", "SpTg") were worse, so from 1e21 a number is written 1.23e21.
+ */
+const NAMES = ['', 'thousand', 'million', 'billion', 'trillion', 'quadrillion', 'quintillion'];
 
 /** Suffix for the group 10^(3g), or null if past the named range. */
 export function groupSuffix(group: number): string | null {
-  if (group < NAMES.length) return NAMES[group];
-  const illion = group - 1; // 1e36 = group 12 = illion 11 = "UDc"
-  if (illion >= 100) return null;
-  return UNITS[illion % 10] + TENS[Math.floor(illion / 10)];
+  return group < NAMES.length ? NAMES[group] : null;
 }
 
 /** Below this, numbers are always shown in full ("123,456"). */
@@ -31,6 +24,7 @@ let english = true;
 let GROUPED = new Intl.NumberFormat(lang, { maximumFractionDigits: 0 });
 let SMALL = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
 let FIXED: Intl.NumberFormat[] = [];
+let TRIMMED = new Intl.NumberFormat(lang, { maximumFractionDigits: 2, useGrouping: false });
 let COMPACT: Intl.NumberFormat | null = null;
 let COMPACT_TIDY: Intl.NumberFormat | null = null;
 let COMPACT_BRIEF: Intl.NumberFormat | null = null;
@@ -41,9 +35,9 @@ const fixed = (n: number, places: number) =>
 
 /**
  * Show numbers the way a language writes them: its digit grouping and decimal mark, and its own
- * words for big numbers ("1,234 Millionen", "123.4万"). English keeps its longer list of names
- * (up to decillion); other languages use what Intl knows, which runs out around a quadrillion,
- * and scientific notation after that.
+ * words for big numbers ("1,234 Millionen", "123.4万"). English has names up to quintillion; other
+ * languages use what Intl knows, which runs out around a quadrillion. After that, everyone gets
+ * scientific notation.
  */
 export function setNumberLocale(tag: string): void {
   lang = tag;
@@ -51,6 +45,7 @@ export function setNumberLocale(tag: string): void {
   GROUPED = new Intl.NumberFormat(lang, { maximumFractionDigits: 0 });
   SMALL = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
   FIXED = [];
+  TRIMMED = new Intl.NumberFormat(lang, { maximumFractionDigits: 2, useGrouping: false });
   COMPACT = english ? null : new Intl.NumberFormat(lang, { notation: 'compact', compactDisplay: 'long', minimumFractionDigits: 3, maximumFractionDigits: 3 });
   COMPACT_TIDY = english ? null : new Intl.NumberFormat(lang, { notation: 'compact', compactDisplay: 'long', maximumFractionDigits: 3 });
   COMPACT_BRIEF = english ? null : new Intl.NumberFormat(lang, { notation: 'compact', compactDisplay: 'short', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -86,15 +81,17 @@ function formatExponent(e: number): string {
 }
 
 /**
- * Format a number for display.
+ * Format a number for display. There is one way numbers are written, not a setting for it:
+ * in full up to a million, then named ("1.500 million") as far as the names go, then scientific
+ * ("1.50e21"), then just the size of the exponent ("e1.23e9").
  *
- * Named numbers keep three decimals ("1.500 million") so a counter that's changing doesn't
- * jiggle in width. Pass `tidy` for numbers that sit still (prices, targets) to drop the
- * trailing zeros: "100 million", "1.5 billion".
+ * Named and scientific numbers keep their decimals ("1.500 million", "1.50e21") so a counter
+ * that's changing doesn't jiggle in width. Pass `tidy` for numbers that sit still (prices,
+ * targets) to drop the trailing zeros: "100 million", "1.5 billion", "1e21".
  */
-export function format(value: Decimal, fmt: NumberFormat = 'short', tidy = false): string {
+export function format(value: Decimal, tidy = false): string {
   if (Number.isNaN(value.mantissa) || Number.isNaN(value.exponent)) return 'NaN';
-  if (value.sign() < 0) return '-' + format(value.neg(), fmt, tidy);
+  if (value.sign() < 0) return '-' + format(value.neg(), tidy);
   if (value.exponent >= 9e15) return '∞';
   if (value.lt(PLAIN_LIMIT)) return formatSmall(value.toNumber());
 
@@ -104,55 +101,54 @@ export function format(value: Decimal, fmt: NumberFormat = 'short', tidy = false
   // Exponent so large the mantissa is meaningless: just show the order of magnitude.
   if (e >= HUGE_EXPONENT) return 'e' + formatExponent(e);
 
-  if (fmt === 'short' && COMPACT) {
+  if (COMPACT) {
     // Another language's own words for it, as far as they go; then scientific below.
     if (e < 15) {
       const n = value.toNumber();
       if (n < COMPACT_LIMIT) return (tidy ? COMPACT_TIDY! : COMPACT).format(n);
     }
-  } else if (fmt === 'short') {
+  } else {
     const group = Math.floor(e / 3);
     const scaled = m * Math.pow(10, e - group * 3);
     const [r, e2] = roundCarry(scaled, group * 3, 3, 3);
     const suffix = groupSuffix(e2 / 3);
     if (suffix !== null) return `${tidy ? String(Number(r.toFixed(3))) : r.toFixed(3)} ${suffix}`;
-    // fall through to scientific past centillion
+    // fall through to scientific past quintillion
   }
 
-  if (fmt === 'engineering') {
-    const e3 = Math.floor(e / 3) * 3;
-    const [r, e2] = roundCarry(m * Math.pow(10, e - e3), e3, 2, 3);
-    return `${fixed(r, 2)}e${formatExponent(e2)}`;
-  }
-
-  const [r, e2] = roundCarry(m, e, 2, 1);
-  return `${fixed(r, 2)}e${formatExponent(e2)}`;
+  return scientific(m, e, tidy);
 }
 
-/** One or two letters for 10^(3g), g = 2..11, where there is no room for the word. */
-const BRIEF = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+/** "1.23e45": two decimals, in the language's own decimal mark. */
+function scientific(m: number, e: number, tidy = false): string {
+  const [r, e2] = roundCarry(m, e, 2, 1);
+  return `${tidy ? TRIMMED.format(r) : fixed(r, 2)}e${formatExponent(e2)}`;
+}
+
+/** One or two letters for 10^(3g), g = 1..6, where there is no room for the word. */
+const BRIEF = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi'];
 
 /**
- * The same number in as few characters as it will go: "1.24 Oc" for "1.243 octillion". For a
+ * The same number in as few characters as it will go: "1.24 Qa" for "1.243 quadrillion". For a
  * counter on a small screen, where the full figure is a tap away. Only the named numbers get
- * shorter: scientific and engineering are as short as they come already.
+ * shorter: scientific is as short as it comes already.
  */
-export function formatBrief(value: Decimal, fmt: NumberFormat = 'short'): string {
+export function formatBrief(value: Decimal): string {
   const e = value.exponent;
-  if (fmt !== 'short' || Number.isNaN(value.mantissa) || Number.isNaN(e) || value.sign() < 0) return format(value, fmt);
-  if (e >= HUGE_EXPONENT || value.lt(PLAIN_LIMIT)) return format(value, fmt);
+  if (Number.isNaN(value.mantissa) || Number.isNaN(e) || value.sign() < 0) return format(value);
+  if (e >= HUGE_EXPONENT || value.lt(PLAIN_LIMIT)) return format(value);
   if (COMPACT_BRIEF) {
     if (e < 15) {
       const n = value.toNumber();
       if (n < COMPACT_LIMIT) return COMPACT_BRIEF.format(n);
     }
-    return format(value, fmt);
+    return format(value);
   }
   const group = Math.floor(e / 3);
   const [r, e2] = roundCarry(value.mantissa * Math.pow(10, e - group * 3), group * 3, 2, 3);
   const g = e2 / 3;
-  const suffix = g < BRIEF.length ? BRIEF[g] : groupSuffix(g);
-  return suffix === null ? format(value, fmt) : `${r.toFixed(2)} ${suffix}`;
+  // Rounded to two places, 999.996 quintillion is a thousand of them, and there is no name for that.
+  return g < BRIEF.length ? `${r.toFixed(2)} ${BRIEF[g]}` : scientific(value.mantissa, e);
 }
 
 /** "1 pint" / "2 pints" / "1.234 million pints". */

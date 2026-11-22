@@ -61,10 +61,10 @@ describe('languages', () => {
     expect(format(D(1234))).toBe('1.234');
     expect(format(D(12.5))).toBe('12,5');
     expect(format(D(1234567))).toBe('1,235 Millionen');
-    expect(format(D(2e9), 'short', true)).toBe('2 Milliarden');
+    expect(format(D(2e9), true)).toBe('2 Milliarden');
     // Past what the language has words for: scientific, with its own decimal mark.
     expect(format(D('1.5e40'))).toBe('1,50e40');
-    expect(format(D(1234567), 'scientific')).toBe('1,23e6');
+    expect(format(D('1.5e40'), true)).toBe('1,5e40');
     activate(LOCALES.find((l) => l.path === 'jp')!);
     expect(format(D(1234567))).toBe('123.457万');
   });

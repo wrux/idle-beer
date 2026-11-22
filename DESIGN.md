@@ -304,8 +304,10 @@ the bell often.
   Rounds three times as often), Long Hours (rewards last three times as long), Brewery Visit (beers
   90% cheaper), On a Roll (streak to +200%), Lock-In (100% while away).
 - **Challenge nights.** One at a time, taken on the morning after. Drink the goal *during the
-  night* (pints you walked in with don't count) and the handicap lifts and the prize is yours for
-  good. Call Last Orders first and it is lost, to try again another night.
+  night* (pints you walked in with don't count) and the prize is yours for good. The handicap
+  stays on until Last Orders whether you have beaten it or not: at first it lifted the moment the
+  goal fell, and for a player with a big mat bonus that was seconds in, so the challenge looked as
+  if it had never worked. Call Last Orders before the goal and it is lost, to try another night.
 
 | Challenge | Handicap | Goal | Prize, for good |
 |-----------|----------|------|-----------------|
@@ -318,7 +320,9 @@ the bell often.
 
 Specials, handicaps and prizes are all lists of the tree's own effects, folded in by `mods(state)`,
 so nothing else in the economy knows they exist beyond five small switches (`noDrinkers`, `noHand`,
-`noUpgrades`, `noBeer`, `noMats`). Both show as tags beside the timed rewards during the night. The
+`noUpgrades`, `noBeer`, `noMats`). Both show as tags beside the timed rewards during the night;
+the challenge's tag counts up to its goal and then shows a tick. The card itself is only on the
+morning-after screen: during the night the Last Orders panel is left to the bell. The
 save gained `special`, `specialOffer`, `challenge`, `challengeBase` and `challengesDone`; old saves
 simply have none. The goals are fixed, so a player deep in the tree will find the early ones easy:
 they are meant for the first dozen nights. On screens under 860px, where the side column is hidden
@@ -457,14 +461,20 @@ break_infinity).
 
 ### 8.4 Number formatting
 
-Players choose a format in Settings:
+There is one way numbers are written, and no setting for it:
 
-- **Short names (default):** `1.23 million`, `45.6 billion` … up to decillion (1e33),
-  then short suffixes `Ud, Dd, Td …` up to about 1e303.
-- **Scientific:** `1.23e45`. This is the automatic fallback past the named range.
-- **Engineering:** `123.4e42`.
+- **In full** up to a million: `123,456`.
+- **Named** from there to quintillion: `1.235 million`, `45.600 quintillion`. Other languages use
+  their own words as far as `Intl` has them, which is about a quadrillion.
+- **Scientific** after that: `1.23e21`. The names past quintillion are ones nobody can place, and
+  the abbreviations that used to follow decillion (`QaDc`, `SpTg`) were worse.
 - **Huge exponents:** once the exponent itself passes 1e6, show `e1.23e9` (an exponent
   of an exponent) so the number always fits in the counter.
+
+Counters keep their decimals so they don't change width (`1.50e21`); prices and targets drop
+trailing zeros (`1.5e21`, `1e59`). There used to be a Settings choice between names, scientific
+and engineering, with a hidden achievement ("Name Your Poison") for changing it. Both are gone;
+a save that has the setting or the achievement simply drops it.
 
 Formatting lives in one `format.ts` module with unit tests at every boundary.
 

@@ -1,6 +1,5 @@
 import { D, Decimal } from './num';
 import type { Buff } from './events';
-import type { NumberFormat } from './format';
 import type { AutoBuy } from '../data/licence';
 
 export const SAVE_VERSION = 4;
@@ -61,7 +60,7 @@ export interface GameState {
   special: string | null;
   /** The three specials laid out the morning after. */
   specialOffer: string[];
-  /** The challenge you're on tonight, if any. Gone when beaten, or at Last Orders. */
+  /** The challenge you're on tonight, if any: its handicap lasts until Last Orders, beaten or not. */
   challenge: string | null;
   /** Lifetime pints when the challenge began: its goal is counted from here. */
   challengeBase: Decimal;
@@ -74,7 +73,6 @@ export interface GameState {
   /** Debug-only multiplier so we can test huge per-drink values. */
   debugPerDrinkMult: Decimal;
   settings: {
-    numberFormat: NumberFormat;
     buyMode: BuyMode;
     sound: boolean;
     /** Auto-buyer switches (they only run once the Licence node is bought). */
@@ -118,7 +116,7 @@ export function newGame(now = Date.now()): GameState {
     kegs: D(0),
     runStartedAt: now,
     debugPerDrinkMult: D(1),
-    settings: { numberFormat: 'short', buyMode: 1, sound: true, auto: { upgrades: true, drinkers: true, beer: true } },
+    settings: { buyMode: 1, sound: true, auto: { upgrades: true, drinkers: true, beer: true } },
     startedAt: now,
     lastSaved: now,
   };

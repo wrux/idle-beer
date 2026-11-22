@@ -10,10 +10,10 @@ import {
   BUFFS, buffDuration, freeRoundLifetime, nextFreeRoundIn, rollFreeRound, startBuff, tickBuffs,
 } from './core/events';
 import { mods } from './core/licenceState';
-import { checkChallenge } from './core/nights';
+import { challengeShare, checkChallenge } from './core/nights';
 import { CHALLENGE_BY_ID, SPECIAL_BY_ID } from './data/nights';
 import { matMult } from './core/prestige';
-import { format, formatBrief, type NumberFormat } from './core/format';
+import { format, formatBrief } from './core/format';
 import { LOCALES, currentLocale, localeUrl, preferredLocale, tr, trn } from './i18n';
 import { localiseData, pintsLabel } from './i18n/data';
 import { startLoop } from './core/loop';
@@ -128,7 +128,7 @@ function creditAway(seconds: number) {
   if (gain.pints.lte(0)) return;
   earn(state, gain.pints);
   const shown = gain.pints.floor();
-  const amount = `<b>${format(shown, state.settings.numberFormat)}</b> ${pintsLabel(shown)}`;
+  const amount = `<b>${format(shown)}</b> ${pintsLabel(shown)}`;
   toast(
     '🌙',
     gain.seconds < seconds
@@ -178,7 +178,7 @@ function updateCrowd() {
   renderer.setCrowd(crowdOverride ?? ((id) => owned(state, id)));
   const total = DRINKERS.reduce((sum, d) => sum + owned(state, d.id), 0);
   crowdCountEl.hidden = total === 0;
-  if (total > 0) setText(crowdCountText, tr('{n} in the pub', { n: format(D(total), state.settings.numberFormat) }));
+  if (total > 0) setText(crowdCountText, tr('{n} in the pub', { n: format(D(total)) }));
 }
 
 // The scene carries on underneath the shop. Tell it how much is covered, so it keeps you and
@@ -219,10 +219,6 @@ function hardReset() {
 }
 
 const settings = new SettingsPanel(() => state, {
-  onFormatChange: (f: NumberFormat) => {
-    state.settings.numberFormat = f;
-    grant('name-your-poison');
-  },
   onSoundChange: setSound,
   stats: { wanted: statsWanted, blocked: browserSaysNo, set: setStatsWanted },
   exportSave: () => {
@@ -391,21 +387,20 @@ counterEl.addEventListener('click', () => {
 });
 
 function renderHud() {
-  const f = state.settings.numberFormat;
   const shown = state.pints.floor();
   const count = phone.matches && !counterEl.classList.contains('open') ? formatBrief : format;
-  setText(hud.pints, count(shown, f));
+  setText(hud.pints, count(shown));
   setText(hud.label, pintsLabel(shown));
-  setText(hud.pps, count(totalPps(state), f));
-  setText(hud.perDrink, format(pintsPerDrink(state), f));
-  setText(hud.drinks, format(D(state.drinks), f));
-  setText(hud.lifetime, format(state.lifetimePints, f));
+  setText(hud.pps, count(totalPps(state)));
+  setText(hud.perDrink, format(pintsPerDrink(state)));
+  setText(hud.drinks, format(D(state.drinks)));
+  setText(hud.lifetime, format(state.lifetimePints));
   setText(hud.bestStreak, String(state.bestStreak));
   hud.hint.hidden = state.drinks > 0;
   hud.mats.hidden = state.beerMats.lte(0);
   if (state.beerMats.gt(0)) {
-    setText(hud.matsCount, count(state.beerMats, f));
-    setText(hud.matsBonus, bonusText(matMult(state), f));
+    setText(hud.matsCount, count(state.beerMats));
+    setText(hud.matsBonus, bonusText(matMult(state)));
   }
 
   // Chug streak meter
@@ -420,7 +415,7 @@ function renderHud() {
 
 let buffKey = '';
 function renderBuffs() {
-  const key = `${state.buffs.map((b) => `${b.kind}:${Math.ceil(b.remaining)}`).join(',')}|${state.special}|${state.challenge}`;
+  const key = `${state.buffs.map((b) => `${b.kind}:${Math.ceil(b.remaining)}`).join(',')}|${state.special}|${state.challenge}|${Math.floor(challengeShare(state) * 100)}`;
   if (key === buffKey) return;
   buffKey = key;
   // Happy Hour lights the edge of the scene gold for as long as it lasts.
@@ -442,7 +437,10 @@ function renderBuffs() {
 function nightChips(): HTMLElement[] {
   const special = state.special ? SPECIAL_BY_ID.get(state.special) : undefined;
   const challenge = state.challenge ? CHALLENGE_BY_ID.get(state.challenge) : undefined;
-  return [special && { text: special.name, title: special.desc }, challenge && { text: challenge.name, title: challenge.rule }]
+  // The challenge's tag counts up to its goal, then shows a tick: the handicap is still on, but the prize is won.
+  const share = challengeShare(state);
+  const tally = share >= 1 ? '✓' : `${format(D(Math.floor(share * 100)))}%`;
+  return [special && { text: special.name, title: special.desc }, challenge && { text: `${challenge.name} · ${tally}`, title: challenge.rule }]
     .flatMap((c) => {
       if (!c) return [];
       const chip = document.createElement('div');
@@ -485,8 +483,8 @@ function giveFreeRound(x: number, y: number) {
   const outcome = rollFreeRound(state, totalPps(state));
   if (outcome.kind === 'lucky') {
     earn(state, outcome.amount);
-    popup(`${tr('Lucky Round!')} +${format(outcome.amount.floor(), state.settings.numberFormat)}`, x, y, 'big');
-    toast('🍀', `<strong>${tr('Lucky Round!')}</strong>${tr('The landlord stands you {pints} pints.', { pints: format(outcome.amount.floor(), state.settings.numberFormat) })}`, 4000);
+    popup(`${tr('Lucky Round!')} +${format(outcome.amount.floor())}`, x, y, 'big');
+    toast('🍀', `<strong>${tr('Lucky Round!')}</strong>${tr('The landlord stands you {pints} pints.', { pints: format(outcome.amount.floor()) })}`, 4000);
   } else {
     startBuff(state, outcome.buff);
     invalidate();
@@ -512,7 +510,7 @@ const lastOrdersPanel = new LastOrdersPanel(() => state, {
     store.update();
     save();
     sound.play('freeRound');
-    toast('🔔', `<strong>${tr('Time, gentlemen, please!')}</strong>${tr('You woke up with {mats} Beer Mats in your pockets. Back to The Red Lion.', { mats: format(gained, state.settings.numberFormat) })}`, 7000);
+    toast('🔔', `<strong>${tr('Time, gentlemen, please!')}</strong>${tr('You woke up with {mats} Beer Mats in your pockets. Back to The Red Lion.', { mats: format(gained) })}`, 7000);
   },
   onLicenceBought: () => {
     sound.play('buy');
@@ -581,7 +579,7 @@ function finishPint() {
     earn(state, amount);
     state.autoDrinks++;
     const a = renderer.project(popupAnchor(pose()));
-    popup(`+${format(amount, state.settings.numberFormat)}`, a.x, a.y, 'quiet');
+    popup(`+${format(amount)}`, a.x, a.y, 'quiet');
     sound.play('clink');
     return;
   }
@@ -598,7 +596,7 @@ function finishPint() {
   void hud.pints.offsetWidth; // restart the animation
   hud.pints.classList.add('bump');
   const a = renderer.project(popupAnchor(pose()));
-  popup(`+${format(amount, state.settings.numberFormat)}`, a.x, a.y, streak.count >= 2 ? 'streaky' : '');
+  popup(`+${format(amount)}`, a.x, a.y, streak.count >= 2 ? 'streaky' : '');
   sound.play('clink');
   if (streak.count >= 2) sound.play('streak', streak.count);
   if (streak.count >= 2 && streak.count % 5 === 0) renderer.cheer(1);
@@ -665,7 +663,7 @@ startLoop((elapsed, now) => {
     // Pints in the tab title, so you can keep an eye on the pub from another tab. Not until
     // you've gone in, though: a search engine reading the page should see its proper title.
     const shown = state.pints.floor();
-    const title = `${format(shown, state.settings.numberFormat)} ${pintsLabel(shown)} · idle.beer`;
+    const title = `${format(shown)} ${pintsLabel(shown)} · idle.beer`;
     if (started && document.title !== title) document.title = title;
   }
   if (now - lastStoreUpdate > 200) {
@@ -680,6 +678,7 @@ startLoop((elapsed, now) => {
       invalidate();
       sound.play('freeRound');
       renderer.cheer(2);
+      renderBuffs();
       toast('🏆', `<strong>${tr('Challenge beaten!')}</strong>${beaten.name}: ${beaten.reward}`, 8000);
       save();
     }
@@ -814,7 +813,7 @@ function enterPub() {
   $('title-start').textContent = returning ? tr('Back to the bar') : tr('Start drinking');
   $('title-save').textContent = returning
     ? tr('{pints} on the bar, at {pub}.', {
-      pints: `${format(state.pints.floor(), state.settings.numberFormat)} ${pintsLabel(state.pints.floor())}`,
+      pints: `${format(state.pints.floor())} ${pintsLabel(state.pints.floor())}`,
       pub: LOCATION_BY_ID.get(state.pub)?.name ?? '',
     })
     : tr('Hold to drink. Buy a round. See where it goes.');
@@ -859,11 +858,6 @@ function enterPub() {
         // As above.
       }
     });
-  }
-  // The number-format choices show a live sample, written the way this language writes numbers.
-  for (const option of document.querySelectorAll<HTMLOptionElement>('#number-format option')) {
-    const sample = format(D(1234567), option.value as NumberFormat);
-    option.textContent = (option.textContent ?? '').replace(/\s*[(（][^)）]*[)）]\s*$/, '') + ` (${sample})`;
   }
   // "reduced", after a discounted price, is written by the stylesheet.
   document.documentElement.style.setProperty('--reduced', JSON.stringify(` ${tr('reduced')}`));

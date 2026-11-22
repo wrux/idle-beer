@@ -50,7 +50,7 @@ const challenge = (
   id: string, name: string, rule: string, goal: number, reward: string, handicap: LicenceEffect[], prize: LicenceEffect[],
 ): Challenge => ({ id, name, rule, goal: D(goal), reward, handicap, prize });
 
-/** One at a time, chosen the morning after. Beaten once, the prize is yours for good. */
+/** One at a time, chosen the morning after, for the whole night. Beaten once, the prize is yours for good. */
 export const CHALLENGES: Challenge[] = [
   challenge('alone', 'Drinking Alone', 'No drinkers: it is just you and the pint.', 1e8,
     'Pints you drink by hand count ten times, for good.', [{ kind: 'noDrinkers' }], [{ kind: 'perDrink', mult: 10 }]),

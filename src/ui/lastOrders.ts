@@ -36,12 +36,12 @@ const autoLabel = (what: AutoBuy): string => ({
 })[what];
 
 /** "3 Beer Mats", with the count already formatted. */
-const matsText = (count: Decimal, f: Parameters<typeof format>[1]): string =>
-  trn(count.lt(1e6) ? count.toNumber() : 1e6, '{n} Beer Mat', '{n} Beer Mats', { n: format(count, f) });
+const matsText = (count: Decimal): string =>
+  trn(count.lt(1e6) ? count.toNumber() : 1e6, '{n} Beer Mat', '{n} Beer Mats', { n: format(count) });
 
 /** "+12%" / "+1.2 thousand%" for the mat bonus. */
-export function bonusText(mult: Decimal, f: Parameters<typeof format>[1]): string {
-  return `+${format(mult.sub(1).mul(100), f)}%`;
+export function bonusText(mult: Decimal): string {
+  return `+${format(mult.sub(1).mul(100))}%`;
 }
 
 /**
@@ -55,7 +55,7 @@ type Shown = 'owned' | 'available' | 'hint' | 'hidden';
  * The full figure is in the card beside the tree.
  */
 function hubCount(n: Decimal): string {
-  if (n.lt(10_000)) return format(n.floor(), 'short');
+  if (n.lt(10_000)) return format(n.floor());
   const e = Math.floor(n.log10());
   const units = ['K', 'M', 'B', 'T'];
   const step = Math.floor(e / 3);
@@ -79,8 +79,8 @@ const px = (x: number) => ((x + GRID.w / 2) / GRID.w) * 100;
 const py = (y: number) => ((y + GRID.h / 2) / GRID.h) * 100;
 
 /** A node's name as shown: the steps of a long line are numbered. */
-const nodeName = (node: LicenceNode, f: Parameters<typeof format>[1]): string =>
-  node.rank ? `${node.name} ${format(new Decimal(node.rank), f, true)}` : node.name;
+const nodeName = (node: LicenceNode): string =>
+  node.rank ? `${node.name} ${format(new Decimal(node.rank), true)}` : node.name;
 
 export class LastOrdersPanel {
   private dialog = $<HTMLDialogElement>('last-orders-dialog');
@@ -112,11 +112,10 @@ export class LastOrdersPanel {
       const s = this.getState();
       const gain = matsOnReset(s);
       if (gain.lte(0)) return;
-      const f = s.settings.numberFormat;
       const rate = mods(s).matRate;
-      $('prestige-gain').textContent = matsText(gain, f);
+      $('prestige-gain').textContent = matsText(gain);
       $('prestige-bonus').textContent =
-        tr('Unspent, that takes your bonus to everything from {from} to {to}.', { from: bonusText(matMult(s), f), to: bonusText(s.beerMats.add(gain).mul(rate).add(1), f) });
+        tr('Unspent, that takes your bonus to everything from {from} to {to}.', { from: bonusText(matMult(s)), to: bonusText(s.beerMats.add(gain).mul(rate).add(1)) });
       this.confirm.showModal();
     });
     $('prestige-cancel').addEventListener('click', () => this.confirm.close());
@@ -130,8 +129,7 @@ export class LastOrdersPanel {
         this.events.onReset(gained);
         this.armed = null;
         // Out the other side: nothing but the Licence, until you choose to go back to the pub.
-        const f = s.settings.numberFormat;
-        this.openAfterHours(tr('You wake up with {mats} in your pockets. Spend what you like, then head back to the pub.', { mats: matsText(gained, f) }));
+        this.openAfterHours(tr('You wake up with {mats} in your pockets. Spend what you like, then head back to the pub.', { mats: matsText(gained) }));
       });
     });
     // Back to the pub, by the button or by Escape. Done at once, not left to the dialog's own
@@ -183,8 +181,7 @@ export class LastOrdersPanel {
   resume(): void {
     const s = this.getState();
     if (!s.afterHours) return;
-    const f = s.settings.numberFormat;
-    this.openAfterHours(tr('You have {mats} in your pockets. Spend what you like, then head back to the pub.', { mats: matsText(s.beerMats, f) }));
+    this.openAfterHours(tr('You have {mats} in your pockets. Spend what you like, then head back to the pub.', { mats: matsText(s.beerMats) }));
   }
 
   // ----- looking round the tree: drag to pan, wheel or pinch to zoom -----
@@ -398,10 +395,9 @@ export class LastOrdersPanel {
     const node = LICENCE_BY_ID.get(id)!;
     const state = this.status(s, id);
     const hint = state === 'hint';
-    const f = s.settings.numberFormat;
-    this.tip.querySelector('b')!.textContent = hint ? '???' : nodeName(node, f);
-    this.tip.querySelector('span')!.textContent = hint ? tr('Buy {name} to find out.', { name: nodeName(LICENCE_BY_ID.get(node.requires!)!, f) }) : node.desc;
-    const cost = trn(node.cost.toNumber(), '{n} mat', '{n} mats', { n: format(node.cost, f, true) });
+    this.tip.querySelector('b')!.textContent = hint ? '???' : nodeName(node);
+    this.tip.querySelector('span')!.textContent = hint ? tr('Buy {name} to find out.', { name: nodeName(LICENCE_BY_ID.get(node.requires!)!) }) : node.desc;
+    const cost = trn(node.cost.toNumber(), '{n} mat', '{n} mats', { n: format(node.cost, true) });
     const foot = this.tip.querySelector('em')!;
     foot.hidden = hint;
     // The mat icon goes with a price, not with "Owned".
@@ -458,17 +454,17 @@ export class LastOrdersPanel {
   }
 
   /**
-   * The morning after you pick a special from three, and may take on a challenge. During the
-   * night the same card shows what you chose and how the challenge is going.
+   * The morning after you pick a special from three, and may take on a challenge. The card is
+   * only there then: during the night the Last Orders panel is about the bell, and what you
+   * chose shows as tags in the pub.
    */
   private updateNight(s: GameState) {
     const card = $('lo-night');
-    card.hidden = s.prestiges < 1;
+    card.hidden = !this.shopOpen;
     if (card.hidden) return;
-    const f = s.settings.numberFormat;
     const open = this.shopOpen;
-    const progress = s.challenge ? format(challengeProgress(s).floor(), f) : '';
-    const key = [open, s.special, s.specialOffer.join(), s.challenge, [...s.challengesDone].join(), progress, f].join('|');
+    const progress = s.challenge ? format(challengeProgress(s).floor()) : '';
+    const key = [open, s.special, s.specialOffer.join(), s.challenge, [...s.challengesDone].join(), progress].join('|');
     if (key === this.nightKey) return;
     this.nightKey = key;
 
@@ -481,12 +477,12 @@ export class LastOrdersPanel {
 
     const now = s.challenge ? CHALLENGE_BY_ID.get(s.challenge) : undefined;
     $('challenge-now').textContent = now ? now.name
-      : tr('{n} of {total}', { n: format(new Decimal(s.challengesDone.size), f, true), total: format(new Decimal(CHALLENGES.length), f, true) });
+      : tr('{n} of {total}', { n: format(new Decimal(s.challengesDone.size), true), total: format(new Decimal(CHALLENGES.length), true) });
     $('challenge-list').replaceChildren(...CHALLENGES.map((c) => {
       const done = s.challengesDone.has(c.id), on = s.challenge === c.id;
       const goal = on && !open
-        ? tr('{have} of {goal} pints', { have: progress, goal: format(c.goal, f, true) })
-        : tr('Drink {pints} pints in the night.', { pints: format(c.goal, f, true) });
+        ? tr('{have} of {goal} pints', { have: progress, goal: format(c.goal, true) })
+        : tr('Drink {pints} pints in the night.', { pints: format(c.goal, true) });
       return this.nightItem([c.name, c.rule, done ? null : goal, c.reward, done ? tr('Beaten') : null], on, open && !done, done,
         () => pickChallenge(s, on ? null : c.id));
     }));
@@ -499,31 +495,30 @@ export class LastOrdersPanel {
     const show = gain.gt(0) || s.prestiges > 0 || s.beerMats.gt(0);
     this.openButton.hidden = !show;
     this.badge.hidden = gain.lte(0);
-    this.badge.textContent = gain.gt(0) ? format(gain, s.settings.numberFormat) : '';
+    this.badge.textContent = gain.gt(0) ? format(gain) : '';
   }
 
   update(): void {
     this.updateButton();
     if (!this.dialog.open) return;
     const s = this.getState();
-    const f = s.settings.numberFormat;
     const gain = matsOnReset(s);
 
-    $('mats-on-reset').textContent = format(gain, f);
-    $('next-mat').textContent = tr('Next mat at {pints} all-time pints', { pints: format(pintsForNextMat(s).ceil(), f) });
+    $('mats-on-reset').textContent = format(gain);
+    $('next-mat').textContent = tr('Next mat at {pints} all-time pints', { pints: format(pintsForNextMat(s).ceil()) });
     $<HTMLButtonElement>('ring-bell').disabled = gain.lte(0);
 
     const next = pintsForNextMat(s);
     $('next-mat-bar').style.width = `${Math.min(100, allTimePints(s).div(next).toNumber() * 100).toFixed(1)}%`;
 
     // Collectors' Fair makes this a fraction, so it goes through format() like any other number.
-    const rate = format(new Decimal(mods(s).matRate * 100), f);
+    const rate = format(new Decimal(mods(s).matRate * 100));
     $('licence-summary').textContent = mods(s).matsCountSpent
       ? tr('Every mat you have ever earned gives +{rate}%, spent or not.', { rate })
       : tr('Each unspent mat gives +{rate}%. Spending mats on your legend gives up their bonus.', { rate });
     $('licence-mats').textContent = hubCount(s.beerMats);
-    $('lo-mats').textContent = format(s.beerMats, f, true);
-    $('lo-bonus').textContent = bonusText(matMult(s), f);
+    $('lo-mats').textContent = format(s.beerMats, true);
+    $('lo-bonus').textContent = bonusText(matMult(s));
 
     for (const node of LICENCE) {
       const el = this.nodes.get(node.id)!;
@@ -543,9 +538,9 @@ export class LastOrdersPanel {
         this.links.get(node.id)!.classList.toggle('faint', now === 'hint');
       }
       el.classList.toggle('affordable', this.shopOpen && now === 'available' && s.beerMats.gte(node.cost));
-      el.setAttribute('aria-label', now === 'hint' ? tr('Not yet revealed') : `${nodeName(node, f)}: ${node.desc}`);
+      el.setAttribute('aria-label', now === 'hint' ? tr('Not yet revealed') : `${nodeName(node)}: ${node.desc}`);
     }
-    $('licence-count').textContent = tr('{n} of {total}', { n: format(new Decimal(s.licence.size), f, true), total: format(new Decimal(LICENCE.length), f, true) });
+    $('licence-count').textContent = tr('{n} of {total}', { n: format(new Decimal(s.licence.size), true), total: format(new Decimal(LICENCE.length), true) });
 
     this.updateNight(s);
 

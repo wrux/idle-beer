@@ -7,7 +7,7 @@ import {
   availableUpgrades, buyDrinker, buyNextRound, buyUpgrade, currentBeer, earn, invalidate, nextRound,
   pintsPerDrink, totalPps,
 } from '../src/core/economy';
-import { format, type NumberFormat } from '../src/core/format';
+import { format } from '../src/core/format';
 import { big, D, type Decimal } from '../src/core/num';
 import { buyLicence, lastOrders, matMult, matsOnReset } from '../src/core/prestige';
 import { deserialize, serialize } from '../src/core/save';
@@ -18,8 +18,7 @@ import { DRINKERS } from '../src/data/drinkers';
 import { LICENCE } from '../src/data/licence';
 
 const ok = (d: Decimal) => Number.isFinite(d.mantissa) && Number.isFinite(d.exponent) && d.gte(0);
-const FORMATS: NumberFormat[] = ['short', 'scientific', 'engineering'];
-const readable = (d: Decimal) => FORMATS.every((f) => !/NaN|undefined/.test(format(d, f)));
+const readable = (d: Decimal) => !/NaN|undefined/.test(format(d)) && !/NaN|undefined/.test(format(d, true));
 
 /** Buy everything you can: max of every drinker, every upgrade, and a run of beers. */
 function buyEverything(s: GameState, beers = 200) {

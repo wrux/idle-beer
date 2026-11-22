@@ -32,8 +32,8 @@ export interface Achievement {
 }
 
 const noun = (name: string) => name.replace(/^The /, '');
-/** "1 million", "1,000", "1.00e303": readable in descriptions. */
-const nice = (n: string) => format(D(n), 'short').replace(/\.000 /, ' ');
+/** "1 million", "1,000", "1e303": readable in descriptions. */
+const nice = (n: string) => format(D(n), true);
 
 // ---------- lifetime pints ----------
 
@@ -195,13 +195,12 @@ const hidden: Achievement[] = [
     check: (s, ctx) => s.drinks > 0 && ctx.now.getDay() === 0,
   },
   { id: 'hair-of-the-dog', name: 'Hair of the Dog', icon: '🐕', hidden: true, desc: 'Come back after 8 hours away.' },
-  { id: 'name-your-poison', name: 'Name Your Poison', icon: '🔢', hidden: true, desc: 'Change how numbers are shown.' },
   { id: 'silent-pint', name: 'A Quiet One', icon: '🔇', hidden: true, desc: 'Turn the sound off.' },
   { id: 'missed-it', name: 'Missed the Round', icon: '😩', hidden: true, desc: 'Let a Free Round get away.' },
 ];
 
 /** Achievements granted by the game directly rather than by a check. */
-export type GrantedAchievement = 'hair-of-the-dog' | 'name-your-poison' | 'silent-pint' | 'missed-it';
+export type GrantedAchievement = 'hair-of-the-dog' | 'silent-pint' | 'missed-it';
 
 export const ACHIEVEMENTS: Achievement[] = [
   ...lifetimeAchievements, ...ppsAchievements, ...handAchievements, ...misc,

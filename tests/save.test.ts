@@ -20,7 +20,6 @@ describe('save', () => {
     s.lifetimePints = D('6.789e123456');
     s.drinks = 42;
     s.glassFill = 0.4;
-    s.settings.numberFormat = 'engineering';
     s.settings.buyMode = 'max';
     s.drinkers = { regular: 12, multiverse: 160_000_000_000 };
 
@@ -30,7 +29,7 @@ describe('save', () => {
     expect(back.drinks).toBe(42);
     expect(back.glassFill).toBe(0.4);
     expect(back.settings).toEqual({
-      numberFormat: 'engineering', buyMode: 'max', sound: true, auto: { upgrades: true, drinkers: true, beer: true },
+      buyMode: 'max', sound: true, auto: { upgrades: true, drinkers: true, beer: true },
     });
     expect(back.drinkers).toEqual({ regular: 12, multiverse: 160_000_000_000 });
   });
@@ -46,7 +45,8 @@ describe('save', () => {
     const text = btoa(JSON.stringify({ version: 1, pints: 'banana', settings: { numberFormat: 'crayon' } }));
     const s = deserialize(text);
     expect(s.pints.eq(0)).toBe(true);
-    expect(s.settings.numberFormat).toBe('short');
+    // A setting that no longer exists (how numbers are shown) is dropped, not carried along.
+    expect('numberFormat' in s.settings).toBe(false);
     expect(s.glassFill).toBe(1);
   });
 

@@ -129,9 +129,6 @@ export function deserialize(text: string, now = Date.now()): GameState {
   if (typeof raw.pub === 'string' && s.pubs.has(raw.pub)) s.pub = raw.pub;
   // Never longer than a full cooldown from now, whatever the clock has done since.
   if (Number.isFinite(raw.pubReadyAt) && raw.pubReadyAt > 0) s.pubReadyAt = Math.min(raw.pubReadyAt, now + PUB_COOLDOWN_SECONDS * 1000);
-  if (['short', 'scientific', 'engineering'].includes(raw.settings?.numberFormat)) {
-    s.settings.numberFormat = raw.settings.numberFormat;
-  }
   if ([1, 10, 100, 'max'].includes(raw.settings?.buyMode)) s.settings.buyMode = raw.settings.buyMode;
   if (typeof raw.settings?.sound === 'boolean') s.settings.sound = raw.settings.sound;
   if (Array.isArray(raw.buffs)) {
@@ -160,7 +157,7 @@ export function deserialize(text: string, now = Date.now()): GameState {
   if (Array.isArray(raw.challengesDone)) {
     for (const id of raw.challengesDone) if (CHALLENGE_BY_ID.has(id)) s.challengesDone.add(id);
   }
-  if (typeof raw.challenge === 'string' && CHALLENGE_BY_ID.has(raw.challenge) && !s.challengesDone.has(raw.challenge)) s.challenge = raw.challenge;
+  if (typeof raw.challenge === 'string' && CHALLENGE_BY_ID.has(raw.challenge)) s.challenge = raw.challenge;
   s.challengeBase = toDecimal(raw.challengeBase);
   s.kegs = toDecimal(raw.kegs);
   s.runStartedAt = Number.isFinite(raw.runStartedAt) ? raw.runStartedAt : s.startedAt;

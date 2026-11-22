@@ -2,7 +2,7 @@
 import {
   currentBeer, drinkTime, pintsPerDrink, reputationMult, totalPps,
 } from '../core/economy';
-import { format, type NumberFormat } from '../core/format';
+import { format } from '../core/format';
 import { currentLocale, tr, trn } from '../i18n';
 import { pintsLabel } from '../i18n/data';
 import { D } from '../core/num';
@@ -134,20 +134,19 @@ export class StatsPanel {
   update(): void {
     if (!this.dialog.open) return;
     const s = this.getState();
-    const f = s.settings.numberFormat;
-    const n = (v: number) => format(D(v), f);
+    const n = (v: number) => format(D(v));
     const drinkers = DRINKERS.reduce((t, d) => t + (s.drinkers[d.id] ?? 0), 0);
     const rows: [string, string][] = [
-      [tr('Pints'), format(s.pints.floor(), f)],
-      [tr('Lifetime pints'), format(s.lifetimePints.floor(), f)],
-      [tr('Pints per second'), format(totalPps(s), f)],
-      [tr('Pints per drink'), format(pintsPerDrink(s), f)],
+      [tr('Pints'), format(s.pints.floor())],
+      [tr('Lifetime pints'), format(s.lifetimePints.floor())],
+      [tr('Pints per second'), format(totalPps(s))],
+      [tr('Pints per drink'), format(pintsPerDrink(s))],
       [tr('Drunk by hand'), tr('{pints} in {drinks}', {
-        pints: `${format(s.handPints.floor(), f)} ${pintsLabel(s.handPints.floor())}`,
+        pints: `${format(s.handPints.floor())} ${pintsLabel(s.handPints.floor())}`,
         drinks: trn(s.drinks, '{n} drink', '{n} drinks', { n: n(s.drinks) }),
       })],
       [tr('Drunk on his own'), trn(s.autoDrinks, '{n} pint', '{n} pints', { n: n(s.autoDrinks) })],
-      [tr('Time per pint'), tr('{s}s', { s: format(D(Number(drinkTime(s).toFixed(2))), f) })],
+      [tr('Time per pint'), tr('{s}s', { s: format(D(Number(drinkTime(s).toFixed(2)))) })],
       [tr('Best chug streak'), n(s.bestStreak)],
       [tr('Free Rounds claimed'), n(s.freeRounds)],
       [tr('Drinkers'), n(drinkers)],
@@ -173,7 +172,6 @@ export class StatsPanel {
 // ---------- settings ----------
 
 export interface SettingsEvents {
-  onFormatChange(f: NumberFormat): void;
   onSoundChange(on: boolean): void;
   /** Anonymous play statistics: whether they're on, whether the browser forbids them, and the switch. */
   stats: { wanted(): boolean; blocked: boolean; set(on: boolean): void };
@@ -183,7 +181,6 @@ export interface SettingsEvents {
 }
 
 export class SettingsPanel {
-  private format = $<HTMLSelectElement>('number-format');
   private sound = $<HTMLInputElement>('sound-setting');
   private stats = $<HTMLInputElement>('stats-setting');
   private text = $<HTMLTextAreaElement>('save-text');
@@ -194,7 +191,6 @@ export class SettingsPanel {
       this.sync();
       this.message.textContent = '';
     });
-    this.format.addEventListener('change', () => events.onFormatChange(this.format.value as NumberFormat));
     this.sound.addEventListener('change', () => events.onSoundChange(this.sound.checked));
     this.stats.disabled = events.stats.blocked;
     this.stats.addEventListener('change', () => events.stats.set(this.stats.checked));
@@ -229,7 +225,6 @@ export class SettingsPanel {
 
   sync(): void {
     const s = this.getState();
-    this.format.value = s.settings.numberFormat;
     this.sound.checked = s.settings.sound;
     this.stats.checked = this.events.stats.wanted();
   }

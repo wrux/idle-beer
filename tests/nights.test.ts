@@ -3,7 +3,7 @@ import {
   availableUpgrades, buyDrinker, drinkerDiscount, invalidate, nextRound, pintsPerDrink, totalPps,
 } from '../src/core/economy';
 import { mods } from '../src/core/licenceState';
-import { challengeProgress, checkChallenge, dealSpecials, pickChallenge, pickSpecial } from '../src/core/nights';
+import { challengeProgress, challengeShare, checkChallenge, dealSpecials, pickChallenge, pickSpecial } from '../src/core/nights';
 import { D } from '../src/core/num';
 import { lastOrders, matMult } from '../src/core/prestige';
 import { deserialize, serialize } from '../src/core/save';
@@ -118,15 +118,25 @@ describe('challenge nights', () => {
     s.lifetimePints = s.lifetimePints.add(9e7);
     expect(challengeProgress(s).toNumber()).toBe(9e7);
     expect(checkChallenge(s)).toBeNull();
+    expect(challengeShare(s)).toBeCloseTo(0.9);
     s.lifetimePints = s.lifetimePints.add(1e7);
     expect(checkChallenge(s)?.id).toBe('alone');
-    // Beaten: the handicap lifts, the prize stays, and it can't be taken on again.
-    expect(s.challenge).toBeNull();
+    // Beaten: the prize is banked at once, and only announced once…
     expect(s.challengesDone.has('alone')).toBe(true);
+    expect(checkChallenge(s)).toBeNull();
+    expect(challengeShare(s)).toBe(1);
     invalidate();
+    expect(mods(s).perDrink).toBe(10);
+    // …but the night's rules hold until Last Orders, however quickly the goal fell.
+    expect(s.challenge).toBe('alone');
+    expect(mods(s).noDrinkers).toBe(true);
+    s.lifetimePints = D(1e15);
+    lastOrders(s, 0);
+    invalidate();
+    expect(s.challenge).toBeNull();
     expect(mods(s).noDrinkers).toBe(false);
     expect(mods(s).perDrink).toBe(10);
-    s.afterHours = true;
+    // And it can't be taken on again.
     expect(pickChallenge(s, 'alone')).toBe(false);
   });
 
