@@ -33,6 +33,7 @@ import { icon } from './ui/glyphs';
 import { Sound } from './ui/sound';
 import { StoreView } from './ui/store';
 import { SCENARIOS } from './dev/scenarios';
+import { observe, startTelemetry, track } from './telemetry';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -47,6 +48,7 @@ const previewScenario = new URLSearchParams(location.search).has('debug')
 if (previewScenario) state = previewScenario.build();
 const drink = newDrinkState(state.glassFill);
 let resetting = !!previewScenario;
+if (!previewScenario) startTelemetry(() => state, state.lifetimePints.gt(0) || state.prestiges > 0);
 const SKIP_TITLE = 'idleBeer.skipTitle';
 
 /** Gaps longer than this (laptop asleep, etc.) count as being away, not as live play. */
@@ -116,6 +118,7 @@ const grant = (id: GrantedAchievement) => announce([grantAchievement(state, id)]
 /** Credit time spent away (closed, asleep) at the offline rate, and say so. */
 function creditAway(seconds: number) {
   if (seconds < AWAY_THRESHOLD_SECONDS) return;
+  track('offline_return', '', Math.round(seconds));
   if (seconds >= 8 * 60 * 60) grant('hair-of-the-dog');
   if (tickBuffs(state, seconds)) invalidate();
   const gain = offlineGain(state, seconds);
@@ -205,6 +208,7 @@ showSoundSetting();
 soundButton.addEventListener('click', () => setSound(!state.settings.sound));
 
 function hardReset() {
+  track('reset', '', 0, true);
   resetting = true;
   wipeSave();
   state = newGame();
@@ -613,6 +617,7 @@ startLoop((elapsed, now) => {
   renderer.render(p, now / 1000);
   renderHud();
   if (now - lastAutoBuy > 1000) {
+    observe((now - lastAutoBuy) / 1000);
     lastAutoBuy = now;
     autoBuy();
     // Pints in the tab title, so you can keep an eye on the pub from another tab. Not until
@@ -735,6 +740,7 @@ if (new URLSearchParams(location.search).has('debug')) {
 function enterPub() {
   if (started) return;
   started = true;
+  track('start');
   const title = $('title-screen');
   title.classList.add('leaving');
   setTimeout(() => (title.hidden = true), 700);

@@ -8,7 +8,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "simulate": "tsx tools/simulate.ts",
-    "i18n": "tsx tools/i18n-extract.ts"
+    "i18n": "tsx tools/i18n-extract.ts",
+    "stats": "tsx tools/stats.ts"
   },
   "author": "Callum Bonnyman",
   "license": "ISC",

@@ -578,3 +578,26 @@ sits in every location's light; anything static belongs in `shell` (it is cached
 additive uses `glow()` (a cached sprite) rather than a fresh gradient. A full pub costs about
 2 ms a frame. `game.scene(i)` and `game.crowd(n)` in the console preview a location or a full
 house without touching the save.
+
+## Play statistics
+
+The game reports anonymous moments so we can see how far people get and how long they play.
+
+- `src/core/telemetry.ts` works out what happened from the save alone: it compares a snapshot of the game
+  each second with the last one (`moments`) and lists the numbers sent with every moment (`progress`).
+- `src/telemetry.ts` queues moments and posts them in batches to `/api/event`. It only runs in a production
+  build, never with `?debug`, and never for a browser sending Do Not Track or Global Privacy Control.
+  Each browser gets a random id (`idleBeer.pid` in localStorage); nothing else identifies anyone.
+- `worker/index.ts` is the only server code. It writes one row per moment to the Workers Analytics Engine
+  dataset `idle_beer_events` (bound as `EVENTS` in `wrangler.jsonc`). Rows are kept for three months.
+- `npm run stats -- [days]` prints the funnel, pubs and beers reached, visit lengths and where players are.
+
+Moments: `load` (label `new`/`returning`), `start`, `first_drink` (by hand), `first_drinker`, `crowd`
+(value: size), `pub` and `beer` (label: id, value: place in the list), `last_orders` and `back_to_pub`
+(value: how many times), `licence` and `achievement` (label: id), `free_round`, `offline_return` (value:
+seconds away), `heartbeat` (every minute in view), `session_end` (value: seconds in view), `reset`.
+
+Columns: `index1` player; `blob1` event, `blob2` label, `blob3` language, `blob4` device, `blob5` country,
+`blob6` referring site; `double1` the moment's value, then play seconds, seconds this visit, visit number,
+Last Orders rung, furthest pub, beer, Licence nodes, achievements, log10 of all pints ever, drinkers, drinks.
+Only ever add columns at the end.

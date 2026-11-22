@@ -23,3 +23,4 @@ A UK pub incremental game (Vite + TypeScript, no framework). The full design and
 - `npm run i18n`: collect every translatable sentence into `src/i18n/en.json`
 - `npx tsx tools/i18n-check.ts [language…]`: check translation files against it
 - `npm run build`: type-check and production build (one page per language)
+- `npm run stats -- [days]`: play statistics from Cloudflare (needs `CF_ACCOUNT_ID` and `CF_API_TOKEN`)

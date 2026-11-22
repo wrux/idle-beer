@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "idle-beer",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  // The game is static files from `npm run build`. Only /api/* runs the Worker.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // Anonymous play statistics (see DESIGN.md "Play statistics").
+  "analytics_engine_datasets": [
+    { "binding": "EVENTS", "dataset": "idle_beer_events" }
+  ]
+}
