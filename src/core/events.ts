@@ -43,7 +43,8 @@ export function rollFreeRound(s: GameState, pps: Decimal, rng: () => number = Ma
   const table: [Outcome['kind'] | BuffKind, number][] = [
     ['happyHour', 45], ['lucky', 40], ['downIt', 10], ['quizWin', 5],
   ];
-  const options = table.filter(([k]) => k === 'lucky' || !hasBuff(s, k as BuffKind));
+  const stack = mods(s).stackBuffs;
+  const options = table.filter(([k]) => k === 'lucky' || stack || !hasBuff(s, k as BuffKind));
   const total = options.reduce((t, [, w]) => t + w, 0);
   let r = rng() * total;
   for (const [k, w] of options) {
@@ -57,6 +58,12 @@ export function rollFreeRound(s: GameState, pps: Decimal, rng: () => number = Ma
 export const buffDuration = (s: GameState, kind: BuffKind): number => BUFFS[kind].duration * mods(s).buffDuration;
 
 export function startBuff(s: GameState, kind: BuffKind): void {
+  // Never-Ending Happy Hour: one you already have gets longer.
+  const running = s.buffs.find((b) => b.kind === kind);
+  if (running && mods(s).stackBuffs) {
+    running.remaining += buffDuration(s, kind);
+    return;
+  }
   s.buffs = s.buffs.filter((b) => b.kind !== kind);
   s.buffs.push({ kind, remaining: buffDuration(s, kind) });
 }

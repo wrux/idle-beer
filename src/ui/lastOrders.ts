@@ -14,6 +14,9 @@ import {
 } from '../core/prestige';
 import type { GameState } from '../core/state';
 import { BRANCHES, LICENCE, LICENCE_BY_ID, type AutoBuy, type LicenceNode } from '../data/licence';
+import { CHALLENGES, CHALLENGE_BY_ID, SPECIAL_BY_ID } from '../data/nights';
+import { challengeProgress, pickChallenge, pickSpecial } from '../core/nights';
+import { invalidate } from '../core/economy';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SVG = 'http://www.w3.org/2000/svg';
@@ -426,6 +429,69 @@ export class LastOrdersPanel {
     return before && licenceStatus(s, before) === 'available' ? 'hint' : 'hidden';
   }
 
+  // ----- tonight's special and challenge nights -----
+
+  private nightKey = '';
+
+  /** One row of either list: a name, what it does, and (for a challenge) its goal, prize and how far along. */
+  private nightItem(lines: (string | null)[], on: boolean, enabled: boolean, done: boolean, pick: () => void): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'night-item';
+    b.classList.toggle('on', on);
+    b.classList.toggle('done', done);
+    b.disabled = !enabled;
+    b.setAttribute('aria-pressed', String(on));
+    lines.forEach((text, i) => {
+      if (!text) return;
+      const el = document.createElement(i === 0 ? 'b' : 'span');
+      el.textContent = text;
+      b.appendChild(el);
+    });
+    b.addEventListener('click', () => {
+      pick();
+      invalidate();
+      this.events.onLicenceBought();
+      this.update();
+    });
+    return b;
+  }
+
+  /**
+   * The morning after you pick a special from three, and may take on a challenge. During the
+   * night the same card shows what you chose and how the challenge is going.
+   */
+  private updateNight(s: GameState) {
+    const card = $('lo-night');
+    card.hidden = s.prestiges < 1;
+    if (card.hidden) return;
+    const f = s.settings.numberFormat;
+    const open = this.shopOpen;
+    const progress = s.challenge ? format(challengeProgress(s).floor(), f) : '';
+    const key = [open, s.special, s.specialOffer.join(), s.challenge, [...s.challengesDone].join(), progress, f].join('|');
+    if (key === this.nightKey) return;
+    this.nightKey = key;
+
+    const offered = open ? s.specialOffer : s.special ? [s.special] : [];
+    $('special-note').textContent = open ? tr('Pick one for the night ahead.') : s.special ? '' : tr('Nothing special tonight.');
+    $('special-list').replaceChildren(...offered.flatMap((id) => {
+      const sp = SPECIAL_BY_ID.get(id);
+      return sp ? [this.nightItem([sp.name, sp.desc], s.special === id, open, false, () => pickSpecial(s, id))] : [];
+    }));
+
+    const now = s.challenge ? CHALLENGE_BY_ID.get(s.challenge) : undefined;
+    $('challenge-now').textContent = now ? now.name
+      : tr('{n} of {total}', { n: format(new Decimal(s.challengesDone.size), f, true), total: format(new Decimal(CHALLENGES.length), f, true) });
+    $('challenge-list').replaceChildren(...CHALLENGES.map((c) => {
+      const done = s.challengesDone.has(c.id), on = s.challenge === c.id;
+      const goal = on && !open
+        ? tr('{have} of {goal} pints', { have: progress, goal: format(c.goal, f, true) })
+        : tr('Drink {pints} pints in the night.', { pints: format(c.goal, f, true) });
+      return this.nightItem([c.name, c.rule, done ? null : goal, c.reward, done ? tr('Beaten') : null], on, open && !done, done,
+        () => pickChallenge(s, on ? null : c.id));
+    }));
+  }
+
   /** Cheap: the topbar button. Called often. */
   updateButton(): void {
     const s = this.getState();
@@ -450,7 +516,8 @@ export class LastOrdersPanel {
     const next = pintsForNextMat(s);
     $('next-mat-bar').style.width = `${Math.min(100, allTimePints(s).div(next).toNumber() * 100).toFixed(1)}%`;
 
-    const rate = mods(s).matRate * 100;
+    // Collectors' Fair makes this a fraction, so it goes through format() like any other number.
+    const rate = format(new Decimal(mods(s).matRate * 100), f);
     $('licence-summary').textContent = mods(s).matsCountSpent
       ? tr('Every mat you have ever earned gives +{rate}%, spent or not.', { rate })
       : tr('Each unspent mat gives +{rate}%. Spending mats on your legend gives up their bonus.', { rate });
@@ -479,6 +546,8 @@ export class LastOrdersPanel {
       el.setAttribute('aria-label', now === 'hint' ? tr('Not yet revealed') : `${nodeName(node, f)}: ${node.desc}`);
     }
     $('licence-count').textContent = tr('{n} of {total}', { n: format(new Decimal(s.licence.size), f, true), total: format(new Decimal(LICENCE.length), f, true) });
+
+    this.updateNight(s);
 
     const auto = mods(s).auto;
     for (const [what, label] of this.autoBoxes) {

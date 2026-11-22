@@ -3,6 +3,7 @@ import { DRINKERS } from '../data/drinkers';
 import { BUFFS, type BuffKind } from './events';
 import { ACHIEVEMENT_BY_ID } from '../data/achievements';
 import { LICENCE_BY_ID } from '../data/licence';
+import { CHALLENGE_BY_ID, SPECIAL_BY_ID, SPECIALS_OFFERED } from '../data/nights';
 import { LOCATIONS, LOCATION_BY_ID, locationIndex } from '../data/locations';
 import { UPGRADE_BY_ID } from '../data/upgrades';
 import { Decimal, toDecimal } from './num';
@@ -90,6 +91,7 @@ export function serialize(state: GameState): string {
     pubs: [...state.pubs],
     achievements: [...state.achievements],
     licence: [...state.licence],
+    challengesDone: [...state.challengesDone],
   }));
 }
 
@@ -153,6 +155,13 @@ export function deserialize(text: string, now = Date.now()): GameState {
   }
   if (Number.isInteger(raw.prestiges) && raw.prestiges > 0) s.prestiges = raw.prestiges;
   s.afterHours = raw.afterHours === true;
+  if (Array.isArray(raw.specialOffer)) s.specialOffer = raw.specialOffer.filter((id: unknown) => typeof id === 'string' && SPECIAL_BY_ID.has(id)).slice(0, SPECIALS_OFFERED);
+  if (typeof raw.special === 'string' && SPECIAL_BY_ID.has(raw.special)) s.special = raw.special;
+  if (Array.isArray(raw.challengesDone)) {
+    for (const id of raw.challengesDone) if (CHALLENGE_BY_ID.has(id)) s.challengesDone.add(id);
+  }
+  if (typeof raw.challenge === 'string' && CHALLENGE_BY_ID.has(raw.challenge) && !s.challengesDone.has(raw.challenge)) s.challenge = raw.challenge;
+  s.challengeBase = toDecimal(raw.challengeBase);
   s.kegs = toDecimal(raw.kegs);
   s.runStartedAt = Number.isFinite(raw.runStartedAt) ? raw.runStartedAt : s.startedAt;
   for (const k of ['upgrades', 'drinkers', 'beer'] as const) {

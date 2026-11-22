@@ -7,20 +7,16 @@ import { UPGRADE_BY_ID } from '../data/upgrades';
 import { DRINKERS } from '../data/drinkers';
 import { invalidate, matBonus } from './economy';
 import { mods } from './licenceState';
-import { D, Decimal } from './num';
+import { dealSpecials } from './nights';
+import { MAT_SCALE, matsWorth } from './mats';
+import { Decimal } from './num';
 import { newGame, type GameState } from './state';
 
-/** Lifetime pints for the first Beer Mat. */
-export const MAT_SCALE = D(1e12);
+export { MAT_SCALE, matsWorth } from './mats';
 
 /** Pints from every run, including this one. */
 export const allTimePints = (s: GameState): Decimal => s.pastRunsPints.add(s.lifetimePints);
 
-/** Total mats your all-time pints are worth: ⌊∛(pints ÷ 1e12) × gain bonus⌋. */
-export function matsWorth(allTime: Decimal, gain = 1): Decimal {
-  if (allTime.lt(MAT_SCALE)) return D(0);
-  return allTime.div(MAT_SCALE).cbrt().mul(gain).floor();
-}
 
 /** Mats you'd get by calling Last Orders right now. */
 export function matsOnReset(s: GameState): Decimal {
@@ -52,6 +48,13 @@ export function lastOrders(s: GameState, now = Date.now()): Decimal {
   const keptUpgrades = m.keepUpgrades ? [...s.upgrades] : m.keepDrinking ? [...s.upgrades].filter(isDrinkingUpgrade) : [];
   const keptPubs = m.keepPubs ? { pubs: new Set(s.pubs), pub: s.pub } : null;
 
+  // Never Go Home: some of the crowd is still there. Whip-Round: so is some of what you drank.
+  const stayed: Record<string, number> = {};
+  if (m.keepDrinkers > 0) {
+    for (const [id, n] of Object.entries(s.drinkers)) if (n * m.keepDrinkers >= 1) stayed[id] = Math.floor(n * m.keepDrinkers);
+  }
+  const kitty = Decimal.max(m.startPints, s.lifetimePints.mul(m.whipRound).floor());
+
   s.pastRunsPints = allTimePints(s);
   s.matsEarned = s.matsEarned.add(gained);
   s.beerMats = s.beerMats.add(gained);
@@ -61,9 +64,10 @@ export function lastOrders(s: GameState, now = Date.now()): Decimal {
 
   // Everything that belongs to a single run starts again.
   const fresh = newGame(now);
-  s.pints = D(m.startPints);
-  s.lifetimePints = D(m.startPints);
+  s.pints = kitty;
+  s.lifetimePints = kitty;
   s.drinkers = { ...m.startDrinkers };
+  for (const [id, n] of Object.entries(stayed)) s.drinkers[id] = Math.max(s.drinkers[id] ?? 0, n);
   if (m.startAll > 0) for (const d of DRINKERS) s.drinkers[d.id] = Math.max(s.drinkers[d.id] ?? 0, m.startAll);
   s.upgrades = new Set(keptUpgrades);
   s.beer = Math.min(keptBeer, s.beer);
@@ -71,6 +75,9 @@ export function lastOrders(s: GameState, now = Date.now()): Decimal {
   s.pub = keptPubs?.pub ?? fresh.pub;
   s.pubReadyAt = 0;
   s.buffs = [];
+  // Last night's special is over, a challenge not beaten by now is lost, and three new specials are laid out.
+  s.challenge = null;
+  dealSpecials(s);
   s.glassFill = 1;
   s.runStartedAt = now;
   s.debugPerDrinkMult = fresh.debugPerDrinkMult;

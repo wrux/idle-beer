@@ -10,6 +10,8 @@ import {
   BUFFS, buffDuration, freeRoundLifetime, nextFreeRoundIn, rollFreeRound, startBuff, tickBuffs,
 } from './core/events';
 import { mods } from './core/licenceState';
+import { checkChallenge } from './core/nights';
+import { CHALLENGE_BY_ID, SPECIAL_BY_ID } from './data/nights';
 import { matMult } from './core/prestige';
 import { format, formatBrief, type NumberFormat } from './core/format';
 import { LOCALES, currentLocale, localeUrl, preferredLocale, tr, trn } from './i18n';
@@ -418,7 +420,7 @@ function renderHud() {
 
 let buffKey = '';
 function renderBuffs() {
-  const key = state.buffs.map((b) => `${b.kind}:${Math.ceil(b.remaining)}`).join(',');
+  const key = `${state.buffs.map((b) => `${b.kind}:${Math.ceil(b.remaining)}`).join(',')}|${state.special}|${state.challenge}`;
   if (key === buffKey) return;
   buffKey = key;
   // Happy Hour lights the edge of the scene gold for as long as it lasts.
@@ -433,7 +435,22 @@ function renderBuffs() {
     label.textContent = `${info.name} ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
     chip.append(icon(info.icon), label);
     return chip;
-  }));
+  }), ...nightChips());
+}
+
+/** Tonight's special and the challenge you're on, as quiet tags beside the timed rewards. */
+function nightChips(): HTMLElement[] {
+  const special = state.special ? SPECIAL_BY_ID.get(state.special) : undefined;
+  const challenge = state.challenge ? CHALLENGE_BY_ID.get(state.challenge) : undefined;
+  return [special && { text: special.name, title: special.desc }, challenge && { text: challenge.name, title: challenge.rule }]
+    .flatMap((c) => {
+      if (!c) return [];
+      const chip = document.createElement('div');
+      chip.className = 'buff night-chip';
+      chip.title = c.title;
+      chip.textContent = c.text;
+      return [chip];
+    });
 }
 
 // ---------- store ----------
@@ -459,8 +476,13 @@ let nextFreeRound = nextFreeRoundIn(state);
 const freeRound = new FreeRoundView($('free-rounds'), () => freeRoundLifetime(state), () => grant('missed-it'), (x, y) => {
   state.freeRounds++;
   renderer.cheer(2);
-  const outcome = rollFreeRound(state, totalPps(state));
   sound.play('freeRound');
+  // Doubles All Round: two rewards, the second popping up just above the first.
+  for (let n = 0, rewards = mods(state).doubleRounds ? 2 : 1; n < rewards; n++) giveFreeRound(x, y - n * 0.09);
+});
+
+function giveFreeRound(x: number, y: number) {
+  const outcome = rollFreeRound(state, totalPps(state));
   if (outcome.kind === 'lucky') {
     earn(state, outcome.amount);
     popup(`${tr('Lucky Round!')} +${format(outcome.amount.floor(), state.settings.numberFormat)}`, x, y, 'big');
@@ -473,7 +495,7 @@ const freeRound = new FreeRoundView($('free-rounds'), () => freeRoundLifetime(st
     popup(title, x, y, 'big');
     toast(info.icon, `<strong>${title}</strong>${tr('{effect} for {seconds} seconds.', { effect: info.desc, seconds: Math.round(buffDuration(state, outcome.buff)) })}`, 4000);
   }
-});
+}
 
 // ---------- Last Orders ----------
 
@@ -565,7 +587,7 @@ function finishPint() {
   }
   const m = mods(state);
   const mult = registerFinish(streak, clock, cycleSeconds(), {
-    extraSlack: m.streakSlack, maxSteps: m.streakMaxSteps ?? undefined,
+    extraSlack: m.streakSlack, maxSteps: m.streakMaxSteps ?? undefined, halveOnBreak: m.streakHalf,
   });
   state.bestStreak = Math.max(state.bestStreak, streak.count);
   const amount = pintsPerDrink(state).mul(mult);
@@ -601,6 +623,7 @@ startLoop((elapsed, now) => {
   stage.classList.toggle('holding', holding);
   const params = {
     drinkTime: drinkTime(state), refillTime: refillTime(state), downInOne: hasDownInOne(state), auto: true,
+    autoFull: mods(state).autoFull,
   };
   let left = Math.min(elapsed, 1);
   while (left > 0) {
@@ -628,7 +651,7 @@ startLoop((elapsed, now) => {
     freeRound.spawn();
     nextFreeRound = clock + freeRoundLifetime(state) + nextFreeRoundIn(state);
   }
-  freeRound.update(Math.min(elapsed, 1));
+  freeRound.update(Math.min(elapsed, 1), mods(state).autoRounds);
 
   renderer.setStreak(streakRemaining(streak, clock, cycleSeconds(), mods(state).streakSlack) > 0 ? streak.count : 0);
   renderer.render(p, now / 1000);
@@ -636,6 +659,8 @@ startLoop((elapsed, now) => {
   if (now - lastAutoBuy > 1000) {
     observe((now - lastAutoBuy) / 1000);
     lastAutoBuy = now;
+    // Cellar-Aged and Counted Already grow as the night goes on, so the sums are done again.
+    if (mods(state).aged > 0 || mods(state).pendingMats) invalidate();
     autoBuy();
     // Pints in the tab title, so you can keep an eye on the pub from another tab. Not until
     // you've gone in, though: a search engine reading the page should see its proper title.
@@ -650,6 +675,14 @@ startLoop((elapsed, now) => {
     showLocation();
     updateCrowd();
     announce(checkAchievements(state, { pps: totalPps(state), now: new Date() }));
+    const beaten = checkChallenge(state);
+    if (beaten) {
+      invalidate();
+      sound.play('freeRound');
+      renderer.cheer(2);
+      toast('🏆', `<strong>${tr('Challenge beaten!')}</strong>${beaten.name}: ${beaten.reward}`, 8000);
+      save();
+    }
     achievementsPanel.update();
     lastOrdersPanel.update();
     statsPanel.update();

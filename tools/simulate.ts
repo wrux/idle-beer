@@ -19,6 +19,7 @@ import {
 } from '../src/core/economy';
 import { autoCycleSeconds } from '../src/core/drinking';
 import { format } from '../src/core/format';
+import { mods } from '../src/core/licenceState';
 import { D, Decimal } from '../src/core/num';
 import { buyLicence, lastOrders, licenceStatus, matsOnReset } from '../src/core/prestige';
 import { newGame, owned, type GameState } from '../src/core/state';
@@ -36,7 +37,7 @@ const MAX_RUN_SECONDS = 12 * 60 * 60;
 const cycleTime = (s: GameState) => 0.25 * 0.85 + drinkTime(s) + 0.3 + refillTime(s);
 // Holding for `activity` of the time; the rest of the time he sips slowly on his own.
 const handRate = (s: GameState) =>
-  pintsPerDrink(s).mul(activity / cycleTime(s) + (1 - activity) / autoCycleSeconds(drinkTime(s), refillTime(s)));
+  pintsPerDrink(s).mul(activity / cycleTime(s) + (1 - activity) / (mods(s).autoFull ? cycleTime(s) : autoCycleSeconds(drinkTime(s), refillTime(s))));
 const income = (s: GameState) => totalPps(s).add(handRate(s));
 
 function clone(s: GameState): GameState {

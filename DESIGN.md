@@ -253,8 +253,26 @@ one thing to buy every run or two all the way up, where before all thirty were b
 | Technique | Bottomless (streak to +250%) · Never Spill a Drop (3 s more streak slack) · Hollow Leg (hand pints ×100) · One for the Road (+10 s of drinkers' output per pint) |
 | Collecting | Framed Collection (+10% per unspent mat) · Trophy Cabinet (+1% mats per achievement) · Mint Condition (+25% per mat) · The Complete Set (spent mats count too) |
 
-234 nodes, about 1e98 mats for all of them. You still only see what you own, what you can buy
-and a "?" beyond; the tree screen fits itself to what you have found, and the title counts them.
+- **Two perks that change how the game is played.** The first hangs off the middle of the tree
+  for 50 to 4,000 mats, so it turns up in the first few nights; the second hangs off step 5 of the
+  long line.
+
+| Branch | Early (mats) | Late |
+|--------|--------------|------|
+| Regulars | Plus One (120): every drinker bought brings a free one of the kind before | Never Go Home: a tenth of your drinkers stay through Last Orders |
+| Brewing | Guest Ale (50): a new beer starts a Happy Hour | Cellar-Aged: +1% to everything per minute of the night, up to +1,000% |
+| Charm | Doubles All Round (250): a Free Round gives two rewards | Never-Ending Happy Hour: a reward you already have gets longer |
+| Favours | Table Service (1,500): Free Rounds claim themselves | Whip-Round: start with 1% of last night's pints |
+| Technique | Second Nature (700): left alone he drinks at full speed | Unbroken: a broken streak halves |
+| Collecting | Counted Already (4,000): tonight's mats count towards the bonus before Last Orders | Collectors' Fair: each mat's bonus +1% per perk owned |
+
+  Cellar-Aged and Counted Already both pay for staying in a night longer, which is the point: they
+  pull against calling Last Orders the moment it would pay. Both change with time, so `main.ts`
+  recalculates once a second while either is owned.
+
+246 nodes, about 3e99 mats for all of them. The long lines curve as they go, like the arms of a
+spiral. You still only see what you own, what you can buy and a "?" beyond; the tree screen fits
+itself to what you have found, and the title counts them.
 
 **How the long lines are priced.** Past the last beer nothing in the shop grows any more, so a
 run's pints go as (your multiplier × time). Mats are the cube root of pints times the mat bonus,
@@ -273,7 +291,38 @@ before touching any of it:
 Simulated (holding half the time, Last Orders whenever it would double your mats, half of them
 spent): the first ten runs take about 6h 15m between them and the next twenty a few minutes (the
 stretch above, buying a node of the middle or a first one-off perk most runs), then about 190 more
-runs of up to fifty minutes each buy the long lines, about 30 hours in all. The simulator ignores Free Rounds and counts no time for the tree screen.
+runs of up to fifty minutes each buy the long lines, about 37 hours in all. The simulator ignores Free Rounds and Cellar-Aged, and counts no time for the tree screen.
+
+**Tonight's special and Challenge nights** (`data/nights.ts`, `core/nights.ts`). Two things to
+choose on the morning after, in a card under your mats, so that one night is not like the last.
+Neither is earned by counting Last Orders: a prize comes from a night's drinking, not from ringing
+the bell often.
+
+- **Tonight's special.** Three of ten are laid out after every Last Orders and you may pick one.
+  It lasts the night: Two for One (drinkers half price), Thirsty Crowd (drinkers ×3), Strong Stuff
+  (everything ×2), Big Hands (hand pints ×10), Lucky Night (Lucky Rounds ×5), Busy Night (Free
+  Rounds three times as often), Long Hours (rewards last three times as long), Brewery Visit (beers
+  90% cheaper), On a Roll (streak to +200%), Lock-In (100% while away).
+- **Challenge nights.** One at a time, taken on the morning after. Drink the goal *during the
+  night* (pints you walked in with don't count) and the handicap lifts and the prize is yours for
+  good. Call Last Orders first and it is lost, to try again another night.
+
+| Challenge | Handicap | Goal | Prize, for good |
+|-----------|----------|------|-----------------|
+| Drinking Alone | No drinkers | 1e8 | Hand pints ×10 |
+| Dry January | Pints you drink yourself count for nothing | 1e12 | Drinkers ×2 |
+| Empty Shelves | No upgrades | 1e13 | Everything ×1.5 |
+| Shandy Night | No new beers | 1e14 | Everything ×2 |
+| Your Round | Drinkers cost ×10 | 1e15 | Drinkers 20% cheaper |
+| Empty Pockets | Beer Mats give no bonus | 1e18 | Each mat's bonus ×1.25 |
+
+Specials, handicaps and prizes are all lists of the tree's own effects, folded in by `mods(state)`,
+so nothing else in the economy knows they exist beyond five small switches (`noDrinkers`, `noHand`,
+`noUpgrades`, `noBeer`, `noMats`). Both show as tags beside the timed rewards during the night. The
+save gained `special`, `specialOffer`, `challenge`, `challengeBase` and `challengesDone`; old saves
+simply have none. The goals are fixed, so a player deep in the tree will find the early ones easy:
+they are meant for the first dozen nights. On screens under 860px, where the side column is hidden
+after hours, the card sits across the bottom above the way back to the pub.
 
 **Second layer (later, for truly massive numbers): "Brewery Empire".** You reset Beer
 Mats for **Kegs**, which give exponential multipliers. Only needed once numbers pass

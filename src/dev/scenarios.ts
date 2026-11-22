@@ -141,6 +141,8 @@ export const SCENARIOS: Scenario[] = [
       s.drinks = 900_000;
       s.playSeconds = 900 * 3600;
       s.afterHours = true;
+      s.specialOffer = ['two-for-one', 'strong-stuff', 'lucky-night'];
+      s.challengesDone = new Set(['alone']);
       return s;
     },
   },

@@ -1,9 +1,10 @@
 /**
- * The modifiers in force for a game: the Landlord's Licence plus the perk of the pub you're
- * drinking in. Cached until another node is bought or you move.
+ * The modifiers in force for a game: the Landlord's Licence, the perk of the pub you're drinking
+ * in, tonight's special, and any challenge you're on or have beaten. Cached until another node is bought or you move.
  */
 import { applyEffect, licenceMods, type LicenceMods } from '../data/licence';
 import { LOCATION_BY_ID } from '../data/locations';
+import { CHALLENGE_BY_ID, SPECIAL_BY_ID } from '../data/nights';
 import type { GameState } from './state';
 
 let cache: { state: GameState; key: string; mods: LicenceMods } | null = null;
@@ -14,7 +15,7 @@ export function perkPubs(state: GameState, m: LicenceMods): string[] {
 }
 
 export function mods(state: GameState): LicenceMods {
-  const key = `${state.licence.size}|${state.pub}|${state.pubs.size}|${state.achievements.size}`;
+  const key = `${state.licence.size}|${state.pub}|${state.pubs.size}|${state.achievements.size}|${state.special}|${state.challenge}|${state.challengesDone.size}`;
   if (cache && cache.state === state && cache.key === key) return cache.mods;
   const m = licenceMods(state.licence);
   for (const pub of perkPubs(state, m)) {
@@ -23,6 +24,11 @@ export function mods(state: GameState): LicenceMods {
       applyEffect(m, e);
     }
   }
+  // The night itself: tonight's special, the challenge you're on, and the prizes of those you've beaten.
+  for (const e of (state.special && SPECIAL_BY_ID.get(state.special)?.effects) || []) applyEffect(m, e);
+  for (const e of (state.challenge && CHALLENGE_BY_ID.get(state.challenge)?.handicap) || []) applyEffect(m, e);
+  for (const id of state.challengesDone) for (const e of CHALLENGE_BY_ID.get(id)?.prize ?? []) applyEffect(m, e);
+  m.matRate *= m.matRateMult;
   // Trophy Cabinet: what you've achieved makes every mat count for more.
   m.matGain *= 1 + m.matGainPerAch * state.achievements.size;
   cache = { state, key, mods: m };

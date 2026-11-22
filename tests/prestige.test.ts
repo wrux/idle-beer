@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { invalidate, nextRound, offlineGain, pintsPerDrink, totalPps, hasDownInOne } from '../src/core/economy';
-import { buffDuration, luckyAmount, startBuff } from '../src/core/events';
+import { buyDrinker, buyNextRound, invalidate, nextRound, offlineGain, pintsPerDrink, totalPps, hasDownInOne } from '../src/core/economy';
+import { buffDuration, hasBuff, luckyAmount, startBuff } from '../src/core/events';
+import { newDrinkState, stepDrink } from '../src/core/drinking';
+import { newStreak, registerFinish } from '../src/core/streak';
 import { big, D } from '../src/core/num';
 import {
   allTimePints, buyLicence, lastOrders, licenceStatus, matMult, matsOnReset, matsWorth, pintsForNextMat,
@@ -90,8 +92,8 @@ describe('Last Orders reset', () => {
 });
 
 describe("Landlord's Licence", () => {
-  it('has six branches: five nodes round the middle, a line of thirty and four one-off perks', () => {
-    expect(LICENCE).toHaveLength(6 * (5 + 30 + 4));
+  it('has six branches: five nodes round the middle, a line of thirty, four one-off perks and two that change the game', () => {
+    expect(LICENCE).toHaveLength(6 * (5 + 30 + 4 + 2));
     expect(new Set(LICENCE.map((n) => n.id)).size).toBe(LICENCE.length);
     // Every node hangs off one that comes before it in the list, so buying in order always works.
     const seen = new Set<string>();
@@ -101,7 +103,7 @@ describe("Landlord's Licence", () => {
     }
     // The first three of each branch cost 1, 4 and 15; after that no two nodes cost the same,
     // and each line only ever gets dearer.
-    expect(LICENCE.filter((n) => n.tier < 3).reduce((sum, n) => sum + n.cost.toNumber(), 0)).toBe(6 * 20);
+    expect(LICENCE.filter((n) => n.tier < 3 && !n.unique).reduce((sum, n) => sum + n.cost.toNumber(), 0)).toBe(6 * 20);
     const later = LICENCE.filter((n) => n.tier >= 3).map((n) => n.cost.toString());
     expect(new Set(later).size).toBe(later.length);
     for (const n of LICENCE) if (n.requires && !n.unique) expect(n.cost.gt(LICENCE.find((x) => x.id === n.requires)!.cost)).toBe(true);
@@ -116,7 +118,7 @@ describe("Landlord's Licence", () => {
     s.drinkers = { regular: 10 };
     invalidate();
     const before = totalPps(s);
-    for (const n of LICENCE.filter((x) => x.branch === 'regulars').slice(0, 7)) expect(buyLicence(s, n.id)).toBe(true);
+    for (const n of LICENCE.filter((x) => x.branch === 'regulars').slice(0, 8)) expect(buyLicence(s, n.id)).toBe(true);
     invalidate();
     // regulars-x1 is drinkers ×10; the mats spent on the way cost some of the mat bonus.
     expect(s.licence.has('regulars-x1')).toBe(true);
@@ -215,6 +217,86 @@ describe("Landlord's Licence", () => {
     expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.05 * 70);
     s.lifetimePints = D(1e39); // worth ∛1e27 = 1e9 mats, ×1.875 with both gain nodes
     expect(matsOnReset(s).toNumber()).toBeCloseTo(1.875e9 - (spent + 70), -1);
+  });
+});
+
+describe('perks that change how the game is played', () => {
+  it('Plus One brings a free drinker of the kind before', () => {
+    const s = withMats(0);
+    s.pints = D(1e9);
+    s.licence.add('regulars-m1');
+    expect(buyDrinker(s, 'darts', 10)).toBe(10);
+    expect(s.drinkers).toEqual({ darts: 10, student: 10 });
+    // The first kind has nobody before it.
+    buyDrinker(s, 'regular', 1);
+    expect(s.drinkers.regular).toBe(1);
+  });
+
+  it('Guest Ale starts a Happy Hour with each new beer', () => {
+    const s = withMats(0);
+    s.pints = D(1e6);
+    s.lifetimePints = D(1e6);
+    s.licence.add('brewing-m1');
+    expect(buyNextRound(s)).toBe(true);
+    expect(hasBuff(s, 'happyHour')).toBe(true);
+  });
+
+  it('Never-Ending Happy Hour adds to a reward you already have', () => {
+    const s = withMats(0);
+    startBuff(s, 'happyHour');
+    startBuff(s, 'happyHour');
+    expect(s.buffs).toHaveLength(1);
+    expect(s.buffs[0].remaining).toBeCloseTo(77);
+    s.licence.add('charm-m2');
+    startBuff(s, 'happyHour');
+    expect(s.buffs).toHaveLength(1);
+    expect(s.buffs[0].remaining).toBeCloseTo(154);
+  });
+
+  it('Never Go Home and Whip-Round carry some of the night over', () => {
+    const s = withMats(0);
+    s.lifetimePints = D(1e20);
+    s.drinkers = { regular: 205, student: 9 };
+    s.licence.add('regulars-m2');
+    s.licence.add('management-m2');
+    lastOrders(s);
+    expect(s.drinkers).toEqual({ regular: 20 });
+    expect(s.pints.toNumber()).toBe(1e18);
+    expect(s.lifetimePints.toNumber()).toBe(1e18);
+  });
+
+  it('Second Nature has him drink a whole pint on his own, at full speed', () => {
+    const slow = newDrinkState(), fast = newDrinkState();
+    let slowPints = 0, fastPints = 0;
+    for (let t = 0; t < 20; t += 0.02) {
+      slowPints += stepDrink(slow, 0.02, false, { drinkTime: 1, refillTime: 0.4, auto: true });
+      fastPints += stepDrink(fast, 0.02, false, { drinkTime: 1, refillTime: 0.4, auto: true, autoFull: true });
+    }
+    expect(slowPints).toBeLessThanOrEqual(2);
+    expect(fastPints).toBeGreaterThanOrEqual(9);
+  });
+
+  it('Unbroken halves a broken streak', () => {
+    const plain = newStreak(), kept = newStreak();
+    for (let i = 0; i < 9; i++) {
+      registerFinish(plain, i, 2);
+      registerFinish(kept, i, 2, { halveOnBreak: true });
+    }
+    registerFinish(plain, 100, 2);
+    registerFinish(kept, 100, 2, { halveOnBreak: true });
+    expect(plain.count).toBe(1);
+    expect(kept.count).toBe(4);
+  });
+
+  it('Counted Already puts tonight\'s mats towards the bonus, and Collectors\' Fair makes each worth more', () => {
+    const s = withMats(100);
+    s.matsEarned = D(100);
+    s.lifetimePints = D(1e21); // worth 1,000 mats, so 900 to come
+    expect(matMult(s).toNumber()).toBeCloseTo(2);
+    s.licence.add('collecting-m1');
+    expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.01 * 1000);
+    s.licence.add('collecting-m2');
+    expect(matMult(s).toNumber()).toBeCloseTo(1 + 0.01 * 1.02 * 1000);
   });
 });
 

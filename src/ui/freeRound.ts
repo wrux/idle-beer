@@ -49,9 +49,7 @@ export class FreeRoundView {
     b.addEventListener('pointerdown', (e) => e.stopPropagation());
     b.addEventListener('click', (e) => {
       e.stopPropagation();
-      const { x, y } = this.position();
-      this.remove();
-      this.onClaim(x, y);
+      this.claim();
     });
     this.layer.appendChild(b);
     this.el = b;
@@ -66,9 +64,20 @@ export class FreeRoundView {
     return { x, y };
   }
 
-  update(dt: number): void {
+  private claim(): void {
+    const { x, y } = this.position();
+    this.remove();
+    this.onClaim(x, y);
+  }
+
+  /** `served`: it is brought to you (Table Service), a moment after it turns up. */
+  update(dt: number, served = false): void {
     if (!this.el) return;
     this.age += dt;
+    if (served && this.age >= 1.2) {
+      this.claim();
+      return;
+    }
     if (this.age >= this.lifetime()) {
       this.remove();
       this.onMiss();

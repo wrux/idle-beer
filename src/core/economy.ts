@@ -2,7 +2,9 @@ import { BEERS, beerAt, beerMultUpTo, type Beer } from '../data/beers';
 import { DRINKERS, DRINKER_BY_ID, type Drinker } from '../data/drinkers';
 import { LOCATIONS, LOCATION_BONUS, LOCATION_BY_ID, type Location } from '../data/locations';
 import { UPGRADES, UPGRADE_BY_ID, type Upgrade } from '../data/upgrades';
-import { DOWN_IT_MULT, HAPPY_HOUR_MULT, hasBuff, QUIZ_DISCOUNT } from './events';
+import { DOWN_IT_MULT, HAPPY_HOUR_MULT, hasBuff, QUIZ_DISCOUNT, startBuff } from './events';
+import { AGED_CAP } from '../data/licence';
+import { matsWorth } from './mats';
 import { mods, perkPubs } from './licenceState';
 import { PUB_COOLDOWN_SECONDS } from './pubs';
 import { D, Decimal } from './num';
@@ -93,7 +95,9 @@ function derive(state: GameState): Derived {
   // The Local Legend tree's own boosts to everything: its long line, achievements, beers.
   const treeMult = D(licence.allMult)
     .mul(1 + licence.achMult * state.achievements.size)
-    .mul(Decimal.pow(licence.beerPower, Math.min(state.beer, BEERS.length - 1)));
+    .mul(Decimal.pow(licence.beerPower, Math.min(state.beer, BEERS.length - 1)))
+    // Cellar-Aged: more for every minute of the night (the caller refreshes this as time passes).
+    .mul(1 + Math.min(AGED_CAP, licence.aged * Math.max(0, (Date.now() - state.runStartedAt) / 60_000)));
   const globalMult = beerMultUpTo(state.beer).mul(pubMult * locationMult * reputationMult).mul(matMult).mul(treeMult);
 
   const happyHour = hasBuff(state, 'happyHour') ? (licence.happyHour ?? HAPPY_HOUR_MULT) + licence.happyHourAdd : 1;
@@ -108,7 +112,8 @@ function derive(state: GameState): Derived {
   for (const d of DRINKERS) {
     let synergy = 1;
     for (const s of synergies) if (s.target === d.id) synergy += s.perUnit * owned(state, s.source);
-    const each = d.basePps.mul((drinkerMult.get(d.id) ?? 1) * synergy * happyHour).mul(idleMult);
+    // Drinking Alone: whoever is in doesn't drink.
+    const each = licence.noDrinkers ? D(0) : d.basePps.mul((drinkerMult.get(d.id) ?? 1) * synergy * happyHour).mul(idleMult);
     ppsEach.set(d.id, each);
     totalPps = totalPps.add(each.mul(owned(state, d.id)));
   }
@@ -125,7 +130,13 @@ function derive(state: GameState): Derived {
 /** The bonus to everything from Beer Mats: 1 + rate × mats (unspent ones, or all of them with The Complete Set). */
 export function matBonus(state: GameState): Decimal {
   const m = mods(state);
-  return (m.matsCountSpent ? Decimal.max(state.beerMats, state.matsEarned) : state.beerMats).mul(m.matRate).add(1);
+  if (m.noMats) return D(1);
+  let mats = m.matsCountSpent ? Decimal.max(state.beerMats, state.matsEarned) : state.beerMats;
+  // Counted Already: what Last Orders would pay tonight is in your pocket as far as the bonus goes.
+  if (m.pendingMats) {
+    mats = mats.add(Decimal.max(0, matsWorth(state.pastRunsPints.add(state.lifetimePints), m.matGain).sub(state.matsEarned)));
+  }
+  return mats.mul(m.matRate).add(1);
 }
 
 // ---------- drinking by hand ----------
@@ -139,6 +150,8 @@ export const refillTime = (state: GameState): number => derive(state).refillTime
 export const hasDownInOne = (state: GameState): boolean => derive(state).downInOne;
 
 export function pintsPerDrink(state: GameState): Decimal {
+  // Dry January: what you drink yourself counts for nothing.
+  if (mods(state).noHand) return D(0);
   const d = derive(state);
   const base = d.globalMult.mul(d.perDrinkMult).mul(state.debugPerDrinkMult);
   return d.lunchSeconds > 0 ? base.add(d.totalPps.mul(d.lunchSeconds)) : base;
@@ -216,11 +229,14 @@ function spend(state: GameState, cost: Decimal): boolean {
 /** Buy drinkers. Returns how many were bought (0 if you couldn't afford them). */
 export function buyDrinker(state: GameState, id: string, mode: BuyMode): number {
   const d = DRINKER_BY_ID.get(id);
-  if (!d) return 0;
+  if (!d || mods(state).noDrinkers) return 0;
   const have = owned(state, id);
   const qty = mode === 'max' ? affordableNow(state, d, have) : mode;
   if (qty <= 0 || !spend(state, priceOf(state, d, have, qty))) return 0;
   state.drinkers[id] = have + qty;
+  // Plus One: each brings a friend from the crowd before.
+  const before = DRINKERS[DRINKERS.indexOf(d) - 1];
+  if (before && mods(state).plusOne) state.drinkers[before.id] = owned(state, before.id) + qty;
   invalidate();
   return qty;
 }
@@ -245,12 +261,13 @@ export const reputationMult = (state: GameState): number => derive(state).reputa
 
 /** Upgrades you can see in the store: unlocked and not yet bought, cheapest first. */
 export function availableUpgrades(state: GameState): Upgrade[] {
+  if (mods(state).noUpgrades) return [];
   return UPGRADES.filter((u) => !state.upgrades.has(u.id) && u.unlocked(state)).sort((a, b) => a.cost.cmp(b.cost));
 }
 
 export function buyUpgrade(state: GameState, id: string): boolean {
   const u = UPGRADE_BY_ID.get(id);
-  if (!u || state.upgrades.has(id) || !u.unlocked(state) || !spend(state, u.cost)) return false;
+  if (!u || mods(state).noUpgrades || state.upgrades.has(id) || !u.unlocked(state) || !spend(state, u.cost)) return false;
   state.upgrades.add(id);
   invalidate();
   return true;
@@ -268,7 +285,7 @@ export interface NextRound {
 
 /** The next beer for sale, or null if it isn't revealed yet, or you're on the last one. */
 export function nextRound(state: GameState): NextRound | null {
-  if (state.beer >= BEERS.length - 1) return null;
+  if (state.beer >= BEERS.length - 1 || mods(state).noBeer) return null;
   const beer = beerAt(state.beer + 1);
   if (state.lifetimePints.lt(beer.cost.mul(0.5))) return null;
   const discount = mods(state).beerDiscount;
@@ -280,6 +297,8 @@ export function buyNextRound(state: GameState): boolean {
   const offer = nextRound(state);
   if (!offer || !spend(state, offer.cost)) return false;
   state.beer++;
+  // Guest Ale: a new beer on is an occasion.
+  if (mods(state).beerHappyHour) startBuff(state, 'happyHour');
   invalidate();
   return true;
 }

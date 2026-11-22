@@ -57,6 +57,16 @@ export interface GameState {
   prestiges: number;
   /** The bell has rung and you haven't gone back to the pub yet: you're on the Licence screen. */
   afterHours: boolean;
+  /** Tonight's special (data/nights.ts), if you picked one. Gone at Last Orders. */
+  special: string | null;
+  /** The three specials laid out the morning after. */
+  specialOffer: string[];
+  /** The challenge you're on tonight, if any. Gone when beaten, or at Last Orders. */
+  challenge: string | null;
+  /** Lifetime pints when the challenge began: its goal is counted from here. */
+  challengeBase: Decimal;
+  /** Challenges beaten; their prizes are kept for good. */
+  challengesDone: Set<string>;
   /** Reserved for the second prestige layer (Brewery Empire). */
   kegs: Decimal;
   /** When this run started. */
@@ -100,6 +110,11 @@ export function newGame(now = Date.now()): GameState {
     licence: new Set(),
     prestiges: 0,
     afterHours: false,
+    special: null,
+    specialOffer: [],
+    challenge: null,
+    challengeBase: D(0),
+    challengesDone: new Set(),
     kegs: D(0),
     runStartedAt: now,
     debugPerDrinkMult: D(1),

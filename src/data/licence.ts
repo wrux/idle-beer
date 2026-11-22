@@ -2,7 +2,8 @@
  * The Landlord's Licence: a permanent upgrade tree bought with Beer Mats (DESIGN.md §6).
  * Six branches. Each starts with five hand-written nodes round the middle, then runs out in a
  * long line of plain boosts (the same boost thirty times, each dearer than the last) with four
- * one-off perks hanging off it: 234 nodes, about 1e98 mats for all of them.
+ * one-off perks hanging off it. Each branch also has two perks that change how the game is
+ * played. 246 nodes, about 1e99 mats for all of them.
  */
 import { D, Decimal } from '../core/num';
 import { DRINKERS } from './drinkers';
@@ -64,7 +65,46 @@ export type LicenceEffect =
   /** Every pub you've opened gives its perk at once. */
   | { kind: 'allPubPerks' }
   /** The mat bonus counts every mat ever earned, not only the unspent ones. */
-  | { kind: 'matsCountSpent' };
+  | { kind: 'matsCountSpent' }
+  // ----- perks that change how the game is played -----
+  /** Buying a drinker also gives you one of the kind before it. */
+  | { kind: 'plusOne' }
+  /** This fraction of each kind of drinker is still there after Last Orders. */
+  | { kind: 'keepDrinkers'; fraction: number }
+  /** Everything ×(1 + rate × minutes since the night began), up to 1 + AGED_CAP. */
+  | { kind: 'aged'; rate: number }
+  /** Buying a beer starts a Happy Hour. */
+  | { kind: 'beerHappyHour' }
+  /** A Free Round gives two rewards. */
+  | { kind: 'doubleRounds' }
+  /** A reward you already have gets longer; it isn't started again (and can be rolled again). */
+  | { kind: 'stackBuffs' }
+  /** Free Rounds claim themselves. */
+  | { kind: 'autoRounds' }
+  /** Start the night with this fraction of the pints you drank the night before. */
+  | { kind: 'whipRound'; fraction: number }
+  /** Left alone, he drinks at the speed you would. */
+  | { kind: 'autoFull' }
+  /** A broken streak drops to half. */
+  | { kind: 'streakHalf' }
+  /** The mats Last Orders would pay count towards the mat bonus already. */
+  | { kind: 'pendingMats' }
+  /** Each mat's bonus ×(1 + rate × perks owned). */
+  | { kind: 'perkRate'; rate: number }
+  // ----- nights (data/nights.ts): challenge handicaps and a prize -----
+  /** Pints drunk by hand earn nothing. */
+  | { kind: 'noHand' }
+  | { kind: 'noBeer' }
+  | { kind: 'noUpgrades' }
+  /** No drinkers can be bought, and any you have don't drink. */
+  | { kind: 'noDrinkers' }
+  /** Beer Mats give no bonus. */
+  | { kind: 'noMats' }
+  /** Each mat's bonus ×mult. */
+  | { kind: 'matRateMult'; mult: number };
+
+/** The most Cellar-Aged can add: +1,000%. */
+export const AGED_CAP = 10;
 
 export type AutoBuy = 'upgrades' | 'drinkers' | 'beer';
 
@@ -81,7 +121,7 @@ export interface LicenceNode {
   at: { x: number; y: number };
   /** Which step this is along its branch's long line (1–30). Shown after the name. */
   rank?: number;
-  /** A one-off perk hanging off a long line. */
+  /** A one-off perk, not a step of a long line. */
   unique?: boolean;
 }
 
@@ -194,6 +234,60 @@ const CORE: LicenceNode[] = BRANCHES.flatMap((b) =>
   })),
 );
 
+// ---------- perks that change how the game is played ----------
+
+/**
+ * Two a branch. The first hangs off the middle of the tree and costs tens to thousands of mats,
+ * so it turns up in the first few nights; the second hangs off step 5 of the branch's long line.
+ */
+const MECHANICS: Record<string, [Spec, Spec]> = {
+  regulars: [
+    ['Plus One', 'Every drinker you buy brings along a free one of the kind before it.', [{ kind: 'plusOne' }]],
+    ['Never Go Home', 'A tenth of your drinkers are still at the bar the next night.', [{ kind: 'keepDrinkers', fraction: 0.1 }]],
+  ],
+  brewing: [
+    ['Guest Ale', 'Moving on to a new beer starts a Happy Hour.', [{ kind: 'beerHappyHour' }]],
+    ['Cellar-Aged', 'Everything drinks 1% more for every minute the night has lasted, up to +1,000%.', [{ kind: 'aged', rate: 0.01 }]],
+  ],
+  charm: [
+    ['Doubles All Round', 'Every Free Round gives two rewards.', [{ kind: 'doubleRounds' }]],
+    ['Never-Ending Happy Hour', 'A Free Round reward you already have gets longer, not started again.', [{ kind: 'stackBuffs' }]],
+  ],
+  management: [
+    ['Table Service', 'Free Rounds are brought to you: no need to click them.', [{ kind: 'autoRounds' }]],
+    ['Whip-Round', 'Start every night with 1% of the pints you drank the night before.', [{ kind: 'whipRound', fraction: 0.01 }]],
+  ],
+  technique: [
+    ['Second Nature', 'Left alone, he drinks at full speed, not in slow sips.', [{ kind: 'autoFull' }]],
+    ['Unbroken', 'A broken chug streak drops to half, not back to nothing.', [{ kind: 'streakHalf' }]],
+  ],
+  collecting: [
+    ['Counted Already', 'The Beer Mats that Last Orders would pay count towards your bonus straight away.', [{ kind: 'pendingMats' }]],
+    ["Collectors' Fair", "Each Beer Mat's bonus is 1% stronger for every perk you have earned.", [{ kind: 'perkRate', rate: 0.01 }]],
+  ],
+};
+
+/** The first of each pair: [core node it hangs off, x, y, mats]. */
+const EARLY_MECHANICS: Record<string, [number, number, number, number]> = {
+  regulars: [3, -2, -5.7, 120],
+  brewing: [2, 4, -1.5, 50],
+  charm: [3, 6, 4.7, 250],
+  management: [3, -2, 4.7, 1.5e3],
+  technique: [2, -4, 1.6, 700],
+  collecting: [3, -6, -4.7, 4e3],
+};
+/** The step of the long line the second of each pair hangs off. */
+const MECHANIC_STEP = 5;
+
+const EARLY: LicenceNode[] = BRANCHES.map((b) => {
+  const [name, desc, effects] = MECHANICS[b.id][0];
+  const [parent, x, y, cost] = EARLY_MECHANICS[b.id];
+  return {
+    id: `${b.id}-m1`, branch: b.id, tier: parent, name, desc, effects,
+    cost: D(cost), requires: `${b.id}-${parent}`, at: { x, y }, unique: true,
+  };
+});
+
 // ---------- the long lines ----------
 
 /** Steps along each branch's line. */
@@ -285,13 +379,15 @@ const LINE_DIRECTION: Record<string, [number, number]> = {
 };
 /** Grid squares between one step of a line and the next. */
 const LINE_SPACING = 1.7;
+/** Each step turns this far (radians) from the one before, so the lines sweep round like the arms of a spiral. */
+const LINE_CURVE = 0.045;
 
 /** 10^exponent, as a price: two figures and then noughts. */
 /**
  * The one-off perks make mats come faster too, so the line gets dearer by 10^this after the step
  * they hang off: mostly Connoisseur (×1.5 for each of 26 beers) and Master Brewer (×2 for each).
  */
-const UNIQUE_BUMPS: [afterStep: number, exponent: number][] = [[10, 3.9], [20, 0.35]];
+const UNIQUE_BUMPS: [afterStep: number, exponent: number][] = [[MECHANIC_STEP, 0.6], [10, 3.9], [20, 0.35]];
 
 const price = (exponent: number): Decimal => {
   const whole = Math.floor(exponent);
@@ -300,18 +396,26 @@ const price = (exponent: number): Decimal => {
 
 const LONG: LicenceNode[] = BRANCHES.flatMap((b) => {
   const [dx, dy] = LINE_DIRECTION[b.id];
-  const len = Math.hypot(dx, dy);
-  const ux = dx / len, uy = dy / len;
+  const heading = Math.atan2(dy, dx);
   const start = CORE.find((n) => n.id === `${b.id}-5`)!;
+  // Where each step sits, and which way the line is heading there.
+  const path: { x: number; y: number; a: number }[] = [{ ...start.at, a: heading }];
+  for (let step = 1; step <= LINE_LENGTH; step++) {
+    const a = heading + LINE_CURVE * step;
+    const from = path[step - 1];
+    path.push({ x: from.x + Math.cos(a) * LINE_SPACING, y: from.y + Math.sin(a) * LINE_SPACING, a });
+  }
   const at = (step: number, side = 0) => ({
-    x: +(start.at.x + ux * LINE_SPACING * step - uy * LINE_SPACING * side).toFixed(2),
-    y: +(start.at.y + uy * LINE_SPACING * step + ux * LINE_SPACING * side).toFixed(2),
+    x: +(path[step].x - Math.sin(path[step].a) * LINE_SPACING * side).toFixed(2),
+    y: +(path[step].y + Math.cos(path[step].a) * LINE_SPACING * side).toFixed(2),
   });
   const [lineName, lineDesc, lineEffects] = LINES[b.id];
   const uniques = UNIQUES[b.id];
   const out: LicenceNode[] = [{
     id: `${b.id}-u1`, branch: b.id, tier: 5, name: uniques[0][0], desc: uniques[0][1], effects: uniques[0][2],
-    cost: D(FIRST_UNIQUE_COSTS[PRICE_RANK[b.id]]), requires: start.id, at: at(0, 1), unique: true,
+    cost: D(FIRST_UNIQUE_COSTS[PRICE_RANK[b.id]]), requires: start.id,
+    // Technique's would land on its own fourth node, so it sits out to the side.
+    at: b.id === 'technique' ? { x: -9.6, y: -0.3 } : at(0, 1), unique: true,
   }];
   for (let step = 1; step <= LINE_LENGTH; step++) {
     const bump = UNIQUE_BUMPS.reduce((sum, [after, exponent]) => sum + (step > after ? exponent : 0), 0);
@@ -320,6 +424,13 @@ const LONG: LicenceNode[] = BRANCHES.flatMap((b) => {
       id: `${b.id}-x${step}`, branch: b.id, tier: 5 + step, name: lineName, desc: lineDesc, effects: lineEffects,
       cost, requires: step === 1 ? start.id : `${b.id}-x${step - 1}`, at: at(step), rank: step,
     });
+    if (step === MECHANIC_STEP) {
+      const [name, desc, effects] = MECHANICS[b.id][1];
+      out.push({
+        id: `${b.id}-m2`, branch: b.id, tier: 5 + step, name, desc, effects,
+        cost: cost.mul(5), requires: `${b.id}-x${step}`, at: at(step, 1), unique: true,
+      });
+    }
     const u = UNIQUE_STEPS.indexOf(step);
     if (u >= 0) {
       const [name, desc, effects] = uniques[u + 1];
@@ -333,7 +444,7 @@ const LONG: LicenceNode[] = BRANCHES.flatMap((b) => {
 });
 
 /** Every node, in an order where each comes after the one it hangs off. */
-export const LICENCE: LicenceNode[] = [...CORE, ...LONG];
+export const LICENCE: LicenceNode[] = [...CORE, ...EARLY, ...LONG];
 
 export const LICENCE_BY_ID = new Map(LICENCE.map((n) => [n.id, n]));
 
@@ -376,6 +487,24 @@ export interface LicenceMods {
   keepUpgrades: boolean;
   allPubPerks: boolean;
   matsCountSpent: boolean;
+  plusOne: boolean;
+  keepDrinkers: number;
+  aged: number;
+  beerHappyHour: boolean;
+  doubleRounds: boolean;
+  stackBuffs: boolean;
+  autoRounds: boolean;
+  whipRound: number;
+  autoFull: boolean;
+  streakHalf: boolean;
+  pendingMats: boolean;
+  perkRate: number;
+  noHand: boolean;
+  noBeer: boolean;
+  noUpgrades: boolean;
+  noDrinkers: boolean;
+  noMats: boolean;
+  matRateMult: number;
 }
 
 export const BASE_MAT_RATE = 0.01;
@@ -390,6 +519,9 @@ export function baseMods(): LicenceMods {
     idleMult: 1, allMult: 1, happyHourAdd: 0, offlineCapAdd: 0, startAll: 0, crowd: 0, drinkerCost: 1, beerPower: 1,
     achMult: 0, matGainPerAch: 0, perDrink: 1, keepPubs: false, keepUpgrades: false, allPubPerks: false,
     matsCountSpent: false,
+    plusOne: false, keepDrinkers: 0, aged: 0, beerHappyHour: false, doubleRounds: false, stackBuffs: false,
+    autoRounds: false, whipRound: 0, autoFull: false, streakHalf: false, pendingMats: false, perkRate: 0,
+    noHand: false, noBeer: false, noUpgrades: false, noDrinkers: false, noMats: false, matRateMult: 1,
   };
 }
 
@@ -434,6 +566,24 @@ export function applyEffect(m: LicenceMods, e: LicenceEffect): void {
     case 'keepUpgrades': m.keepUpgrades = true; break;
     case 'allPubPerks': m.allPubPerks = true; break;
     case 'matsCountSpent': m.matsCountSpent = true; break;
+    case 'plusOne': m.plusOne = true; break;
+    case 'keepDrinkers': m.keepDrinkers = Math.max(m.keepDrinkers, e.fraction); break;
+    case 'aged': m.aged = Math.max(m.aged, e.rate); break;
+    case 'beerHappyHour': m.beerHappyHour = true; break;
+    case 'doubleRounds': m.doubleRounds = true; break;
+    case 'stackBuffs': m.stackBuffs = true; break;
+    case 'autoRounds': m.autoRounds = true; break;
+    case 'whipRound': m.whipRound = Math.max(m.whipRound, e.fraction); break;
+    case 'autoFull': m.autoFull = true; break;
+    case 'streakHalf': m.streakHalf = true; break;
+    case 'pendingMats': m.pendingMats = true; break;
+    case 'perkRate': m.perkRate += e.rate; break;
+    case 'noHand': m.noHand = true; break;
+    case 'noBeer': m.noBeer = true; break;
+    case 'noUpgrades': m.noUpgrades = true; break;
+    case 'noDrinkers': m.noDrinkers = true; break;
+    case 'noMats': m.noMats = true; break;
+    case 'matRateMult': m.matRateMult *= e.mult; break;
   }
 }
 
@@ -441,5 +591,7 @@ export function applyEffect(m: LicenceMods, e: LicenceEffect): void {
 export function licenceMods(owned: ReadonlySet<string>): LicenceMods {
   const m = baseMods();
   for (const id of owned) for (const e of LICENCE_BY_ID.get(id)?.effects ?? []) applyEffect(m, e);
+  // Collectors' Fair: every perk you own makes each mat worth more.
+  m.matRate *= 1 + m.perkRate * owned.size;
   return m;
 }

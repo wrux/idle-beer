@@ -1,0 +1,42 @@
+/** Tonight's special and Challenge nights: choosing them, and knowing when a challenge is beaten. */
+import { CHALLENGE_BY_ID, SPECIAL_BY_ID, SPECIALS, SPECIALS_OFFERED, type Challenge } from '../data/nights';
+import { Decimal } from './num';
+import type { GameState } from './state';
+
+/** Lay out a fresh three for the morning after (and clear last night's). */
+export function dealSpecials(s: GameState, rng: () => number = Math.random): void {
+  const pool = SPECIALS.map((x) => x.id);
+  const offer: string[] = [];
+  while (offer.length < SPECIALS_OFFERED && pool.length) offer.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  s.specialOffer = offer;
+  s.special = null;
+}
+
+/** Choose one of the three on offer. Only the morning after, before you go back to the pub. */
+export function pickSpecial(s: GameState, id: string): boolean {
+  if (!s.afterHours || !s.specialOffer.includes(id) || !SPECIAL_BY_ID.has(id)) return false;
+  s.special = id;
+  return true;
+}
+
+/** Take a challenge on for the night ahead (or `null` to back out). Only the morning after. */
+export function pickChallenge(s: GameState, id: string | null): boolean {
+  if (!s.afterHours) return false;
+  if (id !== null && (!CHALLENGE_BY_ID.has(id) || s.challengesDone.has(id))) return false;
+  s.challenge = id;
+  // The goal is what you drink from here: pints you walked in with don't count.
+  s.challengeBase = s.lifetimePints;
+  return true;
+}
+
+/** Pints drunk towards the challenge you're on. */
+export const challengeProgress = (s: GameState): Decimal => Decimal.max(0, s.lifetimePints.sub(s.challengeBase));
+
+/** If tonight's challenge has just been beaten: bank it, lift the handicap, and say which it was. */
+export function checkChallenge(s: GameState): Challenge | null {
+  const c = s.challenge ? CHALLENGE_BY_ID.get(s.challenge) : undefined;
+  if (!c || s.afterHours || challengeProgress(s).lt(c.goal)) return null;
+  s.challengesDone.add(c.id);
+  s.challenge = null;
+  return c;
+}

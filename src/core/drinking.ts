@@ -36,6 +36,8 @@ export interface DrinkParams {
   downInOne?: boolean;
   /** Let him sip on his own when you're not holding. */
   auto?: boolean;
+  /** On his own he drinks as you would: the whole pint, at full speed, with no wait between. */
+  autoFull?: boolean;
 }
 
 const LIFT_TIME = 0.25; // seconds from bar to lips
@@ -75,6 +77,8 @@ export function stepDrink(s: DrinkState, dt: number, holding: boolean, p: DrinkP
     // You're in charge: drop any sip he was taking, and wait a bit before he starts again.
     s.autoSip = 0;
     s.autoWait = AUTO_PAUSE;
+  } else if (p.auto && p.autoFull && s.autoSip <= 0) {
+    s.autoSip = s.fill;
   } else if (p.auto && s.autoSip <= 0) {
     s.autoWait -= dt;
     if (s.autoWait <= 0) {
@@ -92,7 +96,7 @@ export function stepDrink(s: DrinkState, dt: number, holding: boolean, p: DrinkP
   s.lift = Math.min(1, s.lift + dt / LIFT_TIME);
   if (s.lift < DRINK_FROM_LIFT) return 0;
 
-  const drunk = dt / (p.drinkTime * (auto ? AUTO_SLOWDOWN : 1));
+  const drunk = dt / (p.drinkTime * (auto && !p.autoFull ? AUTO_SLOWDOWN : 1));
   s.fill -= drunk;
   if (auto) s.autoSip -= drunk;
   if (s.fill > 1e-9) return 0;

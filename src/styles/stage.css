@@ -775,3 +775,10 @@ select:focus-visible,
     animation-duration: 0.01s;
   }
 }
+
+/* Tonight's special and the challenge you're on: there all night, so they don't pulse. */
+.buff.night-chip {
+  border-color: rgba(248, 238, 218, 0.45);
+  font-weight: 600;
+  animation: none;
+}

@@ -22,11 +22,14 @@ export const streakWindow = (cycleSeconds: number, extraSlack = 0) => cycleSecon
 export interface StreakOptions {
   extraSlack?: number;
   maxSteps?: number;
+  /** A broken streak drops to half, not to nothing. */
+  halveOnBreak?: boolean;
 }
 
 /** Record a finished pint. Returns the multiplier that pint earns. */
 export function registerFinish(s: Streak, now: number, cycleSeconds: number, opts: StreakOptions = {}): number {
-  s.count = now - s.lastFinish <= streakWindow(cycleSeconds, opts.extraSlack) ? s.count + 1 : 1;
+  const unbroken = now - s.lastFinish <= streakWindow(cycleSeconds, opts.extraSlack);
+  s.count = unbroken ? s.count + 1 : opts.halveOnBreak ? Math.max(1, Math.floor(s.count / 2)) : 1;
   s.lastFinish = now;
   return streakMult(s.count, opts.maxSteps);
 }
