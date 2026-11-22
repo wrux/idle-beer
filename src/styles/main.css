@@ -153,11 +153,12 @@
   text-overflow: ellipsis;
 }
 
+/* The price and the rate each keep a line of their own: side by side, a price that grew a digit
+   pushed the rate onto a new line and the whole list jumped. */
 .d-meta {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 10px;
+  flex-direction: column;
+  align-items: flex-start;
   font-size: 13.5px;
   margin-top: 1px;
 }
