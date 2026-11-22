@@ -7,13 +7,79 @@
 @media (max-width: 600px) {
   /* ---------- the pub ---------- */
 
+  /* The counter on the left, the buttons in a rail down the right edge: a row of buttons above
+     the counter pushed everything down over the drinker's face. */
   .hud-top {
-    row-gap: 0;
-    padding: max(8px, env(safe-area-inset-top)) 10px 0 max(12px, env(safe-area-inset-left));
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 8px;
+    padding: max(10px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  }
+
+  .counter {
+    flex: 1 1 auto;
   }
 
   .pps {
     margin-top: 0;
+  }
+
+  /* The numbers are short until tapped (see main.ts), so each line is only as wide as what it
+     says and takes a tap; the rest of the pub is still for drinking. */
+  .counter-main,
+  .pps,
+  .mats {
+    align-self: flex-start;
+    max-width: 100%;
+    pointer-events: auto;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mats {
+    margin-top: 3px;
+    font-size: 12.5px;
+  }
+
+  /* Shut, the Beer Mats chip is the mat and the count. Its words and the bonus are loose text
+     as well as spans, so they are shrunk away, not hidden. */
+  .counter:not(.open) .mats {
+    gap: 5px;
+    padding-right: 10px;
+    font-size: 0;
+  }
+
+  .counter:not(.open) .mats > span {
+    display: none;
+  }
+
+  .counter:not(.open) .mats b {
+    font-size: 12.5px;
+  }
+
+  .topbar-actions {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  /* Last Orders is a round button like the rest, at the foot of the rail where a thumb is, and
+     what it would pay is a label beside it: a number that long doesn't fit in a corner. */
+  .last-orders-button {
+    order: 1;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  .last-orders-button .lo-text {
+    display: none;
+  }
+
+  .last-orders-button .badge {
+    top: 50%;
+    right: calc(100% + 6px);
+    transform: translateY(-50%);
+    white-space: nowrap;
   }
 
   /* Per drink, drinks, lifetime and best streak are all in Stats: here they only hid the bar. */
@@ -37,10 +103,10 @@
   /* ---------- toasts: two small labels at most, only as wide as what they say ---------- */
 
   .toasts {
-    top: 100px;
-    right: 10px;
+    top: 94px;
+    right: 52px;
     width: auto;
-    max-width: min(290px, calc(100% - 20px));
+    max-width: min(290px, calc(100% - 64px));
     align-items: flex-end;
     gap: 5px;
   }
@@ -149,6 +215,23 @@
 
   /* Beside the ×1 / ×10 / Max buttons the note is a line of flavour the list can't spare. */
   .panel-head:has(.buy-modes) .panel-note {
+    display: none;
+  }
+}
+
+/* ---------- anything stacked (pub on top, shop underneath) ---------- */
+
+@media (max-width: 860px) {
+  /* The shop sits above the pub's edge on a desktop. Stacked, that put the whole list in front of
+     the pinned pub as it scrolled, with the tabs left floating halfway down it. */
+  .stage {
+    z-index: 6;
+  }
+}
+
+/* Full screen is for a desktop window: a phone's browser either can't or doesn't need to. */
+@media (max-width: 860px), (pointer: coarse) and (max-height: 500px) {
+  #fullscreen-toggle {
     display: none;
   }
 }

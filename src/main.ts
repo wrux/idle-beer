@@ -11,7 +11,7 @@ import {
 } from './core/events';
 import { mods } from './core/licenceState';
 import { matMult } from './core/prestige';
-import { format, type NumberFormat } from './core/format';
+import { format, formatBrief, type NumberFormat } from './core/format';
 import { LOCALES, currentLocale, localeUrl, preferredLocale, tr, trn } from './i18n';
 import { localiseData, pintsLabel } from './i18n/data';
 import { startLoop } from './core/loop';
@@ -289,7 +289,7 @@ let pressQueued = false;
 stage.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   // Buttons laid over the scene are buttons, not a drink.
-  if ((e.target as Element).closest('button, a, .toast')) return;
+  if ((e.target as Element).closest('button, a, .toast, .counter')) return;
   pointerHeld = true;
   pressQueued = true;
   stage.setPointerCapture(e.pointerId);
@@ -374,12 +374,27 @@ hud.hint.textContent = matchMedia('(pointer: coarse)').matches ? tr('Touch and h
 
 const cycleSeconds = () => drinkCycle(drinkTime(state), refillTime(state));
 
+// On a phone the counter keeps its numbers short ("1.24 Oc") and the Beer Mats to a bare count,
+// so they stay off the drinker's face. A tap spells it all out for a few seconds.
+const phone = matchMedia('(max-width: 600px)');
+const counterEl = document.querySelector<HTMLElement>('.counter')!;
+const COUNTER_OPEN_MS = 4000;
+let counterTimer = 0;
+counterEl.addEventListener('click', () => {
+  if (!phone.matches) return;
+  clearTimeout(counterTimer);
+  if (counterEl.classList.toggle('open')) {
+    counterTimer = window.setTimeout(() => counterEl.classList.remove('open'), COUNTER_OPEN_MS);
+  }
+});
+
 function renderHud() {
   const f = state.settings.numberFormat;
   const shown = state.pints.floor();
-  setText(hud.pints, format(shown, f));
+  const count = phone.matches && !counterEl.classList.contains('open') ? formatBrief : format;
+  setText(hud.pints, count(shown, f));
   setText(hud.label, pintsLabel(shown));
-  setText(hud.pps, format(totalPps(state), f));
+  setText(hud.pps, count(totalPps(state), f));
   setText(hud.perDrink, format(pintsPerDrink(state), f));
   setText(hud.drinks, format(D(state.drinks), f));
   setText(hud.lifetime, format(state.lifetimePints, f));
@@ -387,7 +402,7 @@ function renderHud() {
   hud.hint.hidden = state.drinks > 0;
   hud.mats.hidden = state.beerMats.lte(0);
   if (state.beerMats.gt(0)) {
-    setText(hud.matsCount, format(state.beerMats, f));
+    setText(hud.matsCount, count(state.beerMats, f));
     setText(hud.matsBonus, bonusText(matMult(state), f));
   }
 

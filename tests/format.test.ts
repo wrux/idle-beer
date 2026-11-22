@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { format, groupSuffix } from '../src/core/format';
+import { format, formatBrief, groupSuffix } from '../src/core/format';
 import { big, D } from '../src/core/num';
 
 describe('format: short names', () => {
@@ -85,5 +85,23 @@ describe('tidy numbers (prices and targets)', () => {
     expect(format(D(1e8), 'short')).toBe('100.000 million');
     expect(format(D(12_345), 'short', true)).toBe('12,345');
     expect(format(D(1e8), 'scientific', true)).toBe('1.00e8');
+  });
+});
+
+describe('formatBrief: the same number in less room', () => {
+  it.each([
+    [999_999, '999,999'],
+    [1_234_567, '1.23 M'],
+    [45.6e9, '45.60 B'],
+    [1.243e27, '1.24 Oc'],
+    [999.996e30, '1.00 Dc'],
+    [1e36, '1.00 UDc'],
+  ])('%s → %s', (n, expected) => {
+    expect(formatBrief(D(n), 'short')).toBe(expected);
+  });
+
+  it('leaves scientific and engineering as they are', () => {
+    expect(formatBrief(D(8.47e41), 'scientific')).toBe(format(D(8.47e41), 'scientific'));
+    expect(formatBrief(D(8.47e41), 'engineering')).toBe(format(D(8.47e41), 'engineering'));
   });
 });

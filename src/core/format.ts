@@ -33,6 +33,7 @@ let SMALL = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
 let FIXED: Intl.NumberFormat[] = [];
 let COMPACT: Intl.NumberFormat | null = null;
 let COMPACT_TIDY: Intl.NumberFormat | null = null;
+let COMPACT_BRIEF: Intl.NumberFormat | null = null;
 const grouped = (n: number) => GROUPED.format(Math.floor(n));
 /** A number to exactly `places` decimals, with the language's own decimal mark. */
 const fixed = (n: number, places: number) =>
@@ -52,6 +53,7 @@ export function setNumberLocale(tag: string): void {
   FIXED = [];
   COMPACT = english ? null : new Intl.NumberFormat(lang, { notation: 'compact', compactDisplay: 'long', minimumFractionDigits: 3, maximumFractionDigits: 3 });
   COMPACT_TIDY = english ? null : new Intl.NumberFormat(lang, { notation: 'compact', compactDisplay: 'long', maximumFractionDigits: 3 });
+  COMPACT_BRIEF = english ? null : new Intl.NumberFormat(lang, { notation: 'compact', compactDisplay: 'short', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** How far Intl's own big-number words go before it starts writing "1000 trillion". */
@@ -125,6 +127,32 @@ export function format(value: Decimal, fmt: NumberFormat = 'short', tidy = false
 
   const [r, e2] = roundCarry(m, e, 2, 1);
   return `${fixed(r, 2)}e${formatExponent(e2)}`;
+}
+
+/** One or two letters for 10^(3g), g = 2..11, where there is no room for the word. */
+const BRIEF = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+
+/**
+ * The same number in as few characters as it will go: "1.24 Oc" for "1.243 octillion". For a
+ * counter on a small screen, where the full figure is a tap away. Only the named numbers get
+ * shorter: scientific and engineering are as short as they come already.
+ */
+export function formatBrief(value: Decimal, fmt: NumberFormat = 'short'): string {
+  const e = value.exponent;
+  if (fmt !== 'short' || Number.isNaN(value.mantissa) || Number.isNaN(e) || value.sign() < 0) return format(value, fmt);
+  if (e >= HUGE_EXPONENT || value.lt(PLAIN_LIMIT)) return format(value, fmt);
+  if (COMPACT_BRIEF) {
+    if (e < 15) {
+      const n = value.toNumber();
+      if (n < COMPACT_LIMIT) return COMPACT_BRIEF.format(n);
+    }
+    return format(value, fmt);
+  }
+  const group = Math.floor(e / 3);
+  const [r, e2] = roundCarry(value.mantissa * Math.pow(10, e - group * 3), group * 3, 2, 3);
+  const g = e2 / 3;
+  const suffix = g < BRIEF.length ? BRIEF[g] : groupSuffix(g);
+  return suffix === null ? format(value, fmt) : `${r.toFixed(2)} ${suffix}`;
 }
 
 /** "1 pint" / "2 pints" / "1.234 million pints". */
