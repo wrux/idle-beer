@@ -5,7 +5,9 @@
  *   npm run simulate                    # one run, always holding to drink, to 1e15
  *   npm run simulate -- 0.25            # holding a quarter of the time
  *   npm run simulate -- 1 1e18          # stop at 1e18 lifetime pints
+ *   npm run simulate -- 0.5 1e70        # the whole of a first run: the late game needs checking too
  *   npm run simulate -- 0.25 1e15 4     # four runs with Last Orders in between
+ *   npm run simulate -- 0.5 1e15 600    # as many runs as it takes to buy the whole Local Legend tree
  *
  * Multi-run strategy: call Last Orders once it would at least double your total mats
  * (and pay 10+), then spend up to half your mats on the cheapest Licence nodes.
@@ -100,9 +102,9 @@ function playRun(s: GameState, stop: (s: GameState) => boolean, verbose: boolean
   let t = 0;
   const seen = new Set<string>();
   const result: RunResult = { seconds: 0, milestones: new Map() };
-  const marks = [1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24].map((n) => D(n));
+  const marks = Array.from({ length: 50 }, (_, i) => D(10).pow(3 * (i + 1)));
   const log = (what: string) => {
-    if (verbose) console.log(`${fmtTime(t).padStart(12)}  ${format(s.lifetimePints).padStart(18)}  ${what}`);
+    if (verbose) console.log(`${fmtTime(t).padStart(12)}  ${format(s.lifetimePints).padStart(18)}  ${`${format(income(s))}/s`.padStart(20)}  ${what}`);
   };
   const note = (key: string) => {
     if (!result.milestones.has(key)) result.milestones.set(key, t);
@@ -120,6 +122,16 @@ function playRun(s: GameState, stop: (s: GameState) => boolean, verbose: boolean
     }
 
     const inc = income(s);
+    // Rolling in it (a late run, when a moment's income buys the shop): buy the lot, as the
+    // auto-buyers would, not one drinker at a time.
+    if (best && s.pints.gte(best.cost.mul(1e6))) {
+      for (const u of availableUpgrades(s)) buyUpgrade(s, u.id);
+      while (buyNextRound(s));
+      for (const l of pubsForSale(s)) buyPub(s, l.id);
+      const vis = storeVisibility(s);
+      for (let i = DRINKERS.length - 1; i >= 0; i--) if (vis[i] === 'shown') buyDrinker(s, DRINKERS[i].id, 'max');
+      invalidate();
+    }
     if (best && s.pints.gte(best.cost)) {
       best.buy(s);
       const key = /^(upgrade|beer|pub)/.test(best.label) ? best.label : `first ${best.label}`;
@@ -170,7 +182,7 @@ const s = newGame(0);
 
 if (runs <= 1) {
   console.log(`Activity ${activity * 100}% holding · stop at ${format(target)} lifetime pints\n`);
-  console.log(`${'time'.padStart(12)}  ${'lifetime pints'.padStart(18)}  event`);
+  console.log(`${'time'.padStart(12)}  ${'lifetime pints'.padStart(18)}  ${'income'.padStart(20)}  event`);
   const r = playRun(s, (x) => x.lifetimePints.gte(target), true);
   console.log(`\nAfter ${fmtTime(r.seconds)}:`);
   console.log(`  income        ${format(income(s))}/s (drinkers ${format(totalPps(s))}/s, hand ${format(handRate(s))}/s)`);
@@ -181,7 +193,7 @@ if (runs <= 1) {
   console.log(`  drinkers      ${DRINKERS.filter((d) => owned(s, d.id)).map((d) => `${d.name} ${owned(s, d.id)}`).join(', ')}`);
 } else {
   console.log(`Activity ${activity * 100}% holding · ${runs} runs\n`);
-  console.log('run   length     to 1e6     to 1e9     to 1e12    mats  total   licence bought');
+  console.log('run     length   total time  drunk this run        mats in all  perks  bought');
   let total = 0;
   for (let run = 1; run <= runs; run++) {
     // Prestige once it would at least double your mats (and pay at least 10).
@@ -191,13 +203,15 @@ if (runs <= 1) {
     };
     const r = playRun(s, stop, false);
     total += r.seconds;
-    const at = (k: string) => (r.milestones.has(k) ? fmtTime(r.milestones.get(k)!) : '-').padStart(10);
-    const gained = lastOrders(s);
+    const drunk = s.lifetimePints;
+    lastOrders(s);
     const bought = spendMats(s);
+    const names = [...new Set(bought)];
     console.log(
-      `${String(run).padStart(3)}  ${fmtTime(r.seconds).padStart(9)}  ${at('pints 1000000')} ${at('pints 1000000000')} ` +
-        `${at('pints 1000000000000')}  ${format(gained).padStart(6)} ${format(s.matsEarned).padStart(6)}   ${bought.join(', ') || '-'}`,
+      `${String(run).padStart(3)}  ${fmtTime(r.seconds).padStart(9)}  ${fmtTime(total).padStart(11)}  ${format(drunk).padStart(14)}  ` +
+        `${format(s.matsEarned).padStart(17)}  ${String(s.licence.size).padStart(5)}  ${names.slice(0, 4).join(', ') || '-'}${names.length > 4 ? '…' : ''}`,
     );
+    if (s.licence.size === LICENCE.length) break;
   }
   console.log(`\nTotal time ${fmtTime(total)} · ${format(s.beerMats)} mats unspent · ${s.licence.size} Licence nodes`);
 }

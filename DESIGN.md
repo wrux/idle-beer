@@ -73,8 +73,10 @@ The last one matters: it keeps the active drinker relevant once idle production 
 ## 3. Drinkers (idle generators)
 
 You "pay for more people to drink". Each drinker type produces pints per second. Cost
-grows **×1.15 per one owned** (the standard formula). Each tier costs roughly 11–14× more
-than the one before and produces about 6–8× more.
+grows **×1.15 per one owned** (the standard formula). Up to the Bank Holiday each tier costs
+roughly 11–14× more than the one before and produces about 6–8× more. After that the steps widen
+(×30 up to ×1,000 in price for ×9 up to ×45 the pints), so the last drinker arrives at 1e27, not
+1.2e20: see the rebalance in section 8.8.
 
 | #  | Drinker                    | Base cost | Base PPS    | Flavour                                     |
 |----|----------------------------|-----------|-------------|---------------------------------------------|
@@ -89,13 +91,13 @@ than the one before and produces about 6–8× more.
 | 9  | Music Festival             | 5.1B      | 260K        | Warm cans in a muddy field                   |
 | 10 | Pub Chain                  | 75B       | 1.6M        | Every high street, same carpet               |
 | 11 | Bank Holiday               | 1T        | 10M         | The whole nation goes to the pub             |
-| 12 | Royal Street Party         | 14T       | 65M         | Bunting as far as the eye can see            |
-| 13 | Global Toast               | 170T      | 430M        | Cheers in every language                     |
-| 14 | Lunar Brewery              | 2.1Qa     | 2.9B        | Low gravity, high ABV                        |
-| 15 | Interplanetary Pub Crawl   | 26Qa      | 21B         | Next stop: Mars Arms                         |
-| 16 | Galactic Happy Hour        | 310Qa     | 150B        | Two-for-one across the Milky Way             |
-| 17 | Black Hole Barfly     | 7.1Qi     | 1.1T        | Last orders lasts forever here               |
-| 18 | Multiverse Lock-In         | 120Qi     | 8.3T        | Infinite pubs, infinite yous, infinite pints |
+| 12 | Royal Street Party         | 30T       | 65M         | Bunting as far as the eye can see            |
+| 13 | Global Toast               | 1.5Qa     | 560M        | Cheers in every language                     |
+| 14 | Lunar Brewery              | 100Qa     | 5.6B        | Low gravity, high ABV                        |
+| 15 | Interplanetary Pub Crawl   | 10Qi      | 70B         | Next stop: Mars Arms                         |
+| 16 | Galactic Happy Hour        | 2Sx       | 1.3T        | Two-for-one across the Milky Way             |
+| 17 | Black Hole Barfly     | 1Sp       | 40T         | Last orders lasts forever here               |
+| 18 | Multiverse Lock-In         | 1Oc       | 1.8Qa       | Infinite pubs, infinite yous, infinite pints |
 
 The Regular is the first drinker, so the "one person in the pub" opening is literally
 the player alone, with the first purchase adding someone at the bar.
@@ -117,8 +119,10 @@ count badge after a few, so the scene never fills up with thousands of sprites).
 > Fairy Cider, Dragon's Breath, Moon Mead, Alien Lager, Dark Matter Porter, Schrödinger's Pint,
 > Singularity Stout). Each has its own glass (twelve shapes, three of them opaque: horn, pewter,
 > stone), size, or trick (a settling cascade, a glass of foam, a sunk shot, steam, smoke, floating
-> blobs, sinking bubbles, flickering in and out). Costs follow the same ladder as before and the
-> multipliers were re-spread so the total is about what the old 31 gave. Save version 4 maps an old
+> blobs, sinking bubbles, flickering in and out). Costs followed the old ladder up to 1e145 until the
+> rebalance in section 8.8: from Scotch Heavy on they now sit two to three powers of ten apart
+> (1e26, 1e29, 1e31, 1e33 … The Final Pint at 1e59), because past the last drinker the beers are
+> what keeps a run moving. The multipliers were re-spread so the total is about what the old 31 gave. Save version 4 maps an old
 > beer to the dearest new one that cost no more. `/beers.html` shows them all. The table below is
 > the original plan.
 
@@ -209,11 +213,67 @@ to the pub.
 
 **As built (Phase 6):** the Licence has six branches of five nodes (Regulars, Brewing, Charm,
 Management, Technique, Collecting). Each node needs the one before it in its branch and costs
-1 / 4 / 15 / 60 / 250 mats by tier (330 per branch, 1,980 for all of it). What a reset keeps:
+1 / 4 / 15 / 60 / 250 mats by tier (330 per branch, 1,980 for all of it; since repriced, see "The
+long tree" below). What a reset keeps:
 achievements, lifetime stats (drinks, best streak, Free Rounds, play time), all-time pints, mats and
 the Licence. Everything else, including the location, starts again. Save format version 2 added
 these fields, and v1 saves migrate automatically. A casual first run (holding to drink a quarter of
 the time) reaches about 10 mats in 1h 40m in the simulator.
+
+**The long tree.** The thirty nodes above cost 1,980 mats between them, and a run that reaches
+1e24 pints pays ten thousand, so the tree used to be finished almost as soon as it was started.
+Each branch now carries on from its fifth node (`data/licence.ts`):
+
+- **A line of thirty steps**, the same plain boost each time, numbered in the tree ("Cellar Craft 7"):
+
+| Branch | Line | Each step |
+|--------|------|-----------|
+| Regulars | Round for the House | Drinkers ×10 |
+| Brewing | Cellar Craft | Everything ×10 |
+| Charm | Happier Hours | Happy Hour's multiplier +2 |
+| Favours | Late Licence | 2 more hours away |
+| Technique | Drinking Arm | 1 more second of drinkers' output per pint drunk |
+| Collecting | Bigger Pockets | Mats ×8 |
+
+- **Four one-off perks** hanging off it, round in the tree: the first off the fifth node (1e10 to
+  1e20 mats), the others off steps 10, 20 and 30 at five times that step's price.
+
+The middle of the tree was repriced with it. The first three nodes of a branch are still 1, 4 and
+15 mats, but the fourth is 300 to 10,000 and the fifth 30,000 to 100 million, each branch its own
+price (Technique cheapest, Collecting dearest). Mats themselves were left alone: a run still pays
+tens, then thousands, then 1e20 within about thirty runs. The prices climb to match, so there is
+one thing to buy every run or two all the way up, where before all thirty were bought by 3,000.
+
+| Branch | One-off perks |
+|--------|---------------|
+| Regulars | Full House (walk in to 50 each of the first nine drinkers) · Packed to the Rafters (+1% per drinker in the pub) · Coach Party (walk in to 100 of every drinker) · Everybody Knows Your Name (drinkers 90% cheaper) |
+| Brewing | Cellar Key (keep your beer) · Connoisseur (×1.5 per beer past the first) · Brewery Tap (beers 99% cheaper) · Master Brewer (×2 per beer) |
+| Charm | Fortune's Favourite (Lucky Rounds ×5) · Round After Round (Free Rounds twice as often) · Golden Touch (rewards last three times as long) · Talk of the Town (+2% per achievement) |
+| Favours | Keys to the Pub (pubs stay open through Last Orders) · Open All Hours (100% while away) · Pub Crawl Legend (every open pub's perk at once) · Photographic Memory (keep every upgrade) |
+| Technique | Bottomless (streak to +250%) · Never Spill a Drop (3 s more streak slack) · Hollow Leg (hand pints ×100) · One for the Road (+10 s of drinkers' output per pint) |
+| Collecting | Framed Collection (+10% per unspent mat) · Trophy Cabinet (+1% mats per achievement) · Mint Condition (+25% per mat) · The Complete Set (spent mats count too) |
+
+234 nodes, about 1e98 mats for all of them. You still only see what you own, what you can buy
+and a "?" beyond; the tree screen fits itself to what you have found, and the title counts them.
+
+**How the long lines are priced.** Past the last beer nothing in the shop grows any more, so a
+run's pints go as (your multiplier × time). Mats are the cube root of pints times the mat bonus,
+and the mats you hold multiply everything, so drinkers ×10 and everything ×10 are worth ×10 the
+mats between them and mats ×8 is worth ×22.6: ×226 a round of the six. Prices go up ×240 a round,
+and within a round each line is priced by what you have when you reach it. Two things to know
+before touching any of it:
+
+- **Where it starts (1e23.4 mats).** With a few thousand mats' bonus a run goes through every beer
+  in seconds and pays about 1e20 mats, so anything cheaper is bought without a night's drinking.
+  The first one-off perks sit in that stretch on purpose, as something to pick up on the way.
+- **It is sensitive.** Time per run goes as the square of (price ÷ what you can earn), so a perk
+  that makes mats come a little faster than its price allows makes runs much shorter. The steps
+  after 10 and 20 are dearer by what the one-off perks there add (`UNIQUE_BUMPS`).
+
+Simulated (holding half the time, Last Orders whenever it would double your mats, half of them
+spent): the first ten runs take about 6h 15m between them and the next twenty a few minutes (the
+stretch above, buying a node of the middle or a first one-off perk most runs), then about 190 more
+runs of up to fifty minutes each buy the long lines, about 30 hours in all. The simulator ignores Free Rounds and counts no time for the tree screen.
 
 **Second layer (later, for truly massive numbers): "Brewery Empire".** You reset Beer
 Mats for **Kegs**, which give exponential multipliers. Only needed once numbers pass
@@ -249,9 +309,9 @@ own, so the newest is usually best for output but an older one can suit what you
 | The Earth Inn | 1e26 | Everything drinks a further 15% more |
 | The Moon Under Water | 1e30 | Pints go down 30% faster |
 | Solar System Social Club | 1e35 | Happy Hour is ×10 instead of ×7 |
-| The Little Green Man | 1e38 | Free Rounds turn up twice as often |
-| The Galaxy Arms | 1e41 | Drinkers cost 15% less |
-| The Multiverse Tavern | 1e50 | Everything drinks a further 50% more |
+| The Little Green Man | 1e39 | Free Rounds turn up twice as often |
+| The Galaxy Arms | 1e43 | Drinkers cost 15% less |
+| The Multiverse Tavern | 1e48 | Everything drinks a further 50% more |
 
 Moving (or opening a pub, which moves you there) starts a **5 minute cooldown** before you can move
 again, so a perk can't be picked up for a few seconds and dropped. Opening a pub is always allowed.
@@ -437,6 +497,38 @@ beer-incrimental/
   worthwhile Last Orders inside the 2–3 h target.
 - Phase 7 balance changes: base drink time 1.5 → 1.0 s, pour 0.5 → 0.4 s, Pint of Bitter 200 → 100,
   Two-Handed 100 → 50 (unlocks at 10 drinks).
+- **Late-game rebalance.** The first pass only looked as far as 1e15. Past it, a run sprinted and
+  then stopped: the simulator (half the time holding) went from 1e15 to 1e24 in 11 minutes, because
+  the drinkers kept their early spacing while beers, Reputation, Liquid Lunch and eight or nine ×2
+  upgrades per power of ten all stacked on top, so income grew faster than the total drunk. Then the
+  drinkers ran out at 1.2e20, the next beers were 1e4 to 1e22 apart, and after twelve hours
+  the run was still on the beer it bought at 1h 48m. Two changes:
+  - Drinkers 12–18 are spread from 3e13 to 1e27 (they were 1.4e13 to 1.2e20), each step dearer than
+    the last and worth less per pint of price. Their upgrades and synergies follow, since those are
+    priced from the drinker.
+  - The sixteen beers from Scotch Heavy on are 1e26 to 1e59 (they were 1e27 to 1e145), and the last
+    three pubs are 1e39, 1e43 and 1e48 (they were 1e38, 1e41 and 1e50).
+
+  What the simulator shows now, first run, half the time holding: about 17 minutes per thousandfold
+  all the way from 1e12 to 1e30, a new drinker every 10–18 minutes, then a slow-down that builds
+  gradually once the drinkers are all met (a beer every 5–15 minutes to 1e41, then 30 minutes, an
+  hour, two hours). The wall is still there in the end, on purpose: it is what Last Orders is for.
+
+| Reached | Before | After |
+|---------|--------|-------|
+| 1e15 | 1h 29m | 1h 30m |
+| 1e18 | 1h 37m | 1h 48m |
+| 1e24 | 1h 40m | 2h 23m |
+| 1e30 | several hours | 2h 53m |
+| 1e36 | not in 12h | 3h 11m |
+| 1e45 | not in 12h | 4h 33m |
+| The Final Pint on sale | not in 12h | not in 12h (four beers short) |
+
+  The late beers are a knife edge: a little closer together and the run takes off again (every
+  beer from Somaek to The Final Pint inside half an hour), a little further apart and it stops dead.
+  Re-run the simulator to 1e70 after touching any of them. Old saves are unaffected: a save keeps
+  the beer, pubs and drinkers it has, and `save.ts` matches pre-version-4 beers against the prices
+  of the time, not today's.
 
 ### 8.9 Stress testing and performance (Phase 7)
 

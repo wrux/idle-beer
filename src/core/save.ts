@@ -20,11 +20,18 @@ const OLD_BEER_COSTS = [
   -1, 2, 4.3, 6.3, 8.3, 10.3, 12.3, 14.3, 16.7, 20, 23, 27, 32, 37, 42, 47, 52, 57, 62, 68, 74, 80, 86, 92, 99, 106, 113, 120,
   128, 136, 145,
 ];
-/** An old beer number → the dearest beer in today's list that cost no more than it did. */
+/**
+ * What the twenty-seven beers of version 4 cost (as a power of ten) when that list was written.
+ * Prices have been rebalanced since, so the old list is matched against these, not today's.
+ */
+const V4_BEER_COSTS = [
+  -1, 2, 4.3, 6.3, 8.3, 10.3, 12.3, 14.3, 17, 20, 23, 27, 32, 37, 42, 47, 53, 59, 66, 73, 81, 90, 100, 112, 123, 134, 145,
+];
+/** An old beer number → the dearest beer in the version 4 list that cost no more than it did. */
 function beerFromOldList(old: number): number {
   const cost = old < OLD_BEER_COSTS.length ? OLD_BEER_COSTS[old] : Infinity;
   let i = 0;
-  while (i + 1 < BEERS.length && BEERS[i + 1].cost.log10() <= cost + 0.5) i++;
+  while (i + 1 < BEERS.length && i + 1 < V4_BEER_COSTS.length && V4_BEER_COSTS[i + 1] <= cost + 0.5) i++;
   return i;
 }
 const BACKUP_KEY = 'idleBeer.save.bak';

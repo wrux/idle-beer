@@ -84,11 +84,11 @@ export const LOCATIONS: Location[] = [
     [{ kind: 'drinkTime', mult: 0.7 }]),
   loc('solar', 'Solar System Social Club', 'SOLAR SOCIAL', 1e35, 'Happy Hour is ×10 instead of ×7.',
     [{ kind: 'happyHour', mult: 10 }]),
-  loc('greenman', 'The Little Green Man', 'LITTLE GREEN MAN', 1e38, 'Beamed straight up: Free Rounds turn up twice as often.',
+  loc('greenman', 'The Little Green Man', 'LITTLE GREEN MAN', 1e39, 'Beamed straight up: Free Rounds turn up twice as often.',
     [{ kind: 'freeRoundGap', mult: 0.5 }], ['grey', 'greenman', 'stalks']),
-  loc('galaxy', 'The Galaxy Arms', 'GALAXY ARMS', 1e41, 'Drinkers cost 15% less.',
+  loc('galaxy', 'The Galaxy Arms', 'GALAXY ARMS', 1e43, 'Drinkers cost 15% less.',
     [{ kind: 'drinkerCost', mult: 0.85 }]),
-  loc('multiverse', 'The Multiverse Tavern', 'MULTIVERSE', 1e50, 'Everything drinks a further 50% more.',
+  loc('multiverse', 'The Multiverse Tavern', 'MULTIVERSE', 1e48, 'Everything drinks a further 50% more.',
     [{ kind: 'all', mult: 1.5 }]),
 ];
 

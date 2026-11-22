@@ -4,7 +4,8 @@
  */
 import { LICENCE_BY_ID } from '../data/licence';
 import { UPGRADE_BY_ID } from '../data/upgrades';
-import { invalidate } from './economy';
+import { DRINKERS } from '../data/drinkers';
+import { invalidate, matBonus } from './economy';
 import { mods } from './licenceState';
 import { D, Decimal } from './num';
 import { newGame, type GameState } from './state';
@@ -34,8 +35,8 @@ export function pintsForNextMat(s: GameState): Decimal {
   return next.div(gain).pow(3).mul(MAT_SCALE);
 }
 
-/** Bonus to everything from unspent mats: 1 + rate × mats. */
-export const matMult = (s: GameState): Decimal => s.beerMats.mul(mods(s).matRate).add(1);
+/** Bonus to everything from mats: 1 + rate × mats (the unspent ones, unless you own The Complete Set). */
+export const matMult = (s: GameState): Decimal => matBonus(s);
 
 /** Drinking upgrades kept by "Iron Liver". */
 const isDrinkingUpgrade = (id: string) => UPGRADE_BY_ID.get(id)?.group === 'drinking';
@@ -48,7 +49,8 @@ export function lastOrders(s: GameState, now = Date.now()): Decimal {
   const gained = matsOnReset(s);
   const m = mods(s);
   const keptBeer = Math.max(m.keepBeer, m.keepHalfBeers ? Math.floor(s.beer / 2) : 0, 0);
-  const keptUpgrades = m.keepDrinking ? [...s.upgrades].filter(isDrinkingUpgrade) : [];
+  const keptUpgrades = m.keepUpgrades ? [...s.upgrades] : m.keepDrinking ? [...s.upgrades].filter(isDrinkingUpgrade) : [];
+  const keptPubs = m.keepPubs ? { pubs: new Set(s.pubs), pub: s.pub } : null;
 
   s.pastRunsPints = allTimePints(s);
   s.matsEarned = s.matsEarned.add(gained);
@@ -62,10 +64,11 @@ export function lastOrders(s: GameState, now = Date.now()): Decimal {
   s.pints = D(m.startPints);
   s.lifetimePints = D(m.startPints);
   s.drinkers = { ...m.startDrinkers };
+  if (m.startAll > 0) for (const d of DRINKERS) s.drinkers[d.id] = Math.max(s.drinkers[d.id] ?? 0, m.startAll);
   s.upgrades = new Set(keptUpgrades);
   s.beer = Math.min(keptBeer, s.beer);
-  s.pubs = fresh.pubs;
-  s.pub = fresh.pub;
+  s.pubs = keptPubs?.pubs ?? fresh.pubs;
+  s.pub = keptPubs?.pub ?? fresh.pub;
   s.pubReadyAt = 0;
   s.buffs = [];
   s.glassFill = 1;

@@ -7,6 +7,7 @@ import { D, Decimal } from '../core/num';
 import { owned, type GameState } from '../core/state';
 import { BEERS } from './beers';
 import { DRINKERS } from './drinkers';
+import { LICENCE } from './licence';
 import { LOCATIONS } from './locations';
 
 export interface AchievementContext {
@@ -166,7 +167,7 @@ const prestigeAchievements: Achievement[] = [
   },
   {
     id: 'licence-all', name: 'Living Legend', icon: '📜', desc: 'Earn every Local Legend perk.',
-    check: (s) => s.licence.size >= 30,
+    check: (s) => s.licence.size >= LICENCE.length,
   },
 ];
 

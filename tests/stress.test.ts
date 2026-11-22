@@ -74,13 +74,14 @@ describe('stress: e(1e10) pints', () => {
     expect(gained.exponent).toBeGreaterThan(3e9); // ∛ of e(1e10)
     expect(ok(matMult(s))).toBe(true);
     for (const n of LICENCE) buyLicence(s, n.id);
-    expect(s.licence.size).toBe(30);
+    expect(s.licence.size).toBe(LICENCE.length);
     s.drinkers = { regular: 1 };
     invalidate();
     expect(ok(totalPps(s))).toBe(true);
     expect(totalPps(s).exponent).toBeGreaterThan(3e9); // mats boost carries straight through
-    // Collecting's ×1.25 and ×1.5 mat bonuses re-value what you've already drunk.
-    expect(matsOnReset(s).div(s.matsEarned).toNumber()).toBeCloseTo(0.875);
+    // Collecting's mat bonuses re-value what you've already drunk: ×1.25, ×1.5, thirty ×8s, and Trophy Cabinet.
+    const gain = 1.25 * 1.5 * 8 ** 30 * (1 + 0.01 * s.achievements.size);
+    expect(matsOnReset(s).div(s.matsEarned).log10()).toBeCloseTo(Math.log10(gain - 1), 3);
   });
 
   it('achievements check cleanly', () => {

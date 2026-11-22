@@ -3,7 +3,7 @@ import { DRINKERS, DRINKER_BY_ID, type Drinker } from '../data/drinkers';
 import { LOCATIONS, LOCATION_BONUS, LOCATION_BY_ID, type Location } from '../data/locations';
 import { UPGRADES, UPGRADE_BY_ID, type Upgrade } from '../data/upgrades';
 import { DOWN_IT_MULT, HAPPY_HOUR_MULT, hasBuff, QUIZ_DISCOUNT } from './events';
-import { mods } from './licenceState';
+import { mods, perkPubs } from './licenceState';
 import { PUB_COOLDOWN_SECONDS } from './pubs';
 import { D, Decimal } from './num';
 import { owned, type BuyMode, type GameState } from './state';
@@ -72,31 +72,43 @@ function derive(state: GameState): Derived {
     }
   }
 
-  // The pub you're in: a little to everything, more the further along it is, plus its own perk.
-  let locationMult = pubBonus(state.pub);
-  let drinkerCost = 1;
-  for (const e of LOCATION_BY_ID.get(state.pub)?.effects ?? []) {
-    if (e.kind === 'all') locationMult *= e.mult;
-    else if (e.kind === 'perDrink') perDrinkMult *= e.mult;
-    else if (e.kind === 'drinkTime') drinkTime *= e.mult;
-    else if (e.kind === 'drinkerCost') drinkerCost *= e.mult;
-  }
+  // The pub you're in: a little to everything, more the further along it is, plus its own perk
+  // (or the perk of every pub you've opened, with Pub Crawl Legend).
   const licence = mods(state);
+  let locationMult = pubBonus(state.pub);
+  let drinkerCost = licence.drinkerCost;
+  for (const pub of perkPubs(state, licence)) {
+    for (const e of LOCATION_BY_ID.get(pub)?.effects ?? []) {
+      if (e.kind === 'all') locationMult *= e.mult;
+      else if (e.kind === 'perDrink') perDrinkMult *= e.mult;
+      else if (e.kind === 'drinkTime') drinkTime *= e.mult;
+      else if (e.kind === 'drinkerCost') drinkerCost *= e.mult;
+    }
+  }
   if (licence.downInOne) downInOne = true;
   lunchSeconds += licence.lunch;
-  // Unspent Beer Mats: +1% each (more with the Collecting branch).
-  const matMult = state.beerMats.mul(licence.matRate).add(1);
-  const globalMult = beerMultUpTo(state.beer).mul(pubMult * locationMult * reputationMult).mul(matMult);
+  perDrinkMult *= licence.perDrink;
+  // Beer Mats: +1% for each one unspent (more with the Collecting branch).
+  const matMult = matBonus(state);
+  // The Local Legend tree's own boosts to everything: its long line, achievements, beers.
+  const treeMult = D(licence.allMult)
+    .mul(1 + licence.achMult * state.achievements.size)
+    .mul(Decimal.pow(licence.beerPower, Math.min(state.beer, BEERS.length - 1)));
+  const globalMult = beerMultUpTo(state.beer).mul(pubMult * locationMult * reputationMult).mul(matMult).mul(treeMult);
 
-  const happyHour = hasBuff(state, 'happyHour') ? (mods(state).happyHour ?? HAPPY_HOUR_MULT) : 1;
+  const happyHour = hasBuff(state, 'happyHour') ? (licence.happyHour ?? HAPPY_HOUR_MULT) + licence.happyHourAdd : 1;
   if (hasBuff(state, 'downIt')) perDrinkMult *= DOWN_IT_MULT;
+  // Drinkers only: the tree's long line, and Packed to the Rafters (more for every drinker in the pub).
+  let crowd = 0;
+  if (licence.crowd > 0) for (const d of DRINKERS) crowd += owned(state, d.id);
+  const idleMult = globalMult.mul(licence.idleMult).mul(1 + licence.crowd * crowd);
 
   const ppsEach = new Map<string, Decimal>();
   let totalPps = D(0);
   for (const d of DRINKERS) {
     let synergy = 1;
     for (const s of synergies) if (s.target === d.id) synergy += s.perUnit * owned(state, s.source);
-    const each = d.basePps.mul((drinkerMult.get(d.id) ?? 1) * synergy * happyHour).mul(globalMult);
+    const each = d.basePps.mul((drinkerMult.get(d.id) ?? 1) * synergy * happyHour).mul(idleMult);
     ppsEach.set(d.id, each);
     totalPps = totalPps.add(each.mul(owned(state, d.id)));
   }
@@ -108,6 +120,12 @@ function derive(state: GameState): Derived {
   };
   cache = { state, value };
   return value;
+}
+
+/** The bonus to everything from Beer Mats: 1 + rate × mats (unspent ones, or all of them with The Complete Set). */
+export function matBonus(state: GameState): Decimal {
+  const m = mods(state);
+  return (m.matsCountSpent ? Decimal.max(state.beerMats, state.matsEarned) : state.beerMats).mul(m.matRate).add(1);
 }
 
 // ---------- drinking by hand ----------
@@ -328,7 +346,7 @@ export const OFFLINE_CAP_SECONDS = 60 * 60;
 /** Pints earned while the game was closed. Returns the amount and the seconds it covered. */
 export function offlineGain(state: GameState, awaySeconds: number): { pints: Decimal; seconds: number } {
   const m = mods(state);
-  const seconds = Math.min(Math.max(0, awaySeconds), (m.offlineCap ?? OFFLINE_CAP_SECONDS) * m.offlineCapMult);
+  const seconds = Math.min(Math.max(0, awaySeconds), ((m.offlineCap ?? OFFLINE_CAP_SECONDS) + m.offlineCapAdd) * m.offlineCapMult);
   return { pints: totalPps(state).mul(seconds * (m.offlineRate ?? OFFLINE_RATE)), seconds };
 }
 

@@ -13,7 +13,7 @@ import {
   allTimePints, buyLicence, lastOrders, licenceStatus, matMult, matsOnReset, pintsForNextMat,
 } from '../core/prestige';
 import type { GameState } from '../core/state';
-import { BRANCHES, LICENCE, LICENCE_BY_ID, type AutoBuy } from '../data/licence';
+import { BRANCHES, LICENCE, LICENCE_BY_ID, type AutoBuy, type LicenceNode } from '../data/licence';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SVG = 'http://www.w3.org/2000/svg';
@@ -61,10 +61,23 @@ function hubCount(n: Decimal): string {
   return `${v >= 100 ? Math.floor(v) : (Math.floor(v * 10) / 10).toFixed(1)}${units[step - 1]}`;
 }
 
-/** The tree is drawn on a grid this many squares across and down, with the hub in the middle. */
-const GRID = { w: 19, h: 10.6 };
+/**
+ * The tree is drawn on a grid with the hub in the middle, big enough for its furthest node
+ * (the long lines run a long way out) plus a margin for the note that follows the pointer.
+ */
+const MARGIN = 4;
+const GRID = {
+  w: 2 * (Math.max(...LICENCE.map((n) => Math.abs(n.at.x))) + MARGIN),
+  h: 2 * (Math.max(...LICENCE.map((n) => Math.abs(n.at.y))) + MARGIN),
+};
+/** Pixels to a grid square, before any zoom. */
+const SQUARE = 52;
 const px = (x: number) => ((x + GRID.w / 2) / GRID.w) * 100;
 const py = (y: number) => ((y + GRID.h / 2) / GRID.h) * 100;
+
+/** A node's name as shown: the steps of a long line are numbered. */
+const nodeName = (node: LicenceNode, f: Parameters<typeof format>[1]): string =>
+  node.rank ? `${node.name} ${format(new Decimal(node.rank), f, true)}` : node.name;
 
 export class LastOrdersPanel {
   private dialog = $<HTMLDialogElement>('last-orders-dialog');
@@ -174,9 +187,9 @@ export class LastOrdersPanel {
   // ----- looking round the tree: drag to pan, wheel or pinch to zoom -----
 
   private view = { x: 0, y: 0, k: 1 };
-  /** The tree's own size, before any zoom (matches .licence-web in the stylesheet). */
-  private static readonly TREE = { w: 1000, h: 558 };
-  private static readonly ZOOM = { min: 0.45, max: 2.4 };
+  /** The tree's own size, before any zoom. */
+  private static readonly TREE = { w: GRID.w * SQUARE, h: GRID.h * SQUARE };
+  private static readonly ZOOM = { min: 0.06, max: 2.4 };
 
   private applyView() {
     const port = $('licence-scroll'), T = LastOrdersPanel.TREE, v = this.view;
@@ -197,15 +210,29 @@ export class LastOrdersPanel {
     this.applyView();
   }
 
-  /** Show the whole tree, as big as fits, clear of whatever is floating over the edges. */
+  /**
+   * Show as much of the tree as you have found (what you own, what you can buy and the "?" beyond),
+   * as big as fits, clear of whatever is floating over the edges.
+   */
   private centre() {
-    const port = $('licence-scroll'), T = LastOrdersPanel.TREE;
+    const port = $('licence-scroll');
     if (!port.clientWidth) return;
+    const s = this.getState();
+    // The middle of the tree is always in the picture, and never less than the first ring round it.
+    let x0 = -9.5, x1 = 9.5, y0 = -5.3, y1 = 5.3;
+    for (const node of LICENCE) {
+      if (this.status(s, node.id) === 'hidden') continue;
+      x0 = Math.min(x0, node.at.x - 1.5);
+      x1 = Math.max(x1, node.at.x + 1.5);
+      y0 = Math.min(y0, node.at.y - 1.5);
+      y1 = Math.max(y1, node.at.y + 1.5);
+    }
+    const box = { x: (x0 + GRID.w / 2) * SQUARE, y: (y0 + GRID.h / 2) * SQUARE, w: (x1 - x0) * SQUARE, h: (y1 - y0) * SQUARE };
     // After hours the title sits over the top and the way out over the bottom.
     const pad = this.shopOpen ? { top: 76, bottom: 96, side: 36 } : { top: 40, bottom: 22, side: 14 };
     const w = port.clientWidth - pad.side * 2, h = port.clientHeight - pad.top - pad.bottom;
-    const k = Math.max(LastOrdersPanel.ZOOM.min, Math.min(1.25, w / T.w, h / T.h));
-    this.view = { k, x: pad.side + (w - T.w * k) / 2, y: pad.top + (h - T.h * k) / 2 };
+    const k = Math.max(LastOrdersPanel.ZOOM.min, Math.min(1.25, w / box.w, h / box.h));
+    this.view = { k, x: pad.side + (w - box.w * k) / 2 - box.x * k, y: pad.top + (h - box.h * k) / 2 - box.y * k };
     this.applyView();
   }
 
@@ -290,6 +317,8 @@ export class LastOrdersPanel {
   /** The Licence as a tree: threads out from the middle that fork as they go. */
   private buildWeb() {
     const web = $('licence-web');
+    web.style.width = `${LastOrdersPanel.TREE.w}px`;
+    web.style.height = `${LastOrdersPanel.TREE.h}px`;
     const svg = document.createElementNS(SVG, 'svg');
     svg.setAttribute('class', 'lw-lines');
     svg.setAttribute('aria-hidden', 'true');
@@ -317,7 +346,7 @@ export class LastOrdersPanel {
       const branch = BRANCHES.find((b) => b.id === node.branch)!;
       const el = document.createElement('button');
       el.type = 'button';
-      el.className = 'lw-node';
+      el.className = node.unique ? 'lw-node unique' : 'lw-node';
       el.style.left = `${px(node.at.x)}%`;
       el.style.top = `${py(node.at.y)}%`;
       el.dataset.branch = branch.id;
@@ -367,8 +396,8 @@ export class LastOrdersPanel {
     const state = this.status(s, id);
     const hint = state === 'hint';
     const f = s.settings.numberFormat;
-    this.tip.querySelector('b')!.textContent = hint ? '???' : node.name;
-    this.tip.querySelector('span')!.textContent = hint ? tr('Buy {name} to find out.', { name: LICENCE_BY_ID.get(node.requires!)!.name }) : node.desc;
+    this.tip.querySelector('b')!.textContent = hint ? '???' : nodeName(node, f);
+    this.tip.querySelector('span')!.textContent = hint ? tr('Buy {name} to find out.', { name: nodeName(LICENCE_BY_ID.get(node.requires!)!, f) }) : node.desc;
     const cost = trn(node.cost.toNumber(), '{n} mat', '{n} mats', { n: format(node.cost, f, true) });
     const foot = this.tip.querySelector('em')!;
     foot.hidden = hint;
@@ -379,11 +408,14 @@ export class LastOrdersPanel {
         : !this.shopOpen ? tr('{cost} · buy the morning after', { cost })
           : s.beerMats.gte(node.cost) ? tr('{cost} · click to buy', { cost }) : tr('{cost} · not enough mats', { cost });
     this.tip.dataset.branch = node.branch;
-    // Above the node, unless that would go off the top; nudged in from the sides.
-    const x = px(node.at.x), y = py(node.at.y);
-    this.tip.style.left = `${Math.min(84, Math.max(16, x))}%`;
+    // Above the node, unless that would go off the top of what you can see.
+    const y = py(node.at.y);
+    this.tip.style.left = `${px(node.at.x)}%`;
     this.tip.style.top = `${y}%`;
-    this.tip.classList.toggle('below', y < 34);
+    const onScreen = this.view.y + (y / 100) * LastOrdersPanel.TREE.h * this.view.k;
+    this.tip.classList.toggle('below', onScreen < 150 * Math.max(1, this.view.k));
+    // The note stays a readable size however far out you have zoomed.
+    this.tip.style.setProperty('--tip-scale', String(Math.max(1, 1 / this.view.k)));
     this.tip.hidden = false;
   }
 
@@ -419,7 +451,9 @@ export class LastOrdersPanel {
     $('next-mat-bar').style.width = `${Math.min(100, allTimePints(s).div(next).toNumber() * 100).toFixed(1)}%`;
 
     const rate = mods(s).matRate * 100;
-    $('licence-summary').textContent = tr('Each unspent mat gives +{rate}%. Spending mats on your legend gives up their bonus.', { rate });
+    $('licence-summary').textContent = mods(s).matsCountSpent
+      ? tr('Every mat you have ever earned gives +{rate}%, spent or not.', { rate })
+      : tr('Each unspent mat gives +{rate}%. Spending mats on your legend gives up their bonus.', { rate });
     $('licence-mats').textContent = hubCount(s.beerMats);
     $('lo-mats').textContent = format(s.beerMats, f, true);
     $('lo-bonus').textContent = bonusText(matMult(s), f);
@@ -442,8 +476,9 @@ export class LastOrdersPanel {
         this.links.get(node.id)!.classList.toggle('faint', now === 'hint');
       }
       el.classList.toggle('affordable', this.shopOpen && now === 'available' && s.beerMats.gte(node.cost));
-      el.setAttribute('aria-label', now === 'hint' ? tr('Not yet revealed') : `${node.name}: ${node.desc}`);
+      el.setAttribute('aria-label', now === 'hint' ? tr('Not yet revealed') : `${nodeName(node, f)}: ${node.desc}`);
     }
+    $('licence-count').textContent = tr('{n} of {total}', { n: format(new Decimal(s.licence.size), f, true), total: format(new Decimal(LICENCE.length), f, true) });
 
     const auto = mods(s).auto;
     for (const [what, label] of this.autoBoxes) {

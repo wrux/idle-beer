@@ -640,6 +640,11 @@
   box-shadow: none;
 }
 
+.lw-node.unique {
+  border-radius: 50%;
+  border-width: 3px;
+}
+
 .lw-node.open {
   filter: brightness(0.66) saturate(0.8);
 }

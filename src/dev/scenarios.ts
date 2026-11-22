@@ -104,7 +104,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'endgame',
     name: 'The end of everything',
-    desc: 'Every pub open, the whole Licence, drinking in the Multiverse Tavern.',
+    desc: 'Every pub open, the middle of the Licence, drinking in the Multiverse Tavern.',
     build(now) {
       const s = newGame(now);
       s.prestiges = 80;
@@ -123,6 +123,24 @@ export const SCENARIOS: Scenario[] = [
       s.bestStreak = 120;
       s.freeRounds = 4_000;
       s.playSeconds = 400 * 3600;
+      return s;
+    },
+  },
+  {
+    id: 'legend',
+    name: 'The morning after, deep in the tree',
+    desc: 'After hours with 1e83 mats: the middle of the tree bought, and each long line a different way along.',
+    build(now) {
+      const s = newGame(now);
+      s.prestiges = 200;
+      s.pastRunsPints = D('1e200');
+      s.matsEarned = D('2e83');
+      s.beerMats = D('1e83');
+      const along: Record<string, number> = { regulars: 12, brewing: 7, charm: 3, management: 22, technique: 0, collecting: 10 };
+      s.licence = new Set(LICENCE.filter((n) => n.tier < 5 || (n.rank ?? 0) <= along[n.branch] && (n.rank || n.tier <= 5 + along[n.branch])).map((n) => n.id));
+      s.drinks = 900_000;
+      s.playSeconds = 900 * 3600;
+      s.afterHours = true;
       return s;
     },
   },
