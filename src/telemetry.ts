@@ -3,7 +3,7 @@
  * posted in small batches to /api/event (worker/index.ts), which files them in Cloudflare's
  * Analytics Engine. There is a random id per browser so one player's moments can be counted as
  * one player; no name, no cookie, nothing typed. Browsers asking not to be tracked send nothing,
- * and neither does the dev server or the debug panel.
+ * and neither does the dev server or the debug panel. Settings has a switch to turn it off.
  */
 import type { GameState } from './core/state';
 import { moments, progress, snapshot, type Moment, type Snapshot } from './core/telemetry';
@@ -18,11 +18,53 @@ const BATCH = 40;
 
 interface Queued { e: string; l: string; n: number; c: number[] }
 
+const OPT_OUT = 'idleBeer.noStats';
+
 const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
-const enabled = import.meta.env.PROD
-  && !new URLSearchParams(location.search).has('debug')
-  && nav.doNotTrack !== '1'
-  && !nav.globalPrivacyControl;
+/** The browser itself asks not to be tracked: nothing is sent, whatever Settings says. */
+export const browserSaysNo = nav.doNotTrack === '1' || !!nav.globalPrivacyControl;
+/** Somewhere statistics could be sent from at all (the real site, not the dev server or debug panel). */
+const possible = import.meta.env.PROD && !new URLSearchParams(location.search).has('debug') && !browserSaysNo;
+
+function stored(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+let wanted = stored(OPT_OUT) !== '1';
+
+/** Whether the player has statistics switched on (Settings shows this). */
+export function statsWanted(): boolean {
+  return wanted && !browserSaysNo;
+}
+
+/** The Settings switch. Turning it off also forgets this browser's random id. */
+export function setStatsWanted(on: boolean): void {
+  wanted = on;
+  try {
+    if (on) {
+      localStorage.removeItem(OPT_OUT);
+    } else {
+      localStorage.setItem(OPT_OUT, '1');
+      localStorage.removeItem(PLAYER);
+      localStorage.removeItem(SESSIONS);
+    }
+  } catch {
+    // No storage: the choice lasts for this visit.
+  }
+  if (!on) {
+    queue = [];
+    player = '';
+    session = 0;
+  } else if (getState) {
+    last = snapshot(getState());
+  }
+}
+
+const enabled = (): boolean => possible && wanted;
 
 function remembered(key: string, make: (old: string | null) => string): string {
   try {
@@ -34,10 +76,15 @@ function remembered(key: string, make: (old: string | null) => string): string {
   }
 }
 
-const player = enabled
-  ? remembered(PLAYER, (old) => old ?? [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join(''))
-  : '';
-const session = enabled ? Number(remembered(SESSIONS, (old) => String((Number(old) || 0) + 1))) : 0;
+let player = '';
+let session = 0;
+/** This browser's random id and visit number, made the first time something is counted. */
+function identify(): void {
+  if (player) return;
+  player = remembered(PLAYER, (old) => old ?? [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join(''));
+  session = Number(remembered(SESSIONS, (old) => String((Number(old) || 0) + 1)));
+}
+
 const device = matchMedia('(pointer: coarse)').matches ? (Math.min(innerWidth, innerHeight) < 600 ? 'phone' : 'tablet') : 'desktop';
 
 let queue: Queued[] = [];
@@ -50,7 +97,8 @@ let watching = false;
 
 /** Count one moment, with where the game stands right now. `now` posts it at once (the page is about to go). */
 export function track(event: string, label = '', value = 0, now = false): void {
-  if (!enabled || !getState) return;
+  if (!enabled() || !getState) return;
+  identify();
   queue.push({ e: event, l: label, n: value, c: progress(getState(), sessionSeconds, session) });
   if (now) flush(true);
   else if (queue.length >= BATCH) flush();
@@ -79,7 +127,7 @@ function referrer(): string {
 
 /** Start counting for this game. `returning` is whether there was a save to come back to. */
 export function startTelemetry(state: () => GameState, returning: boolean): void {
-  if (!enabled || watching) return;
+  if (!possible || watching) return;
   watching = true;
   getState = state;
   last = snapshot(state());
@@ -94,7 +142,7 @@ export function startTelemetry(state: () => GameState, returning: boolean): void
 
 /** Call about once a second with the time since the last call: notices whatever has changed. */
 export function observe(elapsed: number): void {
-  if (!enabled || !getState || !last) return;
+  if (!enabled() || !getState || !last) return;
   const now = snapshot(getState());
   for (const m of moments(last, now) as Moment[]) track(m.event, m.label, m.value);
   last = now;

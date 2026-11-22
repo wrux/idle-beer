@@ -586,7 +586,9 @@ The game reports anonymous moments so we can see how far people get and how long
 - `src/core/telemetry.ts` works out what happened from the save alone: it compares a snapshot of the game
   each second with the last one (`moments`) and lists the numbers sent with every moment (`progress`).
 - `src/telemetry.ts` queues moments and posts them in batches to `/api/event`. It only runs in a production
-  build, never with `?debug`, and never for a browser sending Do Not Track or Global Privacy Control.
+  build, never with `?debug`, and never for a browser sending Do Not Track or Global Privacy Control. Settings has an
+  "Anonymous play statistics" switch with a short note; turning it off stores `idleBeer.noStats` and
+  forgets the browser's random id. The switch is off and greyed out when the browser itself says no.
   Each browser gets a random id (`idleBeer.pid` in localStorage); nothing else identifies anyone.
 - `worker/index.ts` is the only server code. It writes one row per moment to the Workers Analytics Engine
   dataset `idle_beer_events` (bound as `EVENTS` in `wrangler.jsonc`). Rows are kept for three months.

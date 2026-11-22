@@ -175,6 +175,8 @@ export class StatsPanel {
 export interface SettingsEvents {
   onFormatChange(f: NumberFormat): void;
   onSoundChange(on: boolean): void;
+  /** Anonymous play statistics: whether they're on, whether the browser forbids them, and the switch. */
+  stats: { wanted(): boolean; blocked: boolean; set(on: boolean): void };
   exportSave(): string;
   importSave(text: string): string | null;
   hardReset(): void;
@@ -183,16 +185,19 @@ export interface SettingsEvents {
 export class SettingsPanel {
   private format = $<HTMLSelectElement>('number-format');
   private sound = $<HTMLInputElement>('sound-setting');
+  private stats = $<HTMLInputElement>('stats-setting');
   private text = $<HTMLTextAreaElement>('save-text');
   private message = $('save-message');
 
-  constructor(private getState: () => GameState, events: SettingsEvents) {
+  constructor(private getState: () => GameState, private events: SettingsEvents) {
     dialog('settings-dialog', 'open-settings', () => {
       this.sync();
       this.message.textContent = '';
     });
     this.format.addEventListener('change', () => events.onFormatChange(this.format.value as NumberFormat));
     this.sound.addEventListener('change', () => events.onSoundChange(this.sound.checked));
+    this.stats.disabled = events.stats.blocked;
+    this.stats.addEventListener('change', () => events.stats.set(this.stats.checked));
 
     $('export-save').addEventListener('click', async () => {
       const save = events.exportSave();
@@ -226,5 +231,6 @@ export class SettingsPanel {
     const s = this.getState();
     this.format.value = s.settings.numberFormat;
     this.sound.checked = s.settings.sound;
+    this.stats.checked = this.events.stats.wanted();
   }
 }

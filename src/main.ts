@@ -33,7 +33,7 @@ import { icon } from './ui/glyphs';
 import { Sound } from './ui/sound';
 import { StoreView } from './ui/store';
 import { SCENARIOS } from './dev/scenarios';
-import { observe, startTelemetry, track } from './telemetry';
+import { browserSaysNo, observe, setStatsWanted, startTelemetry, statsWanted, track } from './telemetry';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -221,6 +221,7 @@ const settings = new SettingsPanel(() => state, {
     grant('name-your-poison');
   },
   onSoundChange: setSound,
+  stats: { wanted: statsWanted, blocked: browserSaysNo, set: setStatsWanted },
   exportSave: () => {
     saveGame(state);
     return serialize(state);
