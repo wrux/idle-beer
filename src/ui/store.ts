@@ -3,7 +3,7 @@
  * and patched (upgrade rows are only rebuilt when the set of available upgrades changes).
  */
 import {
-  availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach,
+  availableUpgrades, upgradeCost, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerDiscount, drinkerPpsEach,
   nextRound, priceOf, pubBonus, pubCooldownLeft, pubStatuses, quantityFor, selectPub, storeVisibility,
 } from '../core/economy';
 import { format as formatNumber } from '../core/format';
@@ -411,13 +411,14 @@ export class StoreView {
 
     let ready = 0;
     for (const u of list) {
-      const affordable = state.pints.gte(u.cost);
+      const cost = upgradeCost(state, u);
+      const affordable = state.pints.gte(cost);
       if (affordable) ready++;
       const row = this.upgradeRows.get(u.id)!;
       row.el.classList.toggle('affordable', affordable);
-      setProgress(row.el, state.pints, u.cost);
-      this.set(row.cost, format(u.cost));
-      describe(row.el, `${u.name}. ${u.desc} ${format(u.cost)} pints.`);
+      setProgress(row.el, state.pints, cost);
+      this.set(row.cost, format(cost));
+      describe(row.el, `${u.name}. ${u.desc} ${format(cost)} pints.`);
     }
     // The badge counts what you can buy right now, so it's worth a look when it lights up.
     this.set(this.upgradeCount, ready ? String(ready) : '');

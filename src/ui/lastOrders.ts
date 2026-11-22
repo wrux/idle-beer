@@ -10,7 +10,7 @@ import { tr, trn } from '../i18n';
 import { mods } from '../core/licenceState';
 import { Decimal } from '../core/num';
 import {
-  allTimePints, buyLicence, lastOrders, licenceStatus, matMult, matsOnReset, pintsForNextMat,
+  allTimePints, buyLicence, lastOrders, licenceCost, licenceStatus, matMult, matsOnReset, pintsForNextMat,
 } from '../core/prestige';
 import type { GameState } from '../core/state';
 import { BRANCHES, LICENCE, LICENCE_BY_ID, type AutoBuy, type LicenceNode } from '../data/licence';
@@ -229,7 +229,7 @@ export class LastOrdersPanel {
     }
     const box = { x: (x0 + GRID.w / 2) * SQUARE, y: (y0 + GRID.h / 2) * SQUARE, w: (x1 - x0) * SQUARE, h: (y1 - y0) * SQUARE };
     // After hours the title sits over the top and the way out over the bottom.
-    const pad = this.shopOpen ? { top: 76, bottom: 96, side: 36 } : { top: 40, bottom: 22, side: 14 };
+    const pad = this.afterHours ? { top: 76, bottom: 96, side: 36 } : { top: 40, bottom: 22, side: 14 };
     const w = port.clientWidth - pad.side * 2, h = port.clientHeight - pad.top - pad.bottom;
     const k = Math.max(LastOrdersPanel.ZOOM.min, Math.min(1.25, w / box.w, h / box.h));
     this.view = { k, x: pad.side + (w - box.w * k) / 2 - box.x * k, y: pad.top + (h - box.h * k) / 2 - box.y * k };
@@ -371,6 +371,11 @@ export class LastOrdersPanel {
 
   /** Mats are only spent after hours, between one night and the next. Until then the tree is a preview. */
   private get shopOpen() {
+    return this.afterHours || mods(this.getState()).liveMats;
+  }
+
+  /** On the morning-after screen (as opposed to looking at Last Orders during the night). */
+  private get afterHours() {
     return this.dialog.classList.contains('after-hours');
   }
 
@@ -397,7 +402,8 @@ export class LastOrdersPanel {
     const hint = state === 'hint';
     this.tip.querySelector('b')!.textContent = hint ? '???' : nodeName(node);
     this.tip.querySelector('span')!.textContent = hint ? tr('Buy {name} to find out.', { name: nodeName(LICENCE_BY_ID.get(node.requires!)!) }) : node.desc;
-    const cost = trn(node.cost.toNumber(), '{n} mat', '{n} mats', { n: format(node.cost, true) });
+    const price = licenceCost(s, node);
+    const cost = trn(price.toNumber(), '{n} mat', '{n} mats', { n: format(price, true) });
     const foot = this.tip.querySelector('em')!;
     foot.hidden = hint;
     // The mat icon goes with a price, not with "Owned".
@@ -405,7 +411,7 @@ export class LastOrdersPanel {
     foot.querySelector('u')!.textContent =
       state === 'owned' ? tr('Owned')
         : !this.shopOpen ? tr('{cost} · buy the morning after', { cost })
-          : s.beerMats.gte(node.cost) ? tr('{cost} · click to buy', { cost }) : tr('{cost} · not enough mats', { cost });
+          : s.beerMats.gte(price) ? tr('{cost} · click to buy', { cost }) : tr('{cost} · not enough mats', { cost });
     this.tip.dataset.branch = node.branch;
     // Above the node, unless that would go off the top of what you can see.
     const y = py(node.at.y);
@@ -460,9 +466,9 @@ export class LastOrdersPanel {
    */
   private updateNight(s: GameState) {
     const card = $('lo-night');
-    card.hidden = !this.shopOpen;
+    card.hidden = !this.afterHours;
     if (card.hidden) return;
-    const open = this.shopOpen;
+    const open = this.afterHours;
     const progress = s.challenge ? format(challengeProgress(s).floor()) : '';
     const key = [open, s.special, s.specialOffer.join(), s.challenge, [...s.challengesDone].join(), progress].join('|');
     if (key === this.nightKey) return;
@@ -537,7 +543,7 @@ export class LastOrdersPanel {
         this.links.get(node.id)!.classList.toggle('next', now === 'available');
         this.links.get(node.id)!.classList.toggle('faint', now === 'hint');
       }
-      el.classList.toggle('affordable', this.shopOpen && now === 'available' && s.beerMats.gte(node.cost));
+      el.classList.toggle('affordable', this.shopOpen && now === 'available' && s.beerMats.gte(licenceCost(s, node)));
       el.setAttribute('aria-label', now === 'hint' ? tr('Not yet revealed') : `${nodeName(node)}: ${node.desc}`);
     }
     $('licence-count').textContent = tr('{n} of {total}', { n: format(new Decimal(s.licence.size), true), total: format(new Decimal(LICENCE.length), true) });

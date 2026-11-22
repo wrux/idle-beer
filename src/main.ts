@@ -3,16 +3,19 @@ import './styles/theme.css';
 import './styles/phone.css';
 import { newDrinkState, stepDrink } from './core/drinking';
 import {
-  availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerPpsEach, drinkTime, earn,
+  availableUpgrades, upgradeCost, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerPpsEach, drinkTime, earn,
   hasDownInOne, invalidate, offlineGain, pintsPerDrink, priceOf, pubBonus, pubsForSale, refillTime, storeVisibility, totalPps,
 } from './core/economy';
 import {
   BUFFS, buffDuration, freeRoundLifetime, nextFreeRoundIn, rollFreeRound, startBuff, tickBuffs,
 } from './core/events';
 import { mods } from './core/licenceState';
+import { canBang, collectLiveMats, finishGame, startFinale, stopwatch } from './core/bang';
+import { playTime } from './ui/panels';
 import { challengeShare, checkChallenge } from './core/nights';
+import { BangPanel, voidBeersText } from './ui/bigBang';
 import { CHALLENGE_BY_ID, SPECIAL_BY_ID } from './data/nights';
-import { matMult } from './core/prestige';
+import { autoBuyLegend, matMult, matsOnReset } from './core/prestige';
 import { format, formatBrief } from './core/format';
 import { LOCALES, currentLocale, localeUrl, preferredLocale, tr, trn } from './i18n';
 import { localiseData, pintsLabel } from './i18n/data';
@@ -351,6 +354,10 @@ const hud = {
   drinks: $('drinks'),
   lifetime: $('lifetime'),
   bestStreak: $('best-streak'),
+  bangMeter: $('bang-meter'),
+  bangBar: $('bang-meter-bar'),
+  bangText: $('bang-meter-text'),
+  bangClock: $('bang-meter-clock'),
   mats: $('mats'),
   matsCount: $('mats-count'),
   matsBonus: $('mats-bonus'),
@@ -397,6 +404,14 @@ function renderHud() {
   setText(hud.lifetime, format(state.lifetimePints));
   setText(hud.bestStreak, String(state.bestStreak));
   hud.hint.hidden = state.drinks > 0;
+  // Once you've seen one universe end, a meter shows how close this one is.
+  hud.bangMeter.hidden = state.bangs < 1;
+  if (state.bangs > 0) {
+    const share = BangPanel.share(state);
+    hud.bangBar.style.width = `${(share * 100).toFixed(1)}%`;
+    setText(hud.bangText, `${format(D(Math.floor(share * 100)))}%`);
+    setText(hud.bangClock, stopwatch(state.universeSeconds));
+  }
   hud.mats.hidden = state.beerMats.lte(0);
   if (state.beerMats.gt(0)) {
     setText(hud.matsCount, count(state.beerMats));
@@ -520,6 +535,110 @@ const lastOrdersPanel = new LastOrdersPanel(() => state, {
   onBackToPub: () => save(),
 });
 
+// ---------- the Big Bang ----------
+
+const bangPanel = new BangPanel(() => state, {
+  onBang: (gained) => {
+    drink.fill = 1;
+    drink.lift = 0;
+    drink.refilling = false;
+    drink.committed = false;
+    streak.count = 0;
+    renderer.setBeer(currentBeer(state).look, state.beer);
+    updateCrowd();
+    showLocation();
+    store.update();
+    save();
+    toast('🕳️', `<strong>${tr('A new universe')}</strong>${tr('You came through with {beers}.', { beers: voidBeersText(gained) })}`, 8000);
+  },
+  onBought: () => {
+    sound.play('buy');
+    renderHud();
+    updateCrowd();
+    save();
+  },
+  onClosed: () => {
+    // The Last Pint of All is bought: the universe you start now is the last one.
+    if (startFinale(state)) enterFinale();
+    save();
+  },
+});
+
+// ---------- the end: one pint, drunk by hand, alone ----------
+
+/** The ending is up: the pub is drawn and nothing else happens. */
+let ended = false;
+
+/** Put the pub into its last state: nobody in, nothing to buy, the Final Pint full on the bar. */
+function enterFinale() {
+  document.getElementById('app')!.classList.add('finale');
+  drink.fill = 1;
+  drink.lift = 0;
+  drink.refilling = false;
+  drink.committed = false;
+  drink.autoSip = 0;
+  streak.count = 0;
+  renderer.setBeer(currentBeer(state).look, state.beer);
+  updateCrowd();
+  showLocation();
+  store.update();
+  renderHud();
+  renderBuffs();
+}
+
+/** One frame of the last universe. Only holding drinks, slowly, and one pint is all there is. */
+function finaleFrame(elapsed: number, now: number) {
+  const holding = pointerHeld || keyHeld || pressQueued;
+  pressQueued = false;
+  stage.classList.toggle('holding', holding);
+  hud.hint.hidden = holding || drink.fill < 1;
+  let left = Math.min(elapsed, 1), finished = false;
+  while (left > 0 && !finished) {
+    const dt = Math.min(DRINK_STEP, left);
+    left -= dt;
+    // No Down in One and no sipping on his own: this one is yours to drink, and it takes its time.
+    if (stepDrink(drink, dt, holding, { drinkTime: 4, refillTime: 1e9 })) finished = true;
+  }
+  state.glassFill = drink.refilling ? 0 : drink.fill;
+  const p = pose();
+  gulpTimer -= elapsed;
+  if (p.sipping && gulpTimer <= 0) {
+    sound.play('gulp');
+    gulpTimer = 0.9;
+  }
+  renderer.render(p, now / 1000);
+  if (finished) theEnd();
+}
+
+function theEnd() {
+  if (!finishGame(state)) return;
+  save();
+  sound.play('clink');
+  window.setTimeout(showEnd, 900);
+}
+
+/**
+ * The End. There is one way on from it: start again, from nothing. (It is also where a finished
+ * save opens, so closing the page here doesn't leave a game to carry on with.)
+ */
+function showEnd() {
+  ended = true;
+  const dialog = $<HTMLDialogElement>('end-dialog');
+  if (dialog.open) return;
+  // The Final Pint's own line says it best.
+  $('end-line').textContent = BEERS[BEERS.length - 1].flavour;
+  $('end-stats').textContent = [playTime(state.playSeconds), state.fastestUniverse > 0 ? `${tr('Fastest universe')} ${stopwatch(state.fastestUniverse)}` : '']
+    .filter(Boolean).join(' · ');
+  // It goes when you say so, not by Escape or a stray click.
+  dialog.addEventListener('cancel', (e) => e.preventDefault());
+  $('end-restart').addEventListener('click', () => {
+    // Looking at a debug scenario, the real save is somebody's game: leave it, and just go to the door.
+    if (previewScenario) location.href = location.pathname;
+    else hardReset();
+  }, { once: true });
+  dialog.showModal();
+}
+
 // ---------- auto-buyers (Management branch of the Licence) ----------
 
 function autoBuy() {
@@ -532,7 +651,7 @@ function autoBuy() {
   }
   if (m.auto.has('upgrades') && state.settings.auto.upgrades) {
     for (const u of availableUpgrades(state).slice(0, 10)) {
-      if (state.pints.gte(u.cost) && buyUpgrade(state, u.id)) bought = true;
+      if (state.pints.gte(upgradeCost(state, u)) && buyUpgrade(state, u.id)) bought = true;
     }
   }
   if (m.auto.has('upgrades') && state.settings.auto.upgrades) {
@@ -603,6 +722,26 @@ function finishPint() {
 }
 
 startLoop((elapsed, now) => {
+  // Inside the black hole (the scene, or its screen) nothing happens outside it: the pub is
+  // drawn as it stood and that is all.
+  if (state.finale || ended) {
+    if (state.finale && started && !bangPanel.paused) finaleFrame(elapsed, now);
+    else renderer.render(pose(), now / 1000);
+    lastAutoBuy = now;
+    return;
+  }
+  if (bangPanel.paused) {
+    stage.classList.remove('holding');
+    pressQueued = false;
+    lastAutoBuy = now;
+    renderer.render(pose(), now / 1000);
+    if (now - lastStoreUpdate > 200) {
+      lastStoreUpdate = now;
+      bangPanel.update();
+    }
+    return;
+  }
+
   // Idle income. Hidden tabs get throttled, so this can be several seconds at once;
   // that's still live play. Much longer gaps (machine asleep) are treated as time away.
   if (elapsed >= AWAY_THRESHOLD_SECONDS) {
@@ -613,6 +752,7 @@ startLoop((elapsed, now) => {
     if (tickBuffs(state, elapsed)) invalidate();
     clock += elapsed;
     state.playSeconds += elapsed;
+    state.universeSeconds += elapsed;
   }
 
   // Drinking by hand, in small steps.
@@ -657,6 +797,12 @@ startLoop((elapsed, now) => {
   if (now - lastAutoBuy > 1000) {
     observe((now - lastAutoBuy) / 1000);
     lastAutoBuy = now;
+    // No More Mornings: the mats a Last Orders would pay just arrive.
+    if (mods(state).liveMats) collectLiveMats(state, matsOnReset(state));
+    // Legend in Your Sleep: and they are spent on the tree as they come.
+    if (autoBuyLegend(state) > 0) renderHud();
+    // 1e100 pints in the night: there is no beer left anywhere, and nobody is asked.
+    if (started && canBang(state)) bangPanel.bang();
     // Cellar-Aged and Counted Already grow as the night goes on, so the sums are done again.
     if (mods(state).aged > 0 || mods(state).pendingMats) invalidate();
     autoBuy();
@@ -684,6 +830,7 @@ startLoop((elapsed, now) => {
     }
     achievementsPanel.update();
     lastOrdersPanel.update();
+    bangPanel.update();
     statsPanel.update();
   }
 });
@@ -800,6 +947,10 @@ function enterPub() {
   for (const say of heldToasts.splice(0)) say();
   // Reloaded part-way through spending Beer Mats: carry on where you were.
   lastOrdersPanel.resume();
+  bangPanel.resume();
+  // Closed the game alone in the pub with the last pint: that is where you still are.
+  if (state.finale) enterFinale();
+  if (state.finished) showEnd();
 }
 
 {

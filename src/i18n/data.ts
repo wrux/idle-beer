@@ -11,6 +11,7 @@ import { BEERS } from '../data/beers';
 import { DRINKERS } from '../data/drinkers';
 import { BRANCHES, LICENCE } from '../data/licence';
 import { LOCATIONS } from '../data/locations';
+import { VOID_COLUMNS, VOID_TREE } from '../data/bang';
 import { CHALLENGES, SPECIALS } from '../data/nights';
 import { UPGRADES } from '../data/upgrades';
 import { tr, trn } from './index';
@@ -32,6 +33,8 @@ export function dataSlots(): Slot[] {
   add(BRANCHES, 'name');
   add(SPECIALS, 'name', 'desc');
   add(CHALLENGES, 'name', 'rule', 'reward');
+  add(VOID_TREE, 'name', 'desc');
+  add(VOID_COLUMNS, 'name');
   add(Object.values(BUFFS), 'name', 'desc');
   return out;
 }

@@ -3,7 +3,7 @@ import { DRINKERS, DRINKER_BY_ID, type Drinker } from '../data/drinkers';
 import { LOCATIONS, LOCATION_BONUS, LOCATION_BY_ID, type Location } from '../data/locations';
 import { UPGRADES, UPGRADE_BY_ID, type Upgrade } from '../data/upgrades';
 import { DOWN_IT_MULT, HAPPY_HOUR_MULT, hasBuff, QUIZ_DISCOUNT, startBuff } from './events';
-import { AGED_CAP } from '../data/licence';
+import { AGED_CAP, BASE_COST_RATIO } from '../data/licence';
 import { matsWorth } from './mats';
 import { mods, perkPubs } from './licenceState';
 import { PUB_COOLDOWN_SECONDS } from './pubs';
@@ -96,6 +96,8 @@ function derive(state: GameState): Derived {
   const treeMult = D(licence.allMult)
     .mul(1 + licence.achMult * state.achievements.size)
     .mul(Decimal.pow(licence.beerPower, Math.min(state.beer, BEERS.length - 1)))
+    // Gravity Well: more for every Black Hole Beer held.
+    .mul(Decimal.pow(licence.voidPower, state.voidBeers))
     // Cellar-Aged: more for every minute of the night (the caller refreshes this as time passes).
     .mul(1 + Math.min(AGED_CAP, licence.aged * Math.max(0, (Date.now() - state.runStartedAt) / 60_000)));
   const globalMult = beerMultUpTo(state.beer).mul(pubMult * locationMult * reputationMult).mul(matMult).mul(treeMult);
@@ -164,16 +166,23 @@ export function earn(state: GameState, amount: Decimal): void {
 
 // ---------- drinker costs ----------
 
-export const COST_RATIO = D(1.15);
+export const COST_RATIO = D(BASE_COST_RATIO);
 
 /**
  * Cost of buying `qty` more, having `have` already: base × 1.15^have × (1.15^qty − 1) / 0.15,
- * rounded up to whole pints (a no-op once numbers are huge).
+ * rounded up to whole pints (a no-op once numbers are huge). `ratio` is the 1.15, which
+ * Inflation (after the Big Bang) brings down.
  */
-export function costOf(d: Drinker, have: number, qty: number): Decimal {
+export function costOf(d: Drinker, have: number, qty: number, ratio: Decimal = COST_RATIO): Decimal {
   if (qty <= 0) return D(0);
-  return Decimal.sumGeometricSeries(qty, d.baseCost, COST_RATIO, have).ceil();
+  return Decimal.sumGeometricSeries(qty, d.baseCost, ratio, have).ceil();
 }
+
+/** How much dearer each drinker of a kind is than the last, for this player. */
+const costRatio = (state: GameState): Decimal => {
+  const r = mods(state).costRatio;
+  return r === BASE_COST_RATIO ? COST_RATIO : D(r);
+};
 
 /**
  * Step n down until fits(n). Starts with tiny steps and doubles them, so it always finishes in
@@ -189,12 +198,12 @@ function backOff(n: number, fits: (n: number) => boolean, floor: number): number
 }
 
 /** How many you can afford right now. Closed form, so it's instant even for billions. */
-export function maxAffordable(d: Drinker, have: number, funds: Decimal): number {
-  if (funds.lt(costOf(d, have, 1))) return 0;
-  let n = Math.floor(Decimal.affordGeometricSeries(funds, d.baseCost, COST_RATIO, have).toNumber());
+export function maxAffordable(d: Drinker, have: number, funds: Decimal, ratio: Decimal = COST_RATIO): number {
+  if (funds.lt(costOf(d, have, 1, ratio))) return 0;
+  let n = Math.floor(Decimal.affordGeometricSeries(funds, d.baseCost, ratio, have).toNumber());
   if (!Number.isFinite(n) || n < 1) n = 1;
   // Floating point can overshoot at the boundary.
-  return backOff(n, (k) => costOf(d, have, k).lte(funds), 1);
+  return backOff(n, (k) => costOf(d, have, k, ratio).lte(funds), 1);
 }
 
 /** Price multiplier on drinkers right now (a Pub Quiz Win, or the right pub, makes them cheaper). */
@@ -204,13 +213,13 @@ export const drinkerDiscount = (state: GameState): number =>
 /** What buying `qty` more drinkers costs you right now, including any discount. */
 export function priceOf(state: GameState, d: Drinker, have: number, qty: number): Decimal {
   const m = drinkerDiscount(state);
-  const base = costOf(d, have, qty);
+  const base = costOf(d, have, qty, costRatio(state));
   return m === 1 ? base : base.mul(m).ceil();
 }
 
 /** How many you can afford right now, including any discount. */
 export function affordableNow(state: GameState, d: Drinker, have: number): number {
-  let n = maxAffordable(d, have, state.pints.div(drinkerDiscount(state)));
+  let n = maxAffordable(d, have, state.pints.div(drinkerDiscount(state)), costRatio(state));
   return backOff(n, (k) => k === 0 || priceOf(state, d, have, k).lte(state.pints), 0);
 }
 
@@ -265,9 +274,12 @@ export function availableUpgrades(state: GameState): Upgrade[] {
   return UPGRADES.filter((u) => !state.upgrades.has(u.id) && u.unlocked(state)).sort((a, b) => a.cost.cmp(b.cost));
 }
 
+/** What an upgrade costs this player: its price, or nothing with Free Bar. */
+export const upgradeCost = (state: GameState, u: Upgrade): Decimal => (mods(state).freeShop ? D(0) : u.cost);
+
 export function buyUpgrade(state: GameState, id: string): boolean {
   const u = UPGRADE_BY_ID.get(id);
-  if (!u || mods(state).noUpgrades || state.upgrades.has(id) || !u.unlocked(state) || !spend(state, u.cost)) return false;
+  if (!u || mods(state).noUpgrades || state.upgrades.has(id) || !u.unlocked(state) || !spend(state, upgradeCost(state, u))) return false;
   state.upgrades.add(id);
   invalidate();
   return true;

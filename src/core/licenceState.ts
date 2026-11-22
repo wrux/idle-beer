@@ -4,6 +4,7 @@
  */
 import { applyEffect, licenceMods, type LicenceMods } from '../data/licence';
 import { LOCATION_BY_ID } from '../data/locations';
+import { VOID_BY_ID } from '../data/bang';
 import { CHALLENGE_BY_ID, SPECIAL_BY_ID } from '../data/nights';
 import type { GameState } from './state';
 
@@ -15,7 +16,7 @@ export function perkPubs(state: GameState, m: LicenceMods): string[] {
 }
 
 export function mods(state: GameState): LicenceMods {
-  const key = `${state.licence.size}|${state.pub}|${state.pubs.size}|${state.achievements.size}|${state.special}|${state.challenge}|${state.challengesDone.size}`;
+  const key = `${state.licence.size}|${state.pub}|${state.pubs.size}|${state.achievements.size}|${state.special}|${state.challenge}|${state.challengesDone.size}|${state.voidTree.size}`;
   if (cache && cache.state === state && cache.key === key) return cache.mods;
   const m = licenceMods(state.licence);
   for (const pub of perkPubs(state, m)) {
@@ -28,6 +29,8 @@ export function mods(state: GameState): LicenceMods {
   for (const e of (state.special && SPECIAL_BY_ID.get(state.special)?.effects) || []) applyEffect(m, e);
   for (const e of (state.challenge && CHALLENGE_BY_ID.get(state.challenge)?.handicap) || []) applyEffect(m, e);
   for (const id of state.challengesDone) for (const e of CHALLENGE_BY_ID.get(id)?.prize ?? []) applyEffect(m, e);
+  // What Black Hole Beers have bought, which outlasts the universe.
+  for (const id of state.voidTree) for (const e of VOID_BY_ID.get(id)?.effects ?? []) applyEffect(m, e);
   m.matRate *= m.matRateMult;
   // Trophy Cabinet: what you've achieved makes every mat count for more.
   m.matGain *= 1 + m.matGainPerAch * state.achievements.size;

@@ -166,6 +166,10 @@ const prestigeAchievements: Achievement[] = [
     check: (s) => s.licence.size >= 1,
   },
   {
+    id: 'big-bang', name: 'Closing Time for Everything', icon: '🕳️', desc: 'Drink the universe dry.',
+    check: (s) => s.bangs >= 1,
+  },
+  {
     id: 'licence-all', name: 'Living Legend', icon: '📜', desc: 'Earn every Local Legend perk.',
     check: (s) => s.licence.size >= LICENCE.length,
   },

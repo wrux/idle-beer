@@ -328,6 +328,69 @@ simply have none. The goals are fixed, so a player deep in the tree will find th
 they are meant for the first dozen nights. On screens under 860px, where the side column is hidden
 after hours, the card sits across the bottom above the way back to the pub.
 
+**The Big Bang** (`core/bang.ts`, `data/bang.ts`, `ui/bigBang.ts`). The layer above Last Orders,
+and the answer to the long lines being a grind: the simulator reaches it at about eight hours,
+which is where the long lines begin.
+
+- **When.** Drink 1e100 pints in a single night and there is no beer left anywhere. Nobody is
+  asked: a black hole opens in the middle of the pub and grows until it is all there is, three
+  lines are said in the dark, a point of light becomes everything, and the Big Bang screen comes up
+  out of the glare. (The first version spun the whole page down a plughole, which looked cheap.)
+  The save records that you are on that screen (`voidOpen`), so a reload comes back to it. The whole
+  game is paused during the scene and for as long as that screen is up, whether you arrived by
+  Big Bang or by the button: nothing is drunk or bought and the stopwatch does not run. After a Big Bang the
+  screen has no close button and ignores Escape: the one way on is "Start the next universe",
+  which is when the stopwatch starts. Nothing hints at the first one. From then on a meter under the counter shows how close
+  this universe is (counted in noughts, so halfway along is 1e50), and a button along the top
+  opens the Big Bang screen.
+- **What goes.** Everything a Last Orders takes, and Beer Mats and the Local Legend tree with it.
+  Achievements, stats, challenge prizes and Black Hole Beers stay.
+- **What you get.** One Black Hole Beer, one more if the universe lasted under two hours of play
+  and another under twenty minutes, plus whatever the Singularity perks add.
+- **What they buy.** Sixteen perks for exactly 100: three columns of five costing 1, 2, 4, 8 and
+  16, bought top to bottom, and a last one for 7 that needs the bottom of all three.
+
+| | Matter | Time | Singularity |
+|---|--------|------|-------------|
+| 1 | Primordial Soup: everything ×1e6 | Déjà Vu: start with all three auto-buyers and Down in One | Event Horizon: +1 Black Hole Beer a Big Bang |
+| 2 | Inflation: drinkers 7% dearer each, not 15% | No More Mornings: mats arrive as you drink and the tree is always open | Gravity Well: everything ×2 per Black Hole Beer held |
+| 4 | Dark Energy: everything ×100 | Crowded Universe: walk in to 500 of every drinker | Spaghettification: long-line steps cost their square root |
+| 8 | Free Bar: beers and upgrades cost nothing | Legend in Your Sleep: the tree's perks are bought for you | Hawking Radiation: +2 Black Hole Beers a Big Bang |
+| 16 | Heat Death Postponed: everything ×10,000 | Mat Storm: mats ×1e6 | Small Universe: runs dry at 1e50 |
+
+  And The Last Pint of All: everything ×1e100.
+
+Primordial Soup is the one great leap. Dark Energy was ×1e12, Heat Death Postponed ×1e30 and
+Gravity Well ×10 a beer at first; in play Dark Energy alone took a six-minute universe to twelve
+seconds, because a multiplier that size skips the part where the auto-buyers fill the pub. They
+are now ×100, ×10,000 and ×2 a beer: each should take a slice off the time, not most of it.
+
+They are lists of the tree's own effects, folded in by `mods(state)`, with eight new kinds
+(`costRatio`, `freeShop`, `liveMats`, `sqrtLines`, `bangBonus`, `bangGoal`, `voidPower`,
+`autoLegend`). No More Mornings is second in its column on purpose: with it there is no Last Orders
+to call, so a universe is one unbroken run. The screen is all black: you are inside the thing.
+
+Simulated (`npm run simulate -- 0.5 1e15 4000 40`): the first universe lasts about 8 hours; the
+second, with one perk, 36 seconds; by the sixth they are under ten seconds, and the whole tree is
+bought in about 22 Big Bangs. The simulator buys everything in an instant, so a real universe is
+limited by how fast the auto-buyers tick, a minute or two. That is deliberately quick, and
+every universe is the same race to the same goal: it is a speed-run, and the time is the score.
+A stopwatch beside the meter counts this universe's seconds of play, and the Big Bang screen
+shows it against the fastest so far (`fastestUniverse`). It has not been played by hand.
+
+**The end.** The Last Pint of All is the last thing to buy, and buying it ends the game. The next
+universe you start (whenever the Big Bang screen next closes) is the last one: the pub is empty,
+the shop, counters and buttons are out of sight, and The Final Pint stands full on the bar. Nobody
+sips it for you and Down in One does not apply: you hold, for four seconds, and drink it. Then a
+black screen says The End, with the Final Pint's own line, your play time and your fastest
+universe, and one button: Start again, which wipes the save and goes back to the opening screen
+with a new game. There is no carrying on. A reload mid-pint comes back to the empty pub (`finale`)
+and a reload at The End comes back to The End (`finished`).
+
+Debug: `?debug&scenario=one-to-go` has every perk but the last and the 7 beers to buy it;
+`?debug&scenario=last-pint` is the last universe itself. `?debug&scenario=before-bang` is a night forty seconds short of the first one, and
+`?debug&scenario=after-bang` a new universe with twelve Black Hole Beers to spend.
+
 **Second layer (later, for truly massive numbers): "Brewery Empire".** You reset Beer
 Mats for **Kegs**, which give exponential multipliers. Only needed once numbers pass
 around `1e100`. The save already has a `kegs` field reserved for it; build it after launch.

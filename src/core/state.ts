@@ -66,6 +66,25 @@ export interface GameState {
   challengeBase: Decimal;
   /** Challenges beaten; their prizes are kept for good. */
   challengesDone: Set<string>;
+  // ----- the Big Bang (kept across everything) -----
+  /** Black Hole Beers you hold. */
+  voidBeers: number;
+  /** Every Black Hole Beer ever earned. */
+  voidEarned: number;
+  /** Times the universe has ended. */
+  bangs: number;
+  /** What Black Hole Beers have bought (data/bang.ts). */
+  voidTree: Set<string>;
+  /** Seconds of play since the universe began: a quick one leaves more Black Hole Beers. */
+  universeSeconds: number;
+  /** A Big Bang has just happened and its screen hasn't been closed yet: it comes back up on loading. */
+  voidOpen: boolean;
+  /** The last universe: alone in the pub with one pint, to be drunk by hand. */
+  finale: boolean;
+  /** The last pint has been drunk and the ending seen. */
+  finished: boolean;
+  /** The quickest a universe has been drunk dry, in seconds of play (0 = none yet). */
+  fastestUniverse: number;
   /** Reserved for the second prestige layer (Brewery Empire). */
   kegs: Decimal;
   /** When this run started. */
@@ -113,6 +132,15 @@ export function newGame(now = Date.now()): GameState {
     challenge: null,
     challengeBase: D(0),
     challengesDone: new Set(),
+    voidBeers: 0,
+    voidEarned: 0,
+    bangs: 0,
+    voidTree: new Set(),
+    universeSeconds: 0,
+    fastestUniverse: 0,
+    voidOpen: false,
+    finale: false,
+    finished: false,
     kegs: D(0),
     runStartedAt: now,
     debugPerDrinkMult: D(1),

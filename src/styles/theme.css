@@ -1049,3 +1049,329 @@
 .d-pps {
   white-space: nowrap;
 }
+
+/* ---------- the Big Bang: inside a black hole ----------
+   The whole screen, and all of it black. The only light is what is falling in: a thin ring far
+   off round the edge, turning slowly, and the faint violet of anything you can afford. */
+
+dialog.panel-dialog.bang[open] {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  color: #cfc8dc;
+  box-shadow: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: #2a2238 #000;
+  animation: void-in 1.4s ease-out;
+}
+
+dialog.panel-dialog.bang::backdrop {
+  background: #000;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@keyframes void-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Straight after a Big Bang the screen comes out of the glare, not out of the dark. */
+dialog.panel-dialog.bang.from-light[open] {
+  animation: void-from-light 2.6s ease-out;
+}
+
+@keyframes void-from-light {
+  from {
+    background: #fff3cf;
+    color: transparent;
+  }
+
+  35% {
+    background: #2a1d3d;
+  }
+}
+
+dialog.panel-dialog.bang.from-light[open] .bang-body,
+dialog.panel-dialog.bang.from-light[open] .dialog-head {
+  animation: void-in 2.6s ease-in;
+}
+
+/* The accretion disc, seen from inside: a ring of light bigger than the screen, mostly off it. */
+dialog.panel-dialog.bang::before {
+  content: '';
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 170vmax;
+  height: 170vmax;
+  margin: -85vmax 0 0 -85vmax;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(180, 140, 255, 0.5), rgba(255, 217, 138, 0.38), rgba(0, 0, 0, 0) 22%, rgba(180, 140, 255, 0.24) 48%, rgba(0, 0, 0, 0) 66%, rgba(255, 217, 138, 0.26) 84%, rgba(180, 140, 255, 0.5));
+  -webkit-mask: radial-gradient(circle, transparent 0 46.5%, #000 48.5%, transparent 51%);
+  mask: radial-gradient(circle, transparent 0 46.5%, #000 48.5%, transparent 51%);
+  filter: blur(7px);
+  pointer-events: none;
+  animation: void-turn 90s linear infinite;
+}
+
+@keyframes void-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.panel-dialog.bang::before,
+  dialog.panel-dialog.bang[open] {
+    animation: none;
+  }
+}
+
+dialog.panel-dialog.bang .dialog-head {
+  position: sticky;
+  justify-content: center;
+  padding: 26px 16px 14px;
+  background: linear-gradient(#000 60%, rgba(0, 0, 0, 0));
+  border-bottom: 0;
+}
+
+dialog.panel-dialog.bang .dialog-head h2 {
+  font-size: clamp(22px, 3vw, 30px);
+  color: #e8e2f4;
+  letter-spacing: 0.04em;
+}
+
+dialog.panel-dialog.bang .dialog-close {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  color: #6f6784;
+}
+
+dialog.panel-dialog.bang .dialog-close:hover {
+  color: #e8e2f4;
+}
+
+dialog.panel-dialog.bang .bang-body {
+  position: relative;
+  width: min(940px, 100%);
+  margin: 0 auto;
+  padding: 6px 18px 60px;
+  overflow: visible;
+}
+
+dialog.panel-dialog.bang .bang-top {
+  border: 0;
+  background: none;
+  padding: 6px 0 14px;
+}
+
+dialog.panel-dialog.bang .bang-count b {
+  color: #fff;
+  text-shadow: 0 0 24px rgba(180, 140, 255, 0.55);
+}
+
+dialog.panel-dialog.bang .bang-count,
+dialog.panel-dialog.bang .setting-note,
+dialog.panel-dialog.bang .void-column h3 {
+  color: #6f6784;
+}
+
+dialog.panel-dialog.bang .lo-progress {
+  background: #0d0a14;
+  box-shadow: inset 0 0 0 1px #1c1628;
+}
+
+dialog.panel-dialog.bang .lo-progress i {
+  background: linear-gradient(90deg, #b48cff, #ffd98a);
+}
+
+dialog.panel-dialog.bang .void-node {
+  border: 1px solid #17121f;
+  border-radius: 4px;
+  background: #050408;
+  color: #6f6784;
+  box-shadow: none;
+}
+
+dialog.panel-dialog.bang .void-node b {
+  color: #cfc8dc;
+}
+
+dialog.panel-dialog.bang .void-node em {
+  color: #8a6fd0;
+}
+
+dialog.panel-dialog.bang .void-node.locked {
+  opacity: 1;
+  border-color: #0e0b14;
+}
+
+dialog.panel-dialog.bang .void-node.locked b,
+dialog.panel-dialog.bang .void-node.locked span,
+dialog.panel-dialog.bang .void-node.locked em {
+  color: #544c68;
+}
+
+dialog.panel-dialog.bang .void-node.affordable {
+  border-color: #b48cff;
+  box-shadow: 0 0 22px rgba(180, 140, 255, 0.28), inset 0 0 18px rgba(180, 140, 255, 0.08);
+}
+
+dialog.panel-dialog.bang .void-node.affordable b {
+  color: #fff;
+}
+
+dialog.panel-dialog.bang .void-node.affordable:hover {
+  background: #0d0916;
+}
+
+dialog.panel-dialog.bang .void-node.owned {
+  border-color: #3b2f58;
+  background: #0a0711;
+}
+
+dialog.panel-dialog.bang .void-node.owned b {
+  color: #b48cff;
+}
+
+dialog.panel-dialog.bang .void-node.owned em {
+  color: #6f6784;
+}
+
+/* After a Big Bang there is one way out of the dark, and it is the only bright thing in it. */
+dialog.panel-dialog.bang .bang-start {
+  display: none;
+}
+
+dialog.panel-dialog.bang.arrived .bang-start {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 34px 16px 22px;
+  background: linear-gradient(rgba(0, 0, 0, 0), #000 55%);
+  pointer-events: none;
+}
+
+dialog.panel-dialog.bang.arrived .bang-start button {
+  pointer-events: auto;
+  box-shadow: 0 0 34px rgba(255, 217, 138, 0.45);
+}
+
+dialog.panel-dialog.bang.arrived .dialog-close {
+  display: none;
+}
+
+dialog.panel-dialog.bang.arrived .bang-body {
+  padding-bottom: 20px;
+}
+
+/* ---------- the end ----------
+   The last universe: the pub, you, and one pint. Everything else is out of sight (still there,
+   so nothing moves): the shop, the counters, the buttons, the tags. */
+/* The shop goes altogether, so the pub has the whole window and you sit in the middle of it. */
+#app.finale .store {
+  display: none;
+}
+
+#app.finale .layout {
+  grid-template-columns: minmax(0, 1fr) 0;
+}
+
+#app.finale .stage {
+  height: 100dvh;
+}
+
+#app.finale .hud-top,
+#app.finale .hud-bottom,
+#app.finale .buffs,
+#app.finale .streak,
+#app.finale .toasts,
+#app.finale .free-rounds,
+#app.finale .popups,
+#app.finale .debug-tab {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.2s;
+}
+
+#app.finale .hint {
+  display: block;
+}
+
+#app.finale .hint[hidden] {
+  display: none;
+}
+
+dialog.panel-dialog.the-end[open] {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color: #e8e2f4;
+  box-shadow: none;
+  animation: void-in 3s ease-out;
+}
+
+dialog.panel-dialog.the-end::backdrop {
+  background: #000;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.end-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: min(30em, calc(100% - 48px));
+  text-align: center;
+}
+
+.end-body h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(44px, 9vw, 88px);
+  line-height: 1;
+  color: #fbe9c4;
+}
+
+.end-line {
+  margin: 0;
+  font-size: clamp(17px, 2.4vw, 22px);
+  line-height: 1.4;
+}
+
+.end-stats {
+  margin: 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: #6f6784;
+}
+
+.end-thanks {
+  margin: 0;
+  font-size: 15px;
+  color: #cfc8dc;
+}
+
+.end-body .ring-bell {
+  margin-top: 10px;
+}

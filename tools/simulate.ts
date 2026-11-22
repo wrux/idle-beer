@@ -8,6 +8,7 @@
  *   npm run simulate -- 0.5 1e70        # the whole of a first run: the late game needs checking too
  *   npm run simulate -- 0.25 1e15 4     # four runs with Last Orders in between
  *   npm run simulate -- 0.5 1e15 600    # as many runs as it takes to buy the whole Local Legend tree
+ *   npm run simulate -- 0.5 1e15 2000 12 # …and on through twelve Big Bangs, spending Black Hole Beers as they come
  *
  * Multi-run strategy: call Last Orders once it would at least double your total mats
  * (and pay 10+), then spend up to half your mats on the cheapest Licence nodes.
@@ -17,11 +18,13 @@ import {
   availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, costOf, drinkTime, earn, invalidate,
   nextRound, pintsPerDrink, pubsForSale, refillTime, storeVisibility, totalPps,
 } from '../src/core/economy';
+import { bigBang, buyVoid, canBang, collectLiveMats, voidStatus } from '../src/core/bang';
 import { autoCycleSeconds } from '../src/core/drinking';
+import { VOID_TREE } from '../src/data/bang';
 import { format } from '../src/core/format';
 import { mods } from '../src/core/licenceState';
 import { D, Decimal } from '../src/core/num';
-import { buyLicence, lastOrders, licenceStatus, matsOnReset } from '../src/core/prestige';
+import { autoBuyLegend, buyLicence, lastOrders, licenceCost, licenceStatus, matsOnReset } from '../src/core/prestige';
 import { newGame, owned, type GameState } from '../src/core/state';
 import { checkAchievements } from '../src/data/achievements';
 import { beerAt } from '../src/data/beers';
@@ -31,6 +34,8 @@ import { LICENCE } from '../src/data/licence';
 const activity = Number(process.argv[2] ?? 1); // fraction of time spent holding to drink
 const target = D(process.argv[3] ?? '1e15');
 const runs = Number(process.argv[4] ?? 1);
+/** Stop after this many Big Bangs (0 = never end the universe: just keep calling Last Orders). */
+const bangs = Number(process.argv[5] ?? 0);
 const MAX_RUN_SECONDS = 12 * 60 * 60;
 
 // Physical drink cycle: lift to the lips, drain, put down, pour.
@@ -151,6 +156,10 @@ function playRun(s: GameState, stop: (s: GameState) => boolean, verbose: boolean
     earn(s, inc.mul(step));
     s.drinks += (activity * step) / cycleTime(s);
     t += step;
+    s.universeSeconds += step;
+    // No More Mornings: mats arrive as you go, and are spent as you go.
+    if (mods(s).liveMats && collectLiveMats(s, matsOnReset(s))) spendMats(s);
+    autoBuyLegend(s);
     if (checkAchievements(s, { pps: totalPps(s), now: new Date(2026, 0, 7, 19) }).length) invalidate();
 
     while (marks.length && s.lifetimePints.gte(marks[0])) {
@@ -169,8 +178,8 @@ function spendMats(s: GameState): string[] {
   const bought: string[] = [];
   for (;;) {
     const node = LICENCE
-      .filter((n) => licenceStatus(s, n.id) === 'available' && s.beerMats.sub(n.cost).gte(keep))
-      .sort((a, b) => a.cost.cmp(b.cost))[0];
+      .filter((n) => licenceStatus(s, n.id) === 'available' && s.beerMats.sub(licenceCost(s, n)).gte(keep))
+      .sort((a, b) => licenceCost(s, a).cmp(licenceCost(s, b)))[0];
     if (!node || !buyLicence(s, node.id)) break;
     bought.push(node.name);
   }
@@ -197,16 +206,32 @@ if (runs <= 1) {
   console.log('run     length   total time  drunk this run        mats in all  perks  bought');
   let total = 0;
   for (let run = 1; run <= runs; run++) {
-    // Prestige once it would at least double your mats (and pay at least 10).
+    // Prestige once it would at least double your mats (and pay at least 10), or the universe is dry.
     const stop = (x: GameState) => {
+      if (bangs > 0 && canBang(x)) return true;
       const gain = matsOnReset(x);
       return gain.gte(10) && gain.gte(x.matsEarned);
     };
     const r = playRun(s, stop, false);
     total += r.seconds;
     const drunk = s.lifetimePints;
+    if (bangs > 0 && canBang(s)) {
+      const lasted = s.universeSeconds;
+      const gained = bigBang(s);
+      // Spend Black Hole Beers on whatever is cheapest, a column at a time.
+      const bought: string[] = [];
+      for (;;) {
+        const node = VOID_TREE.filter((n) => voidStatus(s, n.id) === 'available' && s.voidBeers >= n.cost).sort((a, b) => a.cost - b.cost)[0];
+        if (!node || !buyVoid(s, node.id)) break;
+        bought.push(node.name);
+      }
+      console.log(`  BIG BANG ${s.bangs}: universe lasted ${fmtTime(lasted)} · +${gained} Black Hole Beers (${s.voidEarned} in all) · total ${fmtTime(total)} · bought ${bought.join(', ') || '-'}`);
+      if (s.bangs >= bangs) break;
+      continue;
+    }
     lastOrders(s);
     const bought = spendMats(s);
+    s.afterHours = false; // straight back to the pub
     const names = [...new Set(bought)];
     console.log(
       `${String(run).padStart(3)}  ${fmtTime(r.seconds).padStart(9)}  ${fmtTime(total).padStart(11)}  ${format(drunk).padStart(14)}  ` +

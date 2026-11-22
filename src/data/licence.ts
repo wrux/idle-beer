@@ -101,7 +101,29 @@ export type LicenceEffect =
   /** Beer Mats give no bonus. */
   | { kind: 'noMats' }
   /** Each mat's bonus ×mult. */
-  | { kind: 'matRateMult'; mult: number };
+  | { kind: 'matRateMult'; mult: number }
+  // ----- after the Big Bang (data/bang.ts) -----
+  /** A drinker's price goes up by this ratio each time (1.15 without it). The lowest owned applies. */
+  | { kind: 'costRatio'; ratio: number }
+  /** Upgrades cost nothing. */
+  | { kind: 'freeShop' }
+  /** Beer Mats arrive as you drink, and the tree can be bought at any time. */
+  | { kind: 'liveMats' }
+  /** The steps of the long lines cost the square root of their price. */
+  | { kind: 'sqrtLines' }
+  /** More Black Hole Beers from each Big Bang. */
+  | { kind: 'bangBonus'; add: number }
+  /** The universe runs dry at 10^exponent pints. The lowest owned applies. */
+  | { kind: 'bangGoal'; exponent: number }
+  /** Everything ×base for each Black Hole Beer held. */
+  | { kind: 'voidPower'; base: number }
+  /** Local Legend perks are bought for you as soon as the mats are there. */
+  | { kind: 'autoLegend' };
+
+/** How much dearer each drinker is than the last of its kind, unless a perk says otherwise. */
+export const BASE_COST_RATIO = 1.15;
+/** Pints in a night for the universe to run dry: 10^this. */
+export const BASE_BANG_GOAL = 100;
 
 /** The most Cellar-Aged can add: +1,000%. */
 export const AGED_CAP = 10;
@@ -505,6 +527,14 @@ export interface LicenceMods {
   noDrinkers: boolean;
   noMats: boolean;
   matRateMult: number;
+  costRatio: number;
+  freeShop: boolean;
+  liveMats: boolean;
+  sqrtLines: boolean;
+  bangBonus: number;
+  bangGoal: number;
+  voidPower: number;
+  autoLegend: boolean;
 }
 
 export const BASE_MAT_RATE = 0.01;
@@ -522,6 +552,8 @@ export function baseMods(): LicenceMods {
     plusOne: false, keepDrinkers: 0, aged: 0, beerHappyHour: false, doubleRounds: false, stackBuffs: false,
     autoRounds: false, whipRound: 0, autoFull: false, streakHalf: false, pendingMats: false, perkRate: 0,
     noHand: false, noBeer: false, noUpgrades: false, noDrinkers: false, noMats: false, matRateMult: 1,
+    costRatio: BASE_COST_RATIO, freeShop: false, liveMats: false, sqrtLines: false, bangBonus: 0,
+    bangGoal: BASE_BANG_GOAL, voidPower: 1, autoLegend: false,
   };
 }
 
@@ -584,6 +616,14 @@ export function applyEffect(m: LicenceMods, e: LicenceEffect): void {
     case 'noDrinkers': m.noDrinkers = true; break;
     case 'noMats': m.noMats = true; break;
     case 'matRateMult': m.matRateMult *= e.mult; break;
+    case 'costRatio': m.costRatio = Math.min(m.costRatio, e.ratio); break;
+    case 'freeShop': m.freeShop = true; break;
+    case 'liveMats': m.liveMats = true; break;
+    case 'sqrtLines': m.sqrtLines = true; break;
+    case 'bangBonus': m.bangBonus += e.add; break;
+    case 'bangGoal': m.bangGoal = Math.min(m.bangGoal, e.exponent); break;
+    case 'voidPower': m.voidPower = Math.max(m.voidPower, e.base); break;
+    case 'autoLegend': m.autoLegend = true; break;
   }
 }
 

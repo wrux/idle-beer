@@ -2,6 +2,9 @@
  * Ready-made saves for the debug dialog (?debug): the game at particular moments, so a screen
  * that takes hours to reach can be looked at straight away.
  */
+import { startFinale } from '../core/bang';
+import { invalidate, totalPps } from '../core/economy';
+import { VOID_TREE } from '../data/bang';
 import { D } from '../core/num';
 import { newGame, type GameState } from '../core/state';
 import { DRINKERS } from '../data/drinkers';
@@ -123,6 +126,96 @@ export const SCENARIOS: Scenario[] = [
       s.bestStreak = 120;
       s.freeRounds = 4_000;
       s.playSeconds = 400 * 3600;
+      return s;
+    },
+  },
+  {
+    id: 'before-bang',
+    name: 'Just before the Big Bang',
+    desc: 'A night at 9.5e99 pints, drinking fast enough to reach 1e100, where the universe ends by itself, in about ten seconds.',
+    build(now) {
+      const s = newGame(now);
+      s.prestiges = 60;
+      s.pastRunsPints = D('1e95');
+      s.licence = licenceTo(5);
+      s.drinks = 500_000;
+      s.drinkers = crowd(18, 900, 600);
+      s.beer = 26;
+      s.pubs = pubsTo('multiverse');
+      s.pub = 'multiverse';
+      s.bestStreak = 150;
+      s.freeRounds = 6_000;
+      s.playSeconds = 9 * 3600;
+      s.universeSeconds = 9 * 3600;
+      s.pints = D('9.5e99');
+      s.lifetimePints = D('9.5e99');
+      // Enough unspent mats for the crowd to drink the last 5e98 pints in about ten seconds.
+      // (Measured with a known pile of mats, then scaled: the bonus is as good as proportional to them.)
+      s.matsEarned = D('1e80');
+      s.beerMats = D('1e60');
+      invalidate();
+      s.beerMats = D('1e60').mul(D('5e97').div(totalPps(s)));
+      invalidate();
+      return s;
+    },
+  },
+  {
+    id: 'after-bang',
+    name: 'A new universe, Black Hole Beers to spend',
+    desc: 'Three Big Bangs in: 12 Black Hole Beers in hand, the first perks bought, a Happy Hour and a special running, and the top bar as full as it gets.',
+    build(now) {
+      const s = newGame(now);
+      s.bangs = 3;
+      s.voidEarned = 16;
+      s.voidBeers = 12;
+      s.voidTree = new Set(['matter-1', 'time-1', 'singularity-1']);
+      s.prestiges = 90;
+      s.drinks = 600_000;
+      s.playSeconds = 10 * 3600;
+      s.universeSeconds = 30;
+      s.fastestUniverse = 95;
+      s.beerMats = D(5e26);
+      s.matsEarned = D(8e26);
+      s.lifetimePints = D('1e80');
+      s.special = 'two-for-one';
+      s.buffs = [{ kind: 'happyHour', remaining: 70 }];
+      return s;
+    },
+  },
+  {
+    id: 'one-to-go',
+    name: 'One perk from the end',
+    desc: 'Every Black Hole Beer perk bought but The Last Pint of All, and the 7 beers to buy it. It opens on the Big Bang screen: buy it, then start the next universe.',
+    build(now) {
+      const s = newGame(now);
+      s.bangs = 23;
+      s.voidEarned = 100;
+      s.voidBeers = 7;
+      s.voidTree = new Set(VOID_TREE.filter((n) => n.id !== 'last-pint').map((n) => n.id));
+      s.prestiges = 120;
+      s.drinks = 700_000;
+      s.playSeconds = 14 * 3600;
+      // A universe only just begun, and the Big Bang screen up: nothing happens until you choose.
+      s.universeSeconds = 0;
+      s.fastestUniverse = 48;
+      s.voidOpen = true;
+      return s;
+    },
+  },
+  {
+    id: 'last-pint',
+    name: 'The last pint',
+    desc: 'Every Black Hole Beer perk bought and the last universe started: alone in the pub, one pint to drink by hand, and then the end.',
+    build(now) {
+      const s = newGame(now);
+      s.bangs = 24;
+      s.voidEarned = 100;
+      s.voidTree = new Set(VOID_TREE.map((n) => n.id));
+      s.prestiges = 120;
+      s.drinks = 700_000;
+      s.playSeconds = 14 * 3600;
+      s.fastestUniverse = 48;
+      startFinale(s, now);
       return s;
     },
   },

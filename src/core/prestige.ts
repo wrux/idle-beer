@@ -2,7 +2,7 @@
  * Last Orders (DESIGN.md §6): reset the run for Beer Mats, which boost everything
  * and buy permanent Landlord's Licence nodes.
  */
-import { LICENCE_BY_ID } from '../data/licence';
+import { LICENCE_BY_ID, type LicenceNode } from '../data/licence';
 import { UPGRADE_BY_ID } from '../data/upgrades';
 import { DRINKERS } from '../data/drinkers';
 import { invalidate, matBonus } from './economy';
@@ -85,6 +85,25 @@ export function lastOrders(s: GameState, now = Date.now()): Decimal {
   return gained;
 }
 
+/**
+ * Legend in Your Sleep (a Black Hole Beer perk): buy whatever of the tree the mats will stretch
+ * to, cheapest first, a handful at a time. Returns how many were bought.
+ */
+export function autoBuyLegend(s: GameState, most = 20): number {
+  if (!mods(s).autoLegend) return 0;
+  let bought = 0;
+  while (bought < most) {
+    let pick: LicenceNode | null = null;
+    for (const node of LICENCE_BY_ID.values()) {
+      if (licenceStatus(s, node.id) !== 'available') continue;
+      if (!pick || licenceCost(s, node).lt(licenceCost(s, pick))) pick = node;
+    }
+    if (!pick || !buyLicence(s, pick.id)) break;
+    bought++;
+  }
+  return bought;
+}
+
 export type LicenceStatus = 'owned' | 'available' | 'locked';
 
 export function licenceStatus(s: GameState, id: string): LicenceStatus {
@@ -94,10 +113,16 @@ export function licenceStatus(s: GameState, id: string): LicenceStatus {
   return node.requires === null || s.licence.has(node.requires) ? 'available' : 'locked';
 }
 
+/** What a node costs this player: its price, or for a step of a long line with Spaghettification, the square root of it. */
+export const licenceCost = (s: GameState, node: LicenceNode): Decimal =>
+  node.rank && mods(s).sqrtLines ? node.cost.sqrt().ceil() : node.cost;
+
 export function buyLicence(s: GameState, id: string): boolean {
   const node = LICENCE_BY_ID.get(id);
-  if (!node || licenceStatus(s, id) !== 'available' || s.beerMats.lt(node.cost)) return false;
-  s.beerMats = s.beerMats.sub(node.cost);
+  if (!node || licenceStatus(s, id) !== 'available') return false;
+  const cost = licenceCost(s, node);
+  if (s.beerMats.lt(cost)) return false;
+  s.beerMats = s.beerMats.sub(cost);
   s.licence.add(id);
   invalidate();
   return true;

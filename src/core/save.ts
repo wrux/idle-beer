@@ -2,6 +2,7 @@ import { BEERS } from '../data/beers';
 import { DRINKERS } from '../data/drinkers';
 import { BUFFS, type BuffKind } from './events';
 import { ACHIEVEMENT_BY_ID } from '../data/achievements';
+import { VOID_BY_ID } from '../data/bang';
 import { LICENCE_BY_ID } from '../data/licence';
 import { CHALLENGE_BY_ID, SPECIAL_BY_ID, SPECIALS_OFFERED } from '../data/nights';
 import { LOCATIONS, LOCATION_BY_ID, locationIndex } from '../data/locations';
@@ -92,6 +93,7 @@ export function serialize(state: GameState): string {
     achievements: [...state.achievements],
     licence: [...state.licence],
     challengesDone: [...state.challengesDone],
+    voidTree: [...state.voidTree],
   }));
 }
 
@@ -159,6 +161,17 @@ export function deserialize(text: string, now = Date.now()): GameState {
   }
   if (typeof raw.challenge === 'string' && CHALLENGE_BY_ID.has(raw.challenge)) s.challenge = raw.challenge;
   s.challengeBase = toDecimal(raw.challengeBase);
+  const count = (n: unknown): number => (Number.isFinite(n) && (n as number) > 0 ? Math.floor(n as number) : 0);
+  s.voidBeers = count(raw.voidBeers);
+  s.voidEarned = Math.max(count(raw.voidEarned), s.voidBeers);
+  s.bangs = count(raw.bangs);
+  if (Array.isArray(raw.voidTree)) for (const id of raw.voidTree) if (VOID_BY_ID.has(id)) s.voidTree.add(id);
+  // Play time before this field existed all counts towards the first universe.
+  s.universeSeconds = Number.isFinite(raw.universeSeconds) && raw.universeSeconds >= 0 ? raw.universeSeconds : s.playSeconds;
+  s.voidOpen = raw.voidOpen === true;
+  s.finished = raw.finished === true;
+  s.finale = raw.finale === true && !s.finished && s.voidTree.has('last-pint');
+  s.fastestUniverse = Number.isFinite(raw.fastestUniverse) && raw.fastestUniverse > 0 ? raw.fastestUniverse : 0;
   s.kegs = toDecimal(raw.kegs);
   s.runStartedAt = Number.isFinite(raw.runStartedAt) ? raw.runStartedAt : s.startedAt;
   for (const k of ['upgrades', 'drinkers', 'beer'] as const) {

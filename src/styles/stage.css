@@ -428,16 +428,19 @@ select:focus-visible,
 
 /* ---------- buffs ---------- */
 
+/* Timed rewards and the night's tags sit along the front of the bar, above the row of tags at the
+   bottom. They used to be top centre, where they ran under the buttons once Last Orders and the
+   Big Bang had joined the top bar. */
 .buffs {
   position: absolute;
-  top: 16px;
+  bottom: 88px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
-  max-width: 40%;
+  max-width: 80%;
   pointer-events: none;
 }
 
@@ -718,7 +721,6 @@ select:focus-visible,
     padding: 3px 10px 3px 7px;
   }
   .buffs {
-    top: auto;
     bottom: 96px;
     max-width: 94%;
   }

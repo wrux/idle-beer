@@ -377,11 +377,17 @@
                 <div class="pints-label" id="pints-label" data-i18n>pints</div>
               </div>
               <div class="pps"><b id="pps">0</b> <span data-i18n>per second</span></div>
+              <div class="bang-meter" id="bang-meter" hidden>
+                <span class="bang-ico" aria-hidden="true"></span><span class="bang-track"><i id="bang-meter-bar"></i></span><b id="bang-meter-text"></b><span class="bang-clock" id="bang-meter-clock"></span>
+              </div>
               <div class="mats" id="mats" hidden><i class="mat-ico" aria-hidden="true"></i><b id="mats-count">0</b> <span data-i18n>Beer Mats</span> · <span id="mats-bonus"></span></div>
             </div>
             <div class="topbar-actions">
               <button type="button" id="open-last-orders" class="last-orders-button with-badge" aria-label="Last Orders" hidden data-i18n-attr="aria-label">
                 <svg class="ico"><use href="#i-bell" /></svg><span class="lo-text" data-i18n>Last Orders</span><span class="badge" id="last-orders-badge" hidden></span>
+              </button>
+              <button type="button" id="open-bang" class="icon-button with-badge bang-button" aria-label="The Big Bang" title="The Big Bang" hidden data-i18n-attr="aria-label title">
+                <span class="bang-ico" aria-hidden="true"></span><span class="badge" id="bang-badge" hidden></span>
               </button>
               <button type="button" id="open-achievements" class="icon-button with-badge" aria-label="Achievements" title="Achievements" data-i18n-attr="aria-label title">
                 <svg class="ico"><use href="#i-trophy" /></svg><span class="badge" id="achievement-badge" hidden></span>
@@ -490,6 +496,43 @@
         <p class="dialog-sub" id="achievements-summary"></p>
         <div class="achievement-detail" id="achievement-detail"></div>
         <div class="achievement-grid" id="achievement-grid"></div>
+      </dialog>
+
+      <dialog class="panel-dialog the-end" id="end-dialog" aria-labelledby="end-title">
+        <div class="end-body">
+          <h2 id="end-title" data-i18n>The End</h2>
+          <p class="end-line" id="end-line"></p>
+          <p class="end-stats" id="end-stats"></p>
+          <p class="end-thanks" data-i18n>Thanks for playing.</p>
+          <button type="button" id="end-restart" class="ring-bell" data-i18n>Start again</button>
+        </div>
+      </dialog>
+
+      <dialog class="panel-dialog wide bang" id="bang-dialog" aria-labelledby="bang-title">
+        <header class="dialog-head">
+          <h2 id="bang-title" data-i18n>The Big Bang</h2>
+          <button type="button" class="icon-button dialog-close" aria-label="Close" data-i18n-attr="aria-label">✕</button>
+        </header>
+        <div class="bang-body">
+          <section class="bang-top">
+            <div class="bang-count"><span class="bang-ico" aria-hidden="true"></span><b id="bang-beers">0</b><span data-i18n>Black Hole Beers</span></div>
+            <div class="bang-run">
+              <p class="setting-note" id="bang-note"></p>
+              <div class="lo-progress" aria-hidden="true"><i id="bang-bar"></i></div>
+              <p class="setting-note" id="bang-progress"></p>
+              <p class="bang-times" id="bang-times"></p>
+              <p class="setting-note" data-i18n>
+                Beer Mats, your legend and everything from tonight go. Achievements, challenge prizes and Black Hole
+                Beers stay. One more Black Hole Beer if the universe lasted under 2 hours of play, and another under
+                20 minutes.
+              </p>
+            </div>
+          </section>
+          <div class="bang-grid" id="bang-grid"></div>
+        </div>
+        <footer class="bang-start">
+          <button type="button" id="bang-start" class="ring-bell" data-i18n>Start the next universe</button>
+        </footer>
       </dialog>
 
       <dialog class="panel-dialog wide lo" id="last-orders-dialog" aria-labelledby="last-orders-title">
