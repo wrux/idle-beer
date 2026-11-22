@@ -1,5 +1,6 @@
 import './styles/main.css';
 import './styles/theme.css';
+import './styles/phone.css';
 import { newDrinkState, stepDrink } from './core/drinking';
 import {
   availableUpgrades, buyDrinker, buyNextRound, buyPub, buyUpgrade, currentBeer, drinkerPpsEach, drinkTime, earn,
